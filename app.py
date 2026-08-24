@@ -2838,18 +2838,41 @@ def chatbot():
                 "reply": reply
             })
 
-                # =====================================================
-        # MY ORDERS / TANKER STATUS
+                  # =====================================================
+        # MY ORDERS / TANKER / DELIVERY STATUS
         # =====================================================
 
-        if (
+        order_query = (
             "my order" in text
             or "my orders" in text
             or "order status" in text
-            or "where is my tanker" in text
-            or "tanker status" in text
-            or "delivery status" in text
             or "where is my order" in text
+            or "how much water did i order" in text
+            or "how much did i order" in text
+            or "what quantity did i order" in text
+            or "how many kld did i order" in text
+            or "what is my order quantity" in text
+        )
+
+        tanker_query = (
+            "where is my tanker" in text
+            or "tanker status" in text
+            or "has my tanker been assigned" in text
+            or "is my tanker assigned" in text
+        )
+
+        delivery_query = (
+            "delivery status" in text
+            or "what is my delivery status" in text
+            or "where is my delivery" in text
+            or "when will my delivery arrive" in text
+            or "when will my order arrive" in text
+        )
+
+        if (
+            order_query
+            or tanker_query
+            or delivery_query
         ):
 
             user_id = session.get("user_id")
@@ -2864,8 +2887,9 @@ def chatbot():
                 or session.get("user_phone")
             )
 
-
-            # User must be logged in
+            # -------------------------------------------------
+            # USER MUST BE LOGGED IN
+            # -------------------------------------------------
 
             if not user_id:
 
@@ -2876,12 +2900,11 @@ def chatbot():
                     )
                 })
 
-
             orders = []
 
-
-            # Read the same orders file used
-            # by the existing application
+            # -------------------------------------------------
+            # LOAD USER'S ORDERS
+            # -------------------------------------------------
 
             if os.path.exists(ORDERS_FILE):
 
@@ -2918,7 +2941,6 @@ def chatbot():
                             == buyer_phone
                         )
 
-
                         if (
                             matches_user
                             or matches_legacy
@@ -2926,8 +2948,9 @@ def chatbot():
 
                             orders.append(row)
 
-
-            # No orders
+            # -------------------------------------------------
+            # NO ORDERS
+            # -------------------------------------------------
 
             if not orders:
 
@@ -2938,8 +2961,9 @@ def chatbot():
                     )
                 })
 
-
-            # Most recent order first
+            # -------------------------------------------------
+            # MOST RECENT ORDER
+            # -------------------------------------------------
 
             orders.sort(
                 key=lambda x:
@@ -2947,9 +2971,7 @@ def chatbot():
                 reverse=True
             )
 
-
             latest = orders[0]
-
 
             order_id = (
                 latest.get("order_id")
@@ -2976,75 +2998,203 @@ def chatbot():
                 or "Unknown"
             )
 
+            # =================================================
+            # QUANTITY QUESTION
+            # =================================================
+
+            if (
+                "how much water did i order" in text
+                or "how much did i order" in text
+                or "what quantity did i order" in text
+                or "how many kld did i order" in text
+                or "what is my order quantity" in text
+            ):
+
+                return jsonify({
+                    "reply": (
+                        f"Your latest order {order_id} "
+                        f"is for {quantity} KLD of treated "
+                        f"wastewater from {stp_name}."
+                    )
+                })
 
             # =================================================
-            # STATUS-SPECIFIC RESPONSE
+            # TANKER QUESTION
+            # =================================================
+
+            if tanker_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"🚚 Your tanker has not been "
+                        f"assigned yet.\n\n"
+                        f"Order {order_id} is still awaiting "
+                        f"STP approval."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"🚚 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"The order is currently waiting "
+                        f"for tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently Out for Delivery.\n\n"
+                        f"STP: {stp_name}\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has "
+                        f"already been delivered.\n\n"
+                        f"The tanker delivery is complete."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your order {order_id} was rejected, "
+                        f"so a tanker has not been assigned."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # DELIVERY QUESTION
+            # =================================================
+
+            if delivery_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"📦 Your delivery has not started yet.\n\n"
+                        f"Order {order_id} is awaiting "
+                        f"STP approval. A tanker will be "
+                        f"available after the order is accepted."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"📦 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"It is currently waiting for "
+                        f"tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently out for delivery.\n\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has been "
+                        f"delivered successfully."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your delivery cannot proceed because "
+                        f"order {order_id} was rejected."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # GENERAL ORDER STATUS
             # =================================================
 
             if status == "Pending":
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} is currently Pending. "
+                    f"Your latest order {order_id} "
+                    f"is currently Pending. "
                     f"It is awaiting STP approval."
                 )
-
 
             elif status == "Accepted":
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} has been Accepted "
-                    f"by {stp_name}. "
+                    f"Your latest order {order_id} "
+                    f"has been Accepted by {stp_name}. "
                     f"It is waiting for tanker pickup."
                 )
-
 
             elif status == "Out for Delivery":
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} is Out for Delivery 🚚.\n\n"
+                    f"Your latest order {order_id} "
+                    f"is Out for Delivery 🚚.\n\n"
                     f"STP: {stp_name}\n"
                     f"Quantity: {quantity} KLD\n"
                     f"Delivery location: {location}"
                 )
 
-
             elif status == "Delivered":
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} has been Delivered ✅.\n\n"
+                    f"Your latest order {order_id} "
+                    f"has been Delivered ✅.\n\n"
                     f"STP: {stp_name}\n"
                     f"Quantity: {quantity} KLD"
                 )
 
-
             elif status == "Rejected":
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} was Rejected.\n\n"
+                    f"Your latest order {order_id} "
+                    f"was Rejected.\n\n"
                     f"If you want, I can help you "
-                    f"understand the ordering process "
-                    f"or find another suitable STP."
+                    f"find another suitable STP."
                 )
-
 
             else:
 
                 reply = (
-                    f"Your latest order "
-                    f"{order_id} has status: "
-                    f"{status}."
+                    f"Your latest order {order_id} "
+                    f"has status: {status}."
                 )
-
 
             return jsonify({
                 "reply": reply
             })
-                # =====================================================
+        # =====================================================
         # NEAREST STP
         # =====================================================
 
@@ -3180,7 +3330,7 @@ def chatbot():
                 "reply": reply
             })
 
-                # =====================================================
+        # =====================================================
         # SMART STP RECOMMENDATION
         # =====================================================
 
@@ -3454,14 +3604,8 @@ def chatbot():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
 
-    import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-
     app.run(
         host="0.0.0.0",
         port=port,
         threaded=True
-    )
-
+    )   
