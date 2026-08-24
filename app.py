@@ -2658,6 +2658,30 @@ def chatbot():
         # Convert to lowercase for intent detection
         text = message.lower()
 
+                # =====================================================
+        # EXTRACT REQUIRED WATER QUANTITY
+        # =====================================================
+
+        import re
+
+        requested_kld = None
+
+        quantity_match = re.search(
+            r'(\d+(?:\.\d+)?)\s*(kld|kl|litres?|liters?)',
+            text
+        )
+
+        if quantity_match:
+
+            quantity = float(quantity_match.group(1))
+            unit = quantity_match.group(2)
+
+            if unit in {"litre", "litres", "liter", "liters"}:
+                requested_kld = quantity / 1000
+
+            else:
+                requested_kld = quantity
+
 
         # =====================================================
         # GET CURRENT USER ROLE
@@ -3150,6 +3174,248 @@ def chatbot():
                 f"Available capacity: "
                 f"{available_capacity} MLD."
             )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+                # =====================================================
+        # SMART STP RECOMMENDATION
+        # =====================================================
+
+        recommendation_words = [
+            "which stp should i choose",
+            "which stp should i select",
+            "which stp is best",
+            "recommend an stp",
+            "recommend a stp",
+            "find an stp",
+            "suitable stp",
+            "best stp",
+            "stp for me",
+            "stp for my requirement",
+            "need an stp"
+        ]
+
+        has_recommendation_intent = any(
+            phrase in text
+            for phrase in recommendation_words
+        )
+
+        if (
+            has_recommendation_intent
+            and requested_kld is not None
+        ):
+
+            # -------------------------------------------------
+            # USER LOCATION REQUIRED
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to recommend "
+                        "the nearest suitable STP. Please "
+                        "allow location access and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # LOAD STP DATA
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # FIND SUITABLE STPs
+            # -------------------------------------------------
+
+            suitable_stps = []
+
+
+            for stp in stps:
+
+                try:
+
+                    available_mld = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    available_kld = (
+                        available_mld * 1000
+                    )
+
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                # -------------------------------------------------
+                # CAPACITY CHECK
+                # -------------------------------------------------
+
+                if available_kld < requested_kld:
+                    continue
+
+
+                # -------------------------------------------------
+                # DISTANCE
+                # -------------------------------------------------
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                stp_name = (
+                    stp.get("name")
+                    or stp.get("stp_name")
+                    or stp.get("stp_id")
+                    or "Unnamed STP"
+                )
+
+
+                suitable_stps.append({
+
+                    "name": stp_name,
+
+                    "stp_id": stp.get(
+                        "stp_id",
+                        ""
+                    ),
+
+                    "distance": distance,
+
+                    "available_kld": available_kld,
+
+                    "quality": stp.get(
+                        "quality_grade",
+                        "Unknown"
+                    ),
+
+                    "water_type": stp.get(
+                        "water_type",
+                        "Unknown"
+                    )
+
+                })
+
+
+            # -------------------------------------------------
+            # NO SUITABLE STP
+            # -------------------------------------------------
+
+            if not suitable_stps:
+
+                return jsonify({
+                    "reply": (
+                        f"I couldn't find an STP near you "
+                        f"with at least {requested_kld:g} KLD "
+                        f"of available capacity."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # SORT BY DISTANCE
+            # -------------------------------------------------
+
+            suitable_stps.sort(
+                key=lambda x: x["distance"]
+            )
+
+
+            # -------------------------------------------------
+            # TOP 3 OPTIONS
+            # -------------------------------------------------
+
+            top_stps = suitable_stps[:3]
+
+            best = top_stps[0]
+
+
+            # -------------------------------------------------
+            # BUILD RESPONSE
+            # -------------------------------------------------
+
+            reply = (
+                f"I found {len(suitable_stps)} suitable "
+                f"STP(s) for your requirement of "
+                f"{requested_kld:g} KLD.\n\n"
+            )
+
+
+            reply += (
+                f"🏆 Recommended: {best['name']}\n"
+                f"Distance: {best['distance']:.2f} km\n"
+                f"Available capacity: "
+                f"{best['available_kld']:.0f} KLD\n"
+            )
+
+
+            if best["quality"] != "Unknown":
+
+                reply += (
+                    f"Quality: {best['quality']}\n"
+                )
+
+
+            if best["water_type"] != "Unknown":
+
+                reply += (
+                    f"Water type: {best['water_type']}\n"
+                )
+
+
+            # -------------------------------------------------
+            # ALTERNATIVES
+            # -------------------------------------------------
+
+            if len(top_stps) > 1:
+
+                reply += "\nOther suitable options:\n"
+
+                for index, stp in enumerate(
+                    top_stps[1:],
+                    start=2
+                ):
+
+                    reply += (
+                        f"{index}. {stp['name']} — "
+                        f"{stp['distance']:.2f} km away, "
+                        f"{stp['available_kld']:.0f} KLD available\n"
+                    )
 
 
             return jsonify({
