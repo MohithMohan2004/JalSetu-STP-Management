@@ -945,145 +945,7 @@ body {
 }
 
 
-/* =========================================================
-   HELP
-========================================================= */
 
-#helpBtn {
-
-    position: fixed;
-
-    right: 25px;
-    bottom: 25px;
-
-    z-index: 2000;
-
-    padding: 11px 17px;
-
-    border: none;
-
-    border-radius: 50px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #2563eb,
-            #20b981
-        );
-
-    color: white;
-
-    font-family: 'Poppins', sans-serif;
-
-    font-size: 11px;
-
-    font-weight: 600;
-
-    cursor: pointer;
-
-    box-shadow:
-        0 8px 20px
-        rgba(0,0,0,.22);
-}
-
-
-#helpPanel {
-
-    position: fixed;
-
-    right: 20px;
-    bottom: 85px;
-
-    z-index: 2000;
-
-    width: 310px;
-
-    max-height: 430px;
-
-    overflow-y: auto;
-
-    display: none;
-
-    padding: 18px;
-
-    background: rgba(13,27,46,.96);
-
-    border: 1px solid #263c56;
-
-    border-radius: 14px;
-
-    color: white;
-
-    box-shadow:
-        0 20px 40px
-        rgba(0,0,0,.3);
-}
-
-
-.help-header {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-}
-
-
-.help-header h3 {
-
-    margin: 0;
-
-    font-size: 14px;
-}
-
-
-.help-header span {
-
-    cursor: pointer;
-
-    font-size: 17px;
-}
-
-
-.help-section {
-
-    margin-top: 15px;
-}
-
-
-.help-section h4 {
-
-    margin: 0 0 6px;
-
-    font-size: 11px;
-
-    color: #78b5ff;
-}
-
-
-.help-section ul {
-
-    margin: 0;
-
-    padding-left: 18px;
-
-    color: #c7d1df;
-
-    font-size: 10px;
-
-    line-height: 1.7;
-}
-
-
-.help-section p {
-
-    margin: 5px 0;
-
-    color: #c7d1df;
-
-    font-size: 10px;
-}
 
 
 /* =========================================================
@@ -1235,13 +1097,7 @@ body {
     }
 
 
-    #helpPanel {
-
-        right: 10px;
-
-        width:
-            calc(100% - 20px);
-    }
+   
 
 }
 
@@ -2412,11 +2268,7 @@ btn.onclick = function(){
 document.getElementById("resultCard").appendChild(btn);
 }
 
-/* ================= HELP TOGGLE ================= */
-function toggleHelp(){
-    const panel = document.getElementById("helpPanel");
-    panel.style.display = panel.style.display === "block" ? "none" : "block";
-}
+
 
 function goToTracking(orderId){
     window.location.href = `/track?order_id=${orderId}`;
@@ -2424,115 +2276,6 @@ function goToTracking(orderId){
 }
 
 </script>
-
-<!-- =====================================================
-     HELP BUTTON
-===================================================== -->
-
-<button
-    id="helpBtn"
-    onclick="toggleHelp()"
->
-    💬 Help
-</button>
-
-
-
-<!-- =====================================================
-     HELP PANEL
-===================================================== -->
-
-<div id="helpPanel">
-
-
-    <div class="help-header">
-
-        <h3>
-            Help Centre
-        </h3>
-
-        <span onclick="toggleHelp()">
-            ✕
-        </span>
-
-    </div>
-
-
-    <div class="help-section">
-
-        <h4>
-            How to Use
-        </h4>
-
-        <ul>
-
-            <li>
-                Enter location or use Live Location
-            </li>
-
-            <li>
-                Enter required KLD
-            </li>
-
-            <li>
-                Select quality & type
-            </li>
-
-            <li>
-                Click Search to find nearest STP
-            </li>
-
-        </ul>
-
-    </div>
-
-
-    <div class="help-section">
-
-        <h4>
-            Order Status
-        </h4>
-
-        <ul>
-
-            <li>
-                ⏳ Pending → Waiting for approval
-            </li>
-
-            <li>
-                ✅ Accepted → STP approved request
-            </li>
-
-            <li>
-                🚛 Out for Delivery → Tanker on the way
-            </li>
-
-        </ul>
-
-    </div>
-
-
-    <div class="help-section">
-
-        <h4>
-            Support
-        </h4>
-
-        <p>
-            📞 +91 9876543210
-        </p>
-
-        <p>
-            📧 support@waterflow.com
-        </p>
-
-    </div>
-
-
-</div>
-
-
-
 
 <!-- =========================================================
      GLOBAL PROFILE / AVATAR / LOGOUT MENU
