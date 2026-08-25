@@ -1002,10 +1002,6 @@ def admin_dashboard():
             reader = csv.DictReader(f)
             orders = list(reader)
 
-
-    return render_template("admin.html", stps=stps, orders=orders)
-
-
     tanker_operators = []
 
     if os.path.exists(TANKER_REGISTRATIONS_FILE):
