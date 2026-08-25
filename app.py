@@ -1367,61 +1367,6 @@ def update_tanker_status(operator_id, status):
                 fieldnames=fieldnames
             )
 
-            writer.writeheader()
-            writer.writerows(rows)
-
-    return redirect("/admin")
-
-# =========================
-# STP APPROVAL
-# =========================
-
-@app.route("/admin/stp/<registration_id>/status/<status>")
-def update_stp_status(registration_id, status):
-
-    # =========================
-    # VALIDATE STATUS
-    # =========================
-
-    if status not in ["approved", "rejected"]:
-        return redirect("/admin")
-
-
-    # =========================
-    # CHECK REGISTRATION FILE
-    # =========================
-
-    if not os.path.exists(STP_REGISTRATIONS_FILE):
-        return redirect("/admin")
-
-
-    # =========================
-    # LOAD REGISTRATIONS
-    # =========================
-
-    with open(
-        STP_REGISTRATIONS_FILE,
-        "r",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        reader = csv.DictReader(f)
-
-        fieldnames = reader.fieldnames
-
-        rows = list(reader)
-
-
-@app.route("/stp_track")
-def stp_track():
-    # Separate tracking page for STP operators.
-    if session.get("role") != "stp":
-        return redirect(url_for("login"))
-
-    return render_template("stp_track.html")
-
-
 @app.route("/api/stp_orders")
 def api_stp_orders():
     # Return only orders assigned to the STP operator's selected STP.
@@ -1500,6 +1445,265 @@ def stp_order_tracking(order_id):
 @app.route("/api/stps")
 def api_stps():
     return jsonify(load_stps())
+
+@app.route("/admin/stp/<registration_id>/status/<status>")
+def update_stp_status(registration_id, status):
+
+    # =========================
+    # LOAD REGISTRATIONS
+    # =========================
+
+    if not os.path.exists(STP_REGISTRATIONS_FILE):
+        return redirect("/admin")
+
+    rows = []
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        fieldnames = reader.fieldnames or []
+
+        for row in reader:
+            rows.append(row)
+
+
+    # =========================
+    # FIND REGISTRATION
+    # =========================
+
+    registration = None
+
+    for row in rows:
+
+        if row.get("registration_id", "") == registration_id:
+
+            registration = row
+            break
+
+
+    if registration is None:
+        return redirect("/admin")
+
+
+    # =========================
+    # REJECT
+    # =========================
+
+    if status == "rejected":
+
+        registration["verification_status"] = "rejected"
+
+        with open(
+            STP_REGISTRATIONS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=fieldnames
+            )
+
+            writer.writeheader()
+            writer.writerows(rows)
+
+        return redirect("/admin")
+
+
+    # =========================
+    # APPROVE
+    # =========================
+
+    if status != "approved":
+        return "Invalid status", 400
+
+
+    stps = load_stps()
+
+
+    # =========================
+    # GENERATE NEXT STP ID
+    # =========================
+
+    highest_id = 0
+
+    for stp in stps:
+
+        stp_id = str(
+            stp.get("stp_id", "")
+        ).strip()
+
+        if stp_id.startswith("PSTP"):
+
+            try:
+
+                number = int(
+                    stp_id.replace("PSTP", "")
+                )
+
+                highest_id = max(
+                    highest_id,
+                    number
+                )
+
+            except ValueError:
+                pass
+
+
+    new_stp_id = f"PSTP{highest_id + 1:03d}"
+
+
+    # =========================
+    # CONVERT VALUES
+    # =========================
+
+    try:
+
+        total_capacity = float(
+            registration.get(
+                "total_capacity_mld",
+                0
+            )
+        )
+
+        current_load = float(
+            registration.get(
+                "current_load_mld",
+                0
+            )
+        )
+
+        treatment_cost = float(
+            registration.get(
+                "treatment_cost_per_kl",
+                0
+            )
+        )
+
+        latitude = float(
+            registration.get(
+                "latitude",
+                0
+            )
+        )
+
+        longitude = float(
+            registration.get(
+                "longitude",
+                0
+            )
+        )
+
+    except (ValueError, TypeError):
+
+        return "Invalid STP registration data", 400
+
+
+    # =========================
+    # AVAILABLE CAPACITY
+    # =========================
+
+    available_capacity = (
+        total_capacity - current_load
+    )
+
+
+    # =========================
+    # CREATE STP
+    # =========================
+
+    now = datetime.now()
+
+    new_stp = {
+
+        "stp_id": new_stp_id,
+
+        "stp_name": registration.get(
+            "stp_name",
+            ""
+        ),
+
+        "latitude": latitude,
+
+        "longitude": longitude,
+
+        "technology": registration.get(
+            "technology",
+            ""
+        ),
+
+        "total_capacity_mld": total_capacity,
+
+        "current_load_mld": current_load,
+
+        "available_capacity_mld":
+            available_capacity,
+
+        "treatment_cost_per_kl":
+            treatment_cost,
+
+        "quality_grade": registration.get(
+            "quality_grade",
+            "General"
+        ),
+
+        "last_reset_date":
+            now.strftime("%Y-%m-%d"),
+
+        "last_reset_at":
+            now.isoformat()
+
+    }
+
+
+    # =========================
+    # ADD STP TO JSON
+    # =========================
+
+    stps.append(new_stp)
+
+    save_stps(stps)
+
+
+    # =========================
+    # UPDATE REGISTRATION
+    # =========================
+
+    registration["stp_id"] = new_stp_id
+
+    registration["verification_status"] = "approved"
+
+    registration["approved_at"] = now.isoformat()
+
+
+    # =========================
+    # SAVE REGISTRATION CSV
+    # =========================
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+    return redirect("/admin")
 
 # =========================
 # ADD STP
@@ -2511,7 +2715,7 @@ import os
 @app.route("/api/chat", methods=["POST"])
 def chatbot():
 
-    app.run(host="0.0.0.0", port=port)
+    
     try:
         data = request.get_json(silent=True) or {}
 
