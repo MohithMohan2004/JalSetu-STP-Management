@@ -147,8 +147,8 @@
             "longitude": 77.61969157012948,
             "technology": "175 KLD SBR",
             "total_capacity_mld": 0.175,
-            "current_load_mld": 0.129,
-            "available_capacity_mld": 0.15999999999999998,
+            "current_load_mld": 0.15900000000000003,
+            "available_capacity_mld": 0.12999999999999995,
             "treatment_cost_per_kl": 6.0,
             "quality_grade": "Gold",
             "last_reset_date": "2026-08-18",
@@ -195,6 +195,20 @@
             "quality_grade": "General",
             "last_reset_date": "2026-08-18",
             "last_reset_at": "2026-08-18T11:40:38.418442"
+        },
+        {
+            "stp_id": "PSTP015",
+            "stp_name": "Amazing",
+            "latitude": 12.99761641,
+            "longitude": 77.7644062,
+            "technology": "500 KLD MBR",
+            "total_capacity_mld": 0.5,
+            "current_load_mld": 0.41,
+            "available_capacity_mld": 0.09000000000000002,
+            "treatment_cost_per_kl": 8.0,
+            "quality_grade": "Bronze",
+            "last_reset_date": "2026-08-25",
+            "last_reset_at": "2026-08-25T13:45:43.789730"
         }
     ]
 }

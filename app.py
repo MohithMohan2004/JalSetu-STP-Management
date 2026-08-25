@@ -89,6 +89,10 @@ TANKER_REGISTRATIONS_FILE = os.path.join(
     "tanker_registrations.csv"
 )
 
+STP_REGISTRATIONS_FILE = os.path.join(
+    DATABASE_DIR,
+    "stp_registrations.csv"
+)
 # =========================================================
 # USER ACCOUNT DATABASE
 # =========================================================
@@ -275,8 +279,14 @@ def load_stps():
         return data.get("stps", [])
 
 def save_stps(stps):
-    with open(STP_FILE, "w") as f:
-        json.dump({"stps": stps}, f, indent=4)
+
+    with open(STP_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data["stps"] = stps
+
+    with open(STP_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
 def auto_reset_capacity():
     """Release STP capacity for accepted orders exactly 24 hours after acceptance."""
@@ -759,6 +769,205 @@ def current_user():
 def tanker_register():
     return render_template("tanker_register.html")
 
+# =========================================================
+# STP REGISTRATION
+# =========================================================
+
+@app.route("/stp/register", methods=["GET", "POST"])
+def stp_register():
+
+    if request.method == "GET":
+        return render_template("stp_register.html")
+
+    # -----------------------------
+    # Read submitted form data
+    # -----------------------------
+
+    owner_name = request.form.get("owner_name", "").strip()
+    phone = request.form.get("phone", "").strip()
+    email = request.form.get("email", "").strip()
+    company_name = request.form.get("company_name", "").strip()
+
+    stp_name = request.form.get("stp_name", "").strip()
+    technology = request.form.get("technology", "").strip()
+
+    total_capacity_kld = request.form.get(
+        "total_capacity_kld", "0"
+    )
+
+    current_load_kld = request.form.get(
+        "current_load_kld", "0"
+    )
+
+    treatment_cost_per_kl = request.form.get(
+        "treatment_cost_per_kl", "0"
+    )
+
+    quality_grade = request.form.get(
+        "quality_grade", ""
+    ).strip()
+
+    latitude = request.form.get(
+        "latitude", ""
+    ).strip()
+
+    longitude = request.form.get(
+        "longitude", ""
+    ).strip()
+
+
+    # -----------------------------
+    # Basic validation
+    # -----------------------------
+
+    if not owner_name:
+        return "Owner name is required", 400
+
+    if not phone:
+        return "Phone number is required", 400
+
+    if not email:
+        return "Email is required", 400
+
+    if not stp_name:
+        return "STP name is required", 400
+
+    if not technology:
+        return "STP technology is required", 400
+
+    if not latitude or not longitude:
+        return "STP location is required", 400
+
+
+    # -----------------------------
+    # Convert numerical values
+    # KLD → MLD
+    # -----------------------------
+
+    try:
+
+        total_capacity_mld = (
+            float(total_capacity_kld) / 1000
+        )
+
+        current_load_mld = (
+            float(current_load_kld) / 1000
+        )
+
+        treatment_cost = float(
+            treatment_cost_per_kl
+        )
+
+    except ValueError:
+
+        return "Invalid numerical value submitted", 400
+
+
+    # -----------------------------
+    # Validate capacity
+    # -----------------------------
+
+    if total_capacity_mld <= 0:
+        return "Total capacity must be greater than zero", 400
+
+    if current_load_mld < 0:
+        return "Current load cannot be negative", 400
+
+    if current_load_mld > total_capacity_mld:
+        return (
+            "Current load cannot exceed total capacity",
+            400
+        )
+
+
+    # -----------------------------
+    # Generate registration ID
+    # -----------------------------
+
+    registration_id = (
+        "REG-" +
+        datetime.now().strftime("%Y%m%d%H%M%S")
+    )
+
+
+    # -----------------------------
+    # Registration record
+    # -----------------------------
+
+    registration = {
+        "registration_id": registration_id,
+        "stp_id": "",
+        "owner_name": owner_name,
+        "phone": phone,
+        "email": email,
+        "company_name": company_name,
+        "stp_name": stp_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "technology": technology,
+        "total_capacity_mld": total_capacity_mld,
+        "current_load_mld": current_load_mld,
+        "treatment_cost_per_kl": treatment_cost,
+        "quality_grade": quality_grade,
+        "verification_status": "pending",
+        "registration_date": datetime.now().isoformat(),
+        "approved_at": ""
+    }
+
+
+    # -----------------------------
+    # Save registration
+    # -----------------------------
+
+    file_exists = os.path.exists(
+        STP_REGISTRATIONS_FILE
+    )
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        fieldnames = [
+            "registration_id",
+            "stp_id",
+            "owner_name",
+            "phone",
+            "email",
+            "company_name",
+            "stp_name",
+            "latitude",
+            "longitude",
+            "technology",
+            "total_capacity_mld",
+            "current_load_mld",
+            "treatment_cost_per_kl",
+            "quality_grade",
+            "verification_status",
+            "registration_date",
+            "approved_at"
+        ]
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(registration)
+
+
+    return render_template(
+        "stp_registration_success.html",
+        registration_id=registration_id,
+        stp_name=stp_name
+    )
+
+
 @app.route("/tanker/status", methods=["GET", "POST"])
 def tanker_status():
 
@@ -984,55 +1193,137 @@ def tanker_register_independent():
     return render_template("tanker_register_independent.html")
 
 
-
-# =========================================================
-# ADMIN DASHBOARD
-# =========================================================
-
 @app.route("/admin")
 def admin_dashboard():
+
+    # =========================
+    # LOAD STPs
+    # =========================
+
     stps = load_stps()
 
+
+    # =========================
+    # LOAD ORDERS
+    # =========================
+
     orders = []
+
     if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             orders = list(reader)
+
+
+    # =========================
+    # LOAD TANKER REGISTRATIONS
+    # =========================
 
     tanker_operators = []
 
     if os.path.exists(TANKER_REGISTRATIONS_FILE):
-        with open(TANKER_REGISTRATIONS_FILE, "r", newline="", encoding="utf-8") as f:
+
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             tanker_operators = list(reader)
 
-    total_tanker_operators = len(tanker_operators)
+
+    total_tanker_operators = len(
+        tanker_operators
+    )
+
 
     pending_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "pending"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "pending"
     )
+
 
     approved_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "approved"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "approved"
     )
 
+
     rejected_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "rejected"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "rejected"
     )
+
+
+    # =========================
+    # LOAD STP REGISTRATIONS
+    # =========================
+
+    stp_registrations = []
+
+    if os.path.exists(STP_REGISTRATIONS_FILE):
+
+        with open(
+            STP_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            stp_registrations = list(reader)
+
+
+    # =========================
+    # ADMIN PAGE
+    # =========================
 
     return render_template(
         "admin.html",
+
         stps=stps,
+
         orders=orders,
+
         tanker_operators=tanker_operators,
-        total_tanker_operators=total_tanker_operators,
-        pending_tanker_operators=pending_tanker_operators,
-        approved_tanker_operators=approved_tanker_operators,
-        rejected_tanker_operators=rejected_tanker_operators
+
+        total_tanker_operators=
+            total_tanker_operators,
+
+        pending_tanker_operators=
+            pending_tanker_operators,
+
+        approved_tanker_operators=
+            approved_tanker_operators,
+
+        rejected_tanker_operators=
+            rejected_tanker_operators,
+
+        stp_registrations=
+            stp_registrations
     )
+
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
 def update_tanker_status(operator_id, status):
@@ -1081,65 +1372,46 @@ def update_tanker_status(operator_id, status):
 
     return redirect("/admin")
 
-
 # =========================
-# ADD STP
+# STP APPROVAL
 # =========================
-@app.route("/admin/add_stp", methods=["POST"])
-def add_stp():
-    stps = load_stps()
 
-    new_stp = {
-        "stp_id": request.form["id"],
-        "stp_name": request.form["name"],
-        "latitude": float(request.form["lat"]),
-        "longitude": float(request.form["lon"]),
-        "technology": "Manual",
-        "total_capacity_mld": float(request.form["capacity"]),
-        "current_load_mld": 0.0,
-        "available_capacity_mld": float(request.form["capacity"]),
-        "treatment_cost_per_kl": 5.0,
-        "quality_grade": "General",
+@app.route("/admin/stp/<registration_id>/status/<status>")
+def update_stp_status(registration_id, status):
 
-        "last_reset_date": date.today().isoformat(),
-        "last_reset_at": datetime.now().isoformat()
-    }
+    # =========================
+    # VALIDATE STATUS
+    # =========================
 
-    stps.append(new_stp)
-    save_stps(stps)
-
-    return redirect(url_for("admin_dashboard"))
+    if status not in ["approved", "rejected"]:
+        return redirect("/admin")
 
 
-# =========================
-# DELETE STP
-# =========================
-@app.route("/admin/delete_stp/<stp_id>")
-def delete_stp(stp_id):
-    stps = load_stps()
+    # =========================
+    # CHECK REGISTRATION FILE
+    # =========================
 
-    stps = [s for s in stps if str(s["stp_id"]) != str(stp_id)]
+    if not os.path.exists(STP_REGISTRATIONS_FILE):
+        return redirect("/admin")
 
-    save_stps(stps)
 
-    return redirect(url_for("admin_dashboard"))
+    # =========================
+    # LOAD REGISTRATIONS
+    # =========================
 
-# =========================================================
-# DEMAND SIDE
-# =========================================================
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
 
-@app.route('/demand')
-def demand():
-    payment_success = request.args.get("payment_success")
+        reader = csv.DictReader(f)
 
-    return render_template(
-        "demand.html",
-        payment_success=payment_success
-    )
+        fieldnames = reader.fieldnames
 
-@app.route("/track")
-def track_page():
-    return render_template("track.html")
+        rows = list(reader)
+
 
 @app.route("/stp_track")
 def stp_track():
@@ -1227,12 +1499,67 @@ def stp_order_tracking(order_id):
 
 @app.route("/api/stps")
 def api_stps():
-
     return jsonify(load_stps())
 
+# =========================
+# ADD STP
+# =========================
+@app.route("/admin/add_stp", methods=["POST"])
+def add_stp():
+    stps = load_stps()
 
-    auto_reset_capacity()
-    return jsonify(load_stps())
+    new_stp = {
+        "stp_id": request.form["id"],
+        "stp_name": request.form["name"],
+        "latitude": float(request.form["lat"]),
+        "longitude": float(request.form["lon"]),
+        "technology": "Manual",
+        "total_capacity_mld": float(request.form["capacity"]),
+        "current_load_mld": 0.0,
+        "available_capacity_mld": float(request.form["capacity"]),
+        "treatment_cost_per_kl": 5.0,
+        "quality_grade": "General",
+
+        "last_reset_date": date.today().isoformat(),
+        "last_reset_at": datetime.now().isoformat()
+    }
+
+    stps.append(new_stp)
+    save_stps(stps)
+
+    return redirect(url_for("admin_dashboard"))
+
+
+# =========================
+# DELETE STP
+# =========================
+@app.route("/admin/delete_stp/<stp_id>")
+def delete_stp(stp_id):
+    stps = load_stps()
+
+    stps = [s for s in stps if str(s["stp_id"]) != str(stp_id)]
+
+    save_stps(stps)
+
+    return redirect(url_for("admin_dashboard"))
+
+# =========================================================
+# DEMAND SIDE
+# =========================================================
+
+@app.route('/demand')
+def demand():
+    payment_success = request.args.get("payment_success")
+
+    return render_template(
+        "demand.html",
+        payment_success=payment_success
+    )
+
+@app.route("/track")
+def track_page():
+    return render_template("track.html")
+
 
 
 # =========================================================
@@ -1302,13 +1629,15 @@ def api_search_place():
     lat = request.args.get("lat")
     lon = request.args.get("lon")
 
-    # 🔥 Decide input source
+    # Keep the existing location behavior: typed location or live location.
     if lat and lon:
         lat = float(lat)
         lon = float(lon)
 
-        # 🔥 ADD THIS (reverse geocoding)
-        reverse_url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
+        reverse_url = (
+            f"https://nominatim.openstreetmap.org/reverse"
+            f"?format=json&lat={lat}&lon={lon}"
+        )
         try:
             response = requests.get(
                 reverse_url,
@@ -1581,6 +1910,10 @@ def pay_now():
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
         for row in reader:
+
+            # Remove unnamed CSV columns
+            row.pop(None, None)
+
             if row.get("order_id", "").strip() == order_id:
                 current_user_id = session.get("user_id")
                 current_buyer_name = session.get("buyer_name") or session.get("user_name")
@@ -1639,6 +1972,7 @@ def confirm_cod():
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
         for row in reader:
+            row.pop(None, None)
             if row.get("order_id", "").strip() == order_id:
                 current_user_id = session.get("user_id")
                 current_buyer_name = session.get("buyer_name") or session.get("user_name")
@@ -2170,15 +2504,998 @@ def accept_pickup():
 )
 
 import os
+# =========================================================
+# WASTEWATER CHATBOT API
+# =========================================================
+
+@app.route("/api/chat", methods=["POST"])
+def chatbot():
+
+    app.run(host="0.0.0.0", port=port)
+    try:
+        data = request.get_json(silent=True) or {}
+
+        message = str(
+            data.get("message", "")
+        ).strip()
+
+                # =====================================================
+        # USER LOCATION FROM BROWSER
+        # =====================================================
+
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+
+        try:
+
+            if latitude is not None:
+                latitude = float(latitude)
+
+            if longitude is not None:
+                longitude = float(longitude)
+
+        except (TypeError, ValueError):
+
+            latitude = None
+            longitude = None
+
+        if not message:
+            return jsonify({
+                "reply": "Please type a question."
+            }), 400
+
+
+        # Convert to lowercase for intent detection
+        text = message.lower()
+
+                # =====================================================
+        # EXTRACT REQUIRED WATER QUANTITY
+        # =====================================================
+
+        import re
+
+        requested_kld = None
+
+        quantity_match = re.search(
+            r'(\d+(?:\.\d+)?)\s*(kld|kl|litres?|liters?)',
+            text
+        )
+
+        if quantity_match:
+
+            quantity = float(quantity_match.group(1))
+            unit = quantity_match.group(2)
+
+            if unit in {"litre", "litres", "liter", "liters"}:
+                requested_kld = quantity / 1000
+
+            else:
+                requested_kld = quantity
+
+
+        # =====================================================
+        # GET CURRENT USER ROLE
+        # =====================================================
+
+        role = str(
+            session.get("role", "guest")
+        ).strip().lower()
+
+
+        # =====================================================
+        # GREETING
+        # =====================================================
+
+        greetings = {
+            "hi",
+            "hello",
+            "hey",
+            "hai",
+            "good morning",
+            "good afternoon",
+            "good evening"
+        }
+
+        if text in greetings:
+
+            return jsonify({
+                "reply": (
+                    "Hello! 👋 I'm your Wastewater Assistant. "
+                    "I can help you with STPs, orders, routing, "
+                    "demand and tanker information."
+                )
+            })
+
+
+        # =====================================================
+        # CAPABILITIES
+        # =====================================================
+
+        if (
+            "what can you do" in text
+            or "help me" in text
+            or "what do you do" in text
+        ):
+
+            return jsonify({
+                "reply": (
+                    "I can help with:\n\n"
+                    "• STP locations and availability\n"
+                    "• Wastewater demand\n"
+                    "• Orders\n"
+                    "• Tanker information\n"
+                    "• Routing\n"
+                    "• Demand predictions\n"
+                    "• System functionality"
+                )
+            })
+
+
+        # =====================================================
+        # USER ROLE
+        # =====================================================
+
+        if (
+            "my role" in text
+            or "who am i" in text
+            or "my account" in text
+        ):
+
+            if role == "guest":
+
+                return jsonify({
+                    "reply": (
+                        "You are currently not logged in."
+                    )
+                })
+
+            role_names = {
+                "demand": "Site User / Buyer",
+                "stp": "STP / Seller",
+                "tanker": "Tanker Operator",
+                "admin": "Administrator"
+            }
+
+            role_name = role_names.get(
+                role,
+                role.title()
+            )
+
+            return jsonify({
+                "reply": (
+                    f"You are logged in as "
+                    f"{role_name}."
+                )
+            })
+
+
+        # =====================================================
+        # STP INFORMATION
+        # =====================================================
+
+        if (
+            "stp" in text
+            and (
+                "how many" in text
+                or "number" in text
+                or "available" in text
+                or "list" in text
+                or "show" in text
+            )
+        ):
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            available_count = 0
+
+            for stp in stps:
+
+                try:
+
+                    capacity = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    if capacity > 0:
+                        available_count += 1
+
+                except (TypeError, ValueError):
+
+                    continue
+
+
+            reply = (
+                f"There are {len(stps)} STPs "
+                f"in the system.\n\n"
+                f"{available_count} currently have "
+                f"available capacity."
+            )
+
+            return jsonify({
+                "reply": reply
+            })
+
+                  # =====================================================
+        # MY ORDERS / TANKER / DELIVERY STATUS
+        # =====================================================
+
+        order_query = (
+            "my order" in text
+            or "my orders" in text
+            or "order status" in text
+            or "where is my order" in text
+            or "how much water did i order" in text
+            or "how much did i order" in text
+            or "what quantity did i order" in text
+            or "how many kld did i order" in text
+            or "what is my order quantity" in text
+        )
+
+        tanker_query = (
+            "where is my tanker" in text
+            or "tanker status" in text
+            or "has my tanker been assigned" in text
+            or "is my tanker assigned" in text
+        )
+
+        delivery_query = (
+            "delivery status" in text
+            or "what is my delivery status" in text
+            or "where is my delivery" in text
+            or "when will my delivery arrive" in text
+            or "when will my order arrive" in text
+        )
+
+        if (
+            order_query
+            or tanker_query
+            or delivery_query
+        ):
+
+            user_id = session.get("user_id")
+
+            buyer_name = (
+                session.get("buyer_name")
+                or session.get("user_name")
+            )
+
+            buyer_phone = (
+                session.get("buyer_phone")
+                or session.get("user_phone")
+            )
+
+            # -------------------------------------------------
+            # USER MUST BE LOGGED IN
+            # -------------------------------------------------
+
+            if not user_id:
+
+                return jsonify({
+                    "reply": (
+                        "Please log in first so I can "
+                        "access your orders."
+                    )
+                })
+
+            orders = []
+
+            # -------------------------------------------------
+            # LOAD USER'S ORDERS
+            # -------------------------------------------------
+
+            if os.path.exists(ORDERS_FILE):
+
+                with open(
+                    ORDERS_FILE,
+                    "r",
+                    newline="",
+                    encoding="utf-8"
+                ) as f:
+
+                    reader = csv.DictReader(f)
+
+                    for row in reader:
+
+                        matches_user = (
+                            user_id
+                            and
+                            row.get("buyer_user_id", "")
+                            == user_id
+                        )
+
+                        matches_legacy = (
+                            not row.get(
+                                "buyer_user_id",
+                                ""
+                            )
+                            and buyer_name
+                            and buyer_phone
+                            and
+                            row.get("buyer_name")
+                            == buyer_name
+                            and
+                            row.get("buyer_phone")
+                            == buyer_phone
+                        )
+
+                        if (
+                            matches_user
+                            or matches_legacy
+                        ):
+
+                            orders.append(row)
+
+            # -------------------------------------------------
+            # NO ORDERS
+            # -------------------------------------------------
+
+            if not orders:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any orders "
+                        "associated with your account."
+                    )
+                })
+
+            # -------------------------------------------------
+            # MOST RECENT ORDER
+            # -------------------------------------------------
+
+            orders.sort(
+                key=lambda x:
+                    x.get("created_at") or "",
+                reverse=True
+            )
+
+            latest = orders[0]
+
+            order_id = (
+                latest.get("order_id")
+                or "Unknown"
+            )
+
+            status = (
+                latest.get("status")
+                or "Unknown"
+            )
+
+            stp_name = (
+                latest.get("stp_name")
+                or "Unknown STP"
+            )
+
+            location = (
+                latest.get("location")
+                or "your delivery location"
+            )
+
+            quantity = (
+                latest.get("quantity_kld")
+                or "Unknown"
+            )
+
+            # =================================================
+            # QUANTITY QUESTION
+            # =================================================
+
+            if (
+                "how much water did i order" in text
+                or "how much did i order" in text
+                or "what quantity did i order" in text
+                or "how many kld did i order" in text
+                or "what is my order quantity" in text
+            ):
+
+                return jsonify({
+                    "reply": (
+                        f"Your latest order {order_id} "
+                        f"is for {quantity} KLD of treated "
+                        f"wastewater from {stp_name}."
+                    )
+                })
+
+            # =================================================
+            # TANKER QUESTION
+            # =================================================
+
+            if tanker_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"🚚 Your tanker has not been "
+                        f"assigned yet.\n\n"
+                        f"Order {order_id} is still awaiting "
+                        f"STP approval."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"🚚 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"The order is currently waiting "
+                        f"for tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently Out for Delivery.\n\n"
+                        f"STP: {stp_name}\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has "
+                        f"already been delivered.\n\n"
+                        f"The tanker delivery is complete."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your order {order_id} was rejected, "
+                        f"so a tanker has not been assigned."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # DELIVERY QUESTION
+            # =================================================
+
+            if delivery_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"📦 Your delivery has not started yet.\n\n"
+                        f"Order {order_id} is awaiting "
+                        f"STP approval. A tanker will be "
+                        f"available after the order is accepted."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"📦 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"It is currently waiting for "
+                        f"tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently out for delivery.\n\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has been "
+                        f"delivered successfully."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your delivery cannot proceed because "
+                        f"order {order_id} was rejected."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # GENERAL ORDER STATUS
+            # =================================================
+
+            if status == "Pending":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is currently Pending. "
+                    f"It is awaiting STP approval."
+                )
+
+            elif status == "Accepted":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Accepted by {stp_name}. "
+                    f"It is waiting for tanker pickup."
+                )
+
+            elif status == "Out for Delivery":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is Out for Delivery 🚚.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD\n"
+                    f"Delivery location: {location}"
+                )
+
+            elif status == "Delivered":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Delivered ✅.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD"
+                )
+
+            elif status == "Rejected":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"was Rejected.\n\n"
+                    f"If you want, I can help you "
+                    f"find another suitable STP."
+                )
+
+            else:
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has status: {status}."
+                )
+
+            return jsonify({
+                "reply": reply
+            })
+        # =====================================================
+        # NEAREST STP
+        # =====================================================
+
+        if (
+            "nearest stp" in text
+            or "closest stp" in text
+            or "stp near me" in text
+            or "stp nearby" in text
+            or "which stp is near" in text
+            or "which stp is closest" in text
+        ):
+
+            # -------------------------------------------------
+            # Check whether browser location is available
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to find the "
+                        "nearest STP. Please allow location "
+                        "access in your browser and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # Load STPs
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any STPs "
+                        "in the system."
+                    )
+                })
+
+
+            nearest_stp = None
+            nearest_distance = float("inf")
+
+
+            # -------------------------------------------------
+            # Compare distance to every STP
+            # -------------------------------------------------
+
+            for stp in stps:
+
+                try:
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                if distance < nearest_distance:
+
+                    nearest_distance = distance
+
+                    nearest_stp = stp
+
+
+            # -------------------------------------------------
+            # No valid STP coordinates
+            # -------------------------------------------------
+
+            if nearest_stp is None:
+
+                return jsonify({
+                    "reply": (
+                        "I found STPs in the system, "
+                        "but their location coordinates "
+                        "are unavailable."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # STP details
+            # -------------------------------------------------
+
+            stp_name = (
+                nearest_stp.get("name")
+                or nearest_stp.get("stp_name")
+                or nearest_stp.get("stp_id")
+                or "Nearest STP"
+            )
+
+
+            available_capacity = (
+                nearest_stp.get(
+                    "available_capacity_mld"
+                )
+                or "Unknown"
+            )
+
+
+            reply = (
+                f"The nearest STP is "
+                f"{stp_name}, approximately "
+                f"{nearest_distance:.2f} km away.\n\n"
+                f"Available capacity: "
+                f"{available_capacity} MLD."
+            )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+        # =====================================================
+        # SMART STP RECOMMENDATION
+        # =====================================================
+
+        recommendation_words = [
+            "which stp should i choose",
+            "which stp should i select",
+            "which stp is best",
+            "recommend an stp",
+            "recommend a stp",
+            "find an stp",
+            "suitable stp",
+            "best stp",
+            "stp for me",
+            "stp for my requirement",
+            "need an stp"
+        ]
+
+        has_recommendation_intent = any(
+            phrase in text
+            for phrase in recommendation_words
+        )
+
+        if (
+            has_recommendation_intent
+            and requested_kld is not None
+        ):
+
+            # -------------------------------------------------
+            # USER LOCATION REQUIRED
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to recommend "
+                        "the nearest suitable STP. Please "
+                        "allow location access and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # LOAD STP DATA
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # FIND SUITABLE STPs
+            # -------------------------------------------------
+
+            suitable_stps = []
+
+
+            for stp in stps:
+
+                try:
+
+                    available_mld = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    available_kld = (
+                        available_mld * 1000
+                    )
+
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                # -------------------------------------------------
+                # CAPACITY CHECK
+                # -------------------------------------------------
+
+                if available_kld < requested_kld:
+                    continue
+
+
+                # -------------------------------------------------
+                # DISTANCE
+                # -------------------------------------------------
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                stp_name = (
+                    stp.get("name")
+                    or stp.get("stp_name")
+                    or stp.get("stp_id")
+                    or "Unnamed STP"
+                )
+
+
+                suitable_stps.append({
+
+                    "name": stp_name,
+
+                    "stp_id": stp.get(
+                        "stp_id",
+                        ""
+                    ),
+
+                    "distance": distance,
+
+                    "available_kld": available_kld,
+
+                    "quality": stp.get(
+                        "quality_grade",
+                        "Unknown"
+                    ),
+
+                    "water_type": stp.get(
+                        "water_type",
+                        "Unknown"
+                    )
+
+                })
+
+
+            # -------------------------------------------------
+            # NO SUITABLE STP
+            # -------------------------------------------------
+
+            if not suitable_stps:
+
+                return jsonify({
+                    "reply": (
+                        f"I couldn't find an STP near you "
+                        f"with at least {requested_kld:g} KLD "
+                        f"of available capacity."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # SORT BY DISTANCE
+            # -------------------------------------------------
+
+            suitable_stps.sort(
+                key=lambda x: x["distance"]
+            )
+
+
+            # -------------------------------------------------
+            # TOP 3 OPTIONS
+            # -------------------------------------------------
+
+            top_stps = suitable_stps[:3]
+
+            best = top_stps[0]
+
+
+            # -------------------------------------------------
+            # BUILD RESPONSE
+            # -------------------------------------------------
+
+            reply = (
+                f"I found {len(suitable_stps)} suitable "
+                f"STP(s) for your requirement of "
+                f"{requested_kld:g} KLD.\n\n"
+            )
+
+
+            reply += (
+                f"🏆 Recommended: {best['name']}\n"
+                f"Distance: {best['distance']:.2f} km\n"
+                f"Available capacity: "
+                f"{best['available_kld']:.0f} KLD\n"
+            )
+
+
+            if best["quality"] != "Unknown":
+
+                reply += (
+                    f"Quality: {best['quality']}\n"
+                )
+
+
+            if best["water_type"] != "Unknown":
+
+                reply += (
+                    f"Water type: {best['water_type']}\n"
+                )
+
+
+            # -------------------------------------------------
+            # ALTERNATIVES
+            # -------------------------------------------------
+
+            if len(top_stps) > 1:
+
+                reply += "\nOther suitable options:\n"
+
+                for index, stp in enumerate(
+                    top_stps[1:],
+                    start=2
+                ):
+
+                    reply += (
+                        f"{index}. {stp['name']} — "
+                        f"{stp['distance']:.2f} km away, "
+                        f"{stp['available_kld']:.0f} KLD available\n"
+                    )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+
+        # =====================================================
+        # DEFAULT RESPONSE
+        # =====================================================
+
+        return jsonify({
+            "reply": (
+                "I understood your question, but I don't "
+                "have a specific function for it yet.\n\n"
+                "Try asking me about STPs, orders, routing, "
+                "demand, predictions or tanker information."
+            )
+        })
+
+
+    except Exception as e:
+
+        print(
+            "CHATBOT ERROR:",
+            e
+        )
+
+        return jsonify({
+            "reply": (
+                "Sorry, something went wrong while "
+                "processing your request."
+            )
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-
-    app.run(host="0.0.0.0", port=port)
 
     app.run(
         host="0.0.0.0",
         port=port,
         threaded=True
-    )
-
+    )   

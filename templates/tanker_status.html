@@ -74,7 +74,49 @@
 
 <!-- =====================================================
      STATUS PAGE
-====================================================== -->
+
+
+    <div class="logo">
+
+        <a
+            href="/"
+            style="text-decoration:none;"
+        >
+
+            <span class="logo-text">
+                WasteWater Management
+            </span>
+
+        </a>
+
+    </div>
+
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a href="/tanker/register">
+            Tanker Partner
+        </a>
+
+        <a
+            href="/tanker/status"
+            class="active"
+        >
+            Check Status
+        </a>
+
+    </nav>
+
+</header>
+
+
+
+<!-- =====================================================
+     STATUS PAGE
 
 <main class="tanker-status-page">
 
@@ -102,6 +144,12 @@
             </p>
 
         </div>
+
+
+
+        <!-- =================================================
+             STATUS CARD
+        ================================================== -->
 
 
 
@@ -229,6 +277,126 @@
                                 >
                                     ● Rejected
                                 </span>
+
+
+                            {% else %}
+
+                                <span
+                                    class="tanker-status-badge tanker-status-default"
+                                >
+                                    {{ operator.verification_status }}
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+
+                        <!-- DETAILS -->
+
+                        <div class="tanker-status-details">
+
+
+                            <!-- Operator ID -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Operator ID
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.operator_id }}
+                                </span>
+
+                            </div>
+
+
+
+                            <!-- Name -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Operator Name
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.operator_name }}
+                                </span>
+
+                            </div>
+
+
+
+                            <!-- Operator Type -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Operator Type
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.operator_type|capitalize }}
+                                </span>
+
+                            </div>
+
+
+
+                            <!-- Registration Date -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Registration Date
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.registration_date }}
+                                </span>
+
+                            </div>
+
+
+
+                            <!-- Phone -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Registered Phone
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.phone }}
+                                </span>
+
+                            </div>
+
+
+
+                            <!-- Tanker Registration -->
+
+                            <div class="tanker-status-detail">
+
+                                <span class="tanker-status-detail-label">
+                                    Tanker Registration
+                                </span>
+
+                                <span class="tanker-status-detail-value">
+                                    {{ operator.tanker_registration_no }}
+                                </span>
+
+                            </div>
+
+
+                        </div>
+
+                    </div>
+
 
 
                             {% else %}
