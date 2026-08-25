@@ -3190,11 +3190,991 @@ def accept_pickup():
 )
 
 import os
+# =========================================================
+# WASTEWATER CHATBOT API
+# =========================================================
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+@app.route("/api/chat", methods=["POST"])
+def chatbot():
 
-    import os
+    try:
+        data = request.get_json(silent=True) or {}
+
+        message = str(
+            data.get("message", "")
+        ).strip()
+
+                # =====================================================
+        # USER LOCATION FROM BROWSER
+        # =====================================================
+
+        latitude = data.get("latitude")
+        longitude = data.get("longitude")
+
+        try:
+
+            if latitude is not None:
+                latitude = float(latitude)
+
+            if longitude is not None:
+                longitude = float(longitude)
+
+        except (TypeError, ValueError):
+
+            latitude = None
+            longitude = None
+
+        if not message:
+            return jsonify({
+                "reply": "Please type a question."
+            }), 400
+
+
+        # Convert to lowercase for intent detection
+        text = message.lower()
+
+                # =====================================================
+        # EXTRACT REQUIRED WATER QUANTITY
+        # =====================================================
+
+        import re
+
+        requested_kld = None
+
+        quantity_match = re.search(
+            r'(\d+(?:\.\d+)?)\s*(kld|kl|litres?|liters?)',
+            text
+        )
+
+        if quantity_match:
+
+            quantity = float(quantity_match.group(1))
+            unit = quantity_match.group(2)
+
+            if unit in {"litre", "litres", "liter", "liters"}:
+                requested_kld = quantity / 1000
+
+            else:
+                requested_kld = quantity
+
+
+        # =====================================================
+        # GET CURRENT USER ROLE
+        # =====================================================
+
+        role = str(
+            session.get("role", "guest")
+        ).strip().lower()
+
+
+        # =====================================================
+        # GREETING
+        # =====================================================
+
+        greetings = {
+            "hi",
+            "hello",
+            "hey",
+            "hai",
+            "good morning",
+            "good afternoon",
+            "good evening"
+        }
+
+        if text in greetings:
+
+            return jsonify({
+                "reply": (
+                    "Hello! 👋 I'm your Wastewater Assistant. "
+                    "I can help you with STPs, orders, routing, "
+                    "demand and tanker information."
+                )
+            })
+
+
+        # =====================================================
+        # CAPABILITIES
+        # =====================================================
+
+        if (
+            "what can you do" in text
+            or "help me" in text
+            or "what do you do" in text
+        ):
+
+            return jsonify({
+                "reply": (
+                    "I can help with:\n\n"
+                    "• STP locations and availability\n"
+                    "• Wastewater demand\n"
+                    "• Orders\n"
+                    "• Tanker information\n"
+                    "• Routing\n"
+                    "• Demand predictions\n"
+                    "• System functionality"
+                )
+            })
+
+
+        # =====================================================
+        # USER ROLE
+        # =====================================================
+
+        if (
+            "my role" in text
+            or "who am i" in text
+            or "my account" in text
+        ):
+
+            if role == "guest":
+
+                return jsonify({
+                    "reply": (
+                        "You are currently not logged in."
+                    )
+                })
+
+            role_names = {
+                "demand": "Site User / Buyer",
+                "stp": "STP / Seller",
+                "tanker": "Tanker Operator",
+                "admin": "Administrator"
+            }
+
+            role_name = role_names.get(
+                role,
+                role.title()
+            )
+
+            return jsonify({
+                "reply": (
+                    f"You are logged in as "
+                    f"{role_name}."
+                )
+            })
+
+
+        # =====================================================
+        # STP INFORMATION
+        # =====================================================
+
+        if (
+            "stp" in text
+            and (
+                "how many" in text
+                or "number" in text
+                or "available" in text
+                or "list" in text
+                or "show" in text
+            )
+        ):
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            available_count = 0
+
+            for stp in stps:
+
+                try:
+
+                    capacity = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    if capacity > 0:
+                        available_count += 1
+
+                except (TypeError, ValueError):
+
+                    continue
+
+
+            reply = (
+                f"There are {len(stps)} STPs "
+                f"in the system.\n\n"
+                f"{available_count} currently have "
+                f"available capacity."
+            )
+
+            return jsonify({
+                "reply": reply
+            })
+
+                  # =====================================================
+        # MY ORDERS / TANKER / DELIVERY STATUS
+        # =====================================================
+
+        order_query = (
+            "my order" in text
+            or "my orders" in text
+            or "order status" in text
+            or "where is my order" in text
+            or "how much water did i order" in text
+            or "how much did i order" in text
+            or "what quantity did i order" in text
+            or "how many kld did i order" in text
+            or "what is my order quantity" in text
+        )
+
+        tanker_query = (
+            "where is my tanker" in text
+            or "tanker status" in text
+            or "has my tanker been assigned" in text
+            or "is my tanker assigned" in text
+        )
+
+        delivery_query = (
+            "delivery status" in text
+            or "what is my delivery status" in text
+            or "where is my delivery" in text
+            or "when will my delivery arrive" in text
+            or "when will my order arrive" in text
+        )
+
+        if (
+            order_query
+            or tanker_query
+            or delivery_query
+        ):
+
+            user_id = session.get("user_id")
+
+            buyer_name = (
+                session.get("buyer_name")
+                or session.get("user_name")
+            )
+
+            buyer_phone = (
+                session.get("buyer_phone")
+                or session.get("user_phone")
+            )
+
+            # -------------------------------------------------
+            # USER MUST BE LOGGED IN
+            # -------------------------------------------------
+
+            if not user_id:
+
+                return jsonify({
+                    "reply": (
+                        "Please log in first so I can "
+                        "access your orders."
+                    )
+                })
+
+            orders = []
+
+            # -------------------------------------------------
+            # LOAD USER'S ORDERS
+            # -------------------------------------------------
+
+            if os.path.exists(ORDERS_FILE):
+
+                with open(
+                    ORDERS_FILE,
+                    "r",
+                    newline="",
+                    encoding="utf-8"
+                ) as f:
+
+                    reader = csv.DictReader(f)
+
+                    for row in reader:
+
+                        matches_user = (
+                            user_id
+                            and
+                            row.get("buyer_user_id", "")
+                            == user_id
+                        )
+
+                        matches_legacy = (
+                            not row.get(
+                                "buyer_user_id",
+                                ""
+                            )
+                            and buyer_name
+                            and buyer_phone
+                            and
+                            row.get("buyer_name")
+                            == buyer_name
+                            and
+                            row.get("buyer_phone")
+                            == buyer_phone
+                        )
+
+                        if (
+                            matches_user
+                            or matches_legacy
+                        ):
+
+                            orders.append(row)
+
+            # -------------------------------------------------
+            # NO ORDERS
+            # -------------------------------------------------
+
+            if not orders:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any orders "
+                        "associated with your account."
+                    )
+                })
+
+            # -------------------------------------------------
+            # MOST RECENT ORDER
+            # -------------------------------------------------
+
+            orders.sort(
+                key=lambda x:
+                    x.get("created_at") or "",
+                reverse=True
+            )
+
+            latest = orders[0]
+
+            order_id = (
+                latest.get("order_id")
+                or "Unknown"
+            )
+
+            status = (
+                latest.get("status")
+                or "Unknown"
+            )
+
+            stp_name = (
+                latest.get("stp_name")
+                or "Unknown STP"
+            )
+
+            location = (
+                latest.get("location")
+                or "your delivery location"
+            )
+
+            quantity = (
+                latest.get("quantity_kld")
+                or "Unknown"
+            )
+
+            # =================================================
+            # QUANTITY QUESTION
+            # =================================================
+
+            if (
+                "how much water did i order" in text
+                or "how much did i order" in text
+                or "what quantity did i order" in text
+                or "how many kld did i order" in text
+                or "what is my order quantity" in text
+            ):
+
+                return jsonify({
+                    "reply": (
+                        f"Your latest order {order_id} "
+                        f"is for {quantity} KLD of treated "
+                        f"wastewater from {stp_name}."
+                    )
+                })
+
+            # =================================================
+            # TANKER QUESTION
+            # =================================================
+
+            if tanker_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"🚚 Your tanker has not been "
+                        f"assigned yet.\n\n"
+                        f"Order {order_id} is still awaiting "
+                        f"STP approval."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"🚚 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"The order is currently waiting "
+                        f"for tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently Out for Delivery.\n\n"
+                        f"STP: {stp_name}\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has "
+                        f"already been delivered.\n\n"
+                        f"The tanker delivery is complete."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your order {order_id} was rejected, "
+                        f"so a tanker has not been assigned."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # DELIVERY QUESTION
+            # =================================================
+
+            if delivery_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"📦 Your delivery has not started yet.\n\n"
+                        f"Order {order_id} is awaiting "
+                        f"STP approval. A tanker will be "
+                        f"available after the order is accepted."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"📦 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"It is currently waiting for "
+                        f"tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently out for delivery.\n\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has been "
+                        f"delivered successfully."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your delivery cannot proceed because "
+                        f"order {order_id} was rejected."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # GENERAL ORDER STATUS
+            # =================================================
+
+            if status == "Pending":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is currently Pending. "
+                    f"It is awaiting STP approval."
+                )
+
+            elif status == "Accepted":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Accepted by {stp_name}. "
+                    f"It is waiting for tanker pickup."
+                )
+
+            elif status == "Out for Delivery":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is Out for Delivery 🚚.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD\n"
+                    f"Delivery location: {location}"
+                )
+
+            elif status == "Delivered":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Delivered ✅.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD"
+                )
+
+            elif status == "Rejected":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"was Rejected.\n\n"
+                    f"If you want, I can help you "
+                    f"find another suitable STP."
+                )
+
+            else:
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has status: {status}."
+                )
+
+            return jsonify({
+                "reply": reply
+            })
+        # =====================================================
+        # NEAREST STP
+        # =====================================================
+
+        if (
+            "nearest stp" in text
+            or "closest stp" in text
+            or "stp near me" in text
+            or "stp nearby" in text
+            or "which stp is near" in text
+            or "which stp is closest" in text
+        ):
+
+            # -------------------------------------------------
+            # Check whether browser location is available
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to find the "
+                        "nearest STP. Please allow location "
+                        "access in your browser and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # Load STPs
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any STPs "
+                        "in the system."
+                    )
+                })
+
+
+            nearest_stp = None
+            nearest_distance = float("inf")
+
+
+            # -------------------------------------------------
+            # Compare distance to every STP
+            # -------------------------------------------------
+
+            for stp in stps:
+
+                try:
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                if distance < nearest_distance:
+
+                    nearest_distance = distance
+
+                    nearest_stp = stp
+
+
+            # -------------------------------------------------
+            # No valid STP coordinates
+            # -------------------------------------------------
+
+            if nearest_stp is None:
+
+                return jsonify({
+                    "reply": (
+                        "I found STPs in the system, "
+                        "but their location coordinates "
+                        "are unavailable."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # STP details
+            # -------------------------------------------------
+
+            stp_name = (
+                nearest_stp.get("name")
+                or nearest_stp.get("stp_name")
+                or nearest_stp.get("stp_id")
+                or "Nearest STP"
+            )
+
+
+            available_capacity = (
+                nearest_stp.get(
+                    "available_capacity_mld"
+                )
+                or "Unknown"
+            )
+
+
+            reply = (
+                f"The nearest STP is "
+                f"{stp_name}, approximately "
+                f"{nearest_distance:.2f} km away.\n\n"
+                f"Available capacity: "
+                f"{available_capacity} MLD."
+            )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+        # =====================================================
+        # SMART STP RECOMMENDATION
+        # =====================================================
+
+        recommendation_words = [
+            "which stp should i choose",
+            "which stp should i select",
+            "which stp is best",
+            "recommend an stp",
+            "recommend a stp",
+            "find an stp",
+            "suitable stp",
+            "best stp",
+            "stp for me",
+            "stp for my requirement",
+            "need an stp"
+        ]
+
+        has_recommendation_intent = any(
+            phrase in text
+            for phrase in recommendation_words
+        )
+
+        if (
+            has_recommendation_intent
+            and requested_kld is not None
+        ):
+
+            # -------------------------------------------------
+            # USER LOCATION REQUIRED
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to recommend "
+                        "the nearest suitable STP. Please "
+                        "allow location access and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # LOAD STP DATA
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # FIND SUITABLE STPs
+            # -------------------------------------------------
+
+            suitable_stps = []
+
+
+            for stp in stps:
+
+                try:
+
+                    available_mld = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    available_kld = (
+                        available_mld * 1000
+                    )
+
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                # -------------------------------------------------
+                # CAPACITY CHECK
+                # -------------------------------------------------
+
+                if available_kld < requested_kld:
+                    continue
+
+
+                # -------------------------------------------------
+                # DISTANCE
+                # -------------------------------------------------
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                stp_name = (
+                    stp.get("name")
+                    or stp.get("stp_name")
+                    or stp.get("stp_id")
+                    or "Unnamed STP"
+                )
+
+
+                suitable_stps.append({
+
+                    "name": stp_name,
+
+                    "stp_id": stp.get(
+                        "stp_id",
+                        ""
+                    ),
+
+                    "distance": distance,
+
+                    "available_kld": available_kld,
+
+                    "quality": stp.get(
+                        "quality_grade",
+                        "Unknown"
+                    ),
+
+                    "water_type": stp.get(
+                        "water_type",
+                        "Unknown"
+                    )
+
+                })
+
+
+            # -------------------------------------------------
+            # NO SUITABLE STP
+            # -------------------------------------------------
+
+            if not suitable_stps:
+
+                return jsonify({
+                    "reply": (
+                        f"I couldn't find an STP near you "
+                        f"with at least {requested_kld:g} KLD "
+                        f"of available capacity."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # SORT BY DISTANCE
+            # -------------------------------------------------
+
+            suitable_stps.sort(
+                key=lambda x: x["distance"]
+            )
+
+
+            # -------------------------------------------------
+            # TOP 3 OPTIONS
+            # -------------------------------------------------
+
+            top_stps = suitable_stps[:3]
+
+            best = top_stps[0]
+
+
+            # -------------------------------------------------
+            # BUILD RESPONSE
+            # -------------------------------------------------
+
+            reply = (
+                f"I found {len(suitable_stps)} suitable "
+                f"STP(s) for your requirement of "
+                f"{requested_kld:g} KLD.\n\n"
+            )
+
+
+            reply += (
+                f"🏆 Recommended: {best['name']}\n"
+                f"Distance: {best['distance']:.2f} km\n"
+                f"Available capacity: "
+                f"{best['available_kld']:.0f} KLD\n"
+            )
+
+
+            if best["quality"] != "Unknown":
+
+                reply += (
+                    f"Quality: {best['quality']}\n"
+                )
+
+
+            if best["water_type"] != "Unknown":
+
+                reply += (
+                    f"Water type: {best['water_type']}\n"
+                )
+
+
+            # -------------------------------------------------
+            # ALTERNATIVES
+            # -------------------------------------------------
+
+            if len(top_stps) > 1:
+
+                reply += "\nOther suitable options:\n"
+
+                for index, stp in enumerate(
+                    top_stps[1:],
+                    start=2
+                ):
+
+                    reply += (
+                        f"{index}. {stp['name']} — "
+                        f"{stp['distance']:.2f} km away, "
+                        f"{stp['available_kld']:.0f} KLD available\n"
+                    )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+
+        # =====================================================
+        # DEFAULT RESPONSE
+        # =====================================================
+
+        return jsonify({
+            "reply": (
+                "I understood your question, but I don't "
+                "have a specific function for it yet.\n\n"
+                "Try asking me about STPs, orders, routing, "
+                "demand, predictions or tanker information."
+            )
+        })
+
+
+    except Exception as e:
+
+        print(
+            "CHATBOT ERROR:",
+            e
+        )
+
+        return jsonify({
+            "reply": (
+                "Sorry, something went wrong while "
+                "processing your request."
+            )
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
@@ -3203,5 +4183,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         threaded=True
-    )
-
+    )   
