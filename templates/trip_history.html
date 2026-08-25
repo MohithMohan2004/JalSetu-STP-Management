@@ -4,7 +4,7 @@
 <head>
 
     <meta charset="UTF-8">
-    <title>Tanker Operator Dashboard</title>
+    <title>My Trips | Tanker Operator</title>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -1433,8 +1433,7 @@
 
 
             <a
-                href="/tanker"
-            >
+                href="/tanker">
 
                 <div class="nav-icon">
                     ⌂
@@ -1447,7 +1446,7 @@
             </a>
 
 
-            <a href="#orders">
+            <a href="/tanker#orders">
 
                 <div class="nav-icon">
                     ▣
@@ -1460,7 +1459,7 @@
             </a>
 
 
-            <a href="/trip_history">
+            <a href="/trip_history" class="active">
 
                 <div class="nav-icon">
                     🚚
@@ -1473,7 +1472,7 @@
             </a>
 
 
-            <a href="#orders">
+            <a href="/tanker#orders">
 
                 <div class="nav-icon">
                     ▤
@@ -1486,7 +1485,7 @@
             </a>
 
 
-            <a href="#map-section">
+            <a href="/track">
 
                 <div class="nav-icon">
                     ◉
@@ -1499,7 +1498,7 @@
             </a>
 
 
-            <a href="#operations">
+            <a href="/tanker#operations">
 
                 <div class="nav-icon">
                     ▥
@@ -1596,10 +1595,7 @@
 
     <main class="main-content">
 
-
-        <!-- TOP BAR -->
-
-        <header class="topbar">
+<header class="topbar">
 
 
             <div class="welcome">
@@ -1609,7 +1605,7 @@
                 </h1>
 
                 <p>
-                    Here's your overview of today's tanker operations.
+                    View your tanker trips and delivered order history.
                 </p>
 
             </div>
@@ -1623,7 +1619,7 @@
                     🔔
 
                     <div class="notification-badge">
-                        {{ orders|length }}
+                        {{ trip_history|length }}
                     </div>
 
                 </div>
@@ -1651,1101 +1647,148 @@
 
         </header>
 
+    <div class="container">
 
-
-        <!-- =====================================================
-             PAGE CONTENT
-        ====================================================== -->
-
-        <div class="container">
-
-
-            <!-- =================================================
-                 KPI CARDS
-            ================================================== -->
-
-            <div class="stats-grid">
-
-
-                <!-- AVAILABLE ORDERS -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon blue">
-                        📋
-                    </div>
-
-
-                    <div class="stat-info">
-
-                        <p>
-                            Available Orders
-                        </p>
-
-                        <h2>
-                            {{ orders|length }}
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- TOTAL VOLUME -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon green">
-                        💧
-                    </div>
-
-
-                    <div class="stat-info">
-
-                        <p>
-                            Available Volume
-                        </p>
-
-                        <h2>
-
-                            {% set total_quantity =
-                                namespace(value=0)
-                            %}
-
-
-                            {% for order in orders %}
-
-                                {% set total_quantity.value =
-                                    total_quantity.value
-                                    + (order.quantity_kld|float)
-                                %}
-
-                            {% endfor %}
-
-
-                            {{ "%.0f"|format(
-                                total_quantity.value
-                            ) }}
-
-                            <small>
-                                KLD
-                            </small>
-
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- ROUTE PLANNING -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon purple">
-                        📍
-                    </div>
-
-
-                    <div class="stat-info">
-
-                        <p>
-                            Route Planning
-                        </p>
-
-                        <h2 style="font-size:16px;">
-                            Active
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-
-                <!-- SYSTEM STATUS -->
-
-                <div class="stat-card">
-
-                    <div class="stat-icon orange">
-                        🚚
-                    </div>
-
-
-                    <div class="stat-info">
-
-                        <p>
-                            Operator Status
-                        </p>
-
-                        <h2
-                            style="
-                                font-size:16px;
-                                color:#199956;
-                            "
-                        >
-                            Online
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
+        <div class="card trips-card" id="trips">
+            <div class="card-header">
+                <h2>My Trips</h2>
+                <span>{{ trip_history|length }} Trips</span>
             </div>
 
+            <div style="font-size:9px;color:#7b8799;margin:-8px 0 16px;">
+                Your tanker trips and their current order status.
+            </div>
 
-
-            <!-- =================================================
-                 ORDERS + MAP
-            ================================================== -->
-
-            <div class="main-grid">
-
-
-                <!-- =================================================
-                     AVAILABLE ORDERS
-                ================================================== -->
-
-                <div
-                    class="card"
-                    id="orders"
-                >
-
-
-                    <div class="card-header">
-
-
-                        <h2>
-                            Available Orders
-                        </h2>
-
-
-                        <span>
-                            {{ orders|length }} Orders
-                        </span>
-
-
+            <!-- ACTIVE TRIPS -->
+            <div style="margin-bottom:22px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                    <div style="font-size:11px;font-weight:600;color:#172033;">
+                        Active Trips
                     </div>
+                    <div style="font-size:9px;color:#176bdc;font-weight:600;">
+                        Current Status
+                    </div>
+                </div>
 
+                <div class="trip-history-list">
+                    {% set active_trip_count = 0 %}
 
-                    <div class="orders-list">
+                    {% for trip in trip_history %}
+                        {% if trip.status in ['Accepted', 'Out for Delivery'] %}
+                            {% set active_trip_count = active_trip_count + 1 %}
 
-
-                        {% for order in orders %}
-
-
-                        <div class="order-card">
-
-
-                            <div class="order-top">
-
-
-                                <div class="order-id">
-
-                                    <div class="order-dot"></div>
-
-                                    {{ order.order_id }}
-
+                            <div class="trip-history-item">
+                                <div class="trip-history-order">
+                                    <span>Order ID</span>
+                                    <strong>{{ trip.order_id }}</strong>
                                 </div>
 
-
-                                <div class="new-badge">
-                                    Available
+                                <div class="trip-history-detail">
+                                    <span>STP</span>
+                                    <strong>{{ trip.stp_name or "N/A" }}</strong>
                                 </div>
 
+                                <div class="trip-history-detail">
+                                    <span>Delivery</span>
+                                    <strong title="{{ trip.location or '' }}">
+                                        {{ trip.location or "N/A" }}
+                                    </strong>
+                                </div>
 
+                                <div class="trip-history-detail">
+                                    <span>Quantity / Date</span>
+                                    <strong>{{ trip.quantity_kld or "0" }} KLD</strong>
+                                    <span>{{ trip.created_at or "N/A" }}</span>
+                                </div>
+
+                                <div class="trip-history-status
+                                    {% if trip.status == 'Accepted' %}
+                                        trip-status-accepted
+                                    {% elif trip.status == 'Out for Delivery' %}
+                                        trip-status-out
+                                    {% endif %}
+                                ">
+                                    {{ trip.status }}
+                                </div>
                             </div>
-
-
-                            <div class="order-details">
-
-
-                                <div class="order-detail">
-
-                                    STP
-
-                                    <strong>
-                                        {{ order.stp_name }}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="order-detail">
-
-                                    Quantity
-
-                                    <strong>
-                                        {{ order.quantity_kld }}
-                                        KLD
-                                    </strong>
-
-                                </div>
-
-
-                                <div
-                                    class="order-detail location-detail"
-                                >
-
-                                    Delivery Location
-
-                                    <strong>
-                                        📍 {{ order.location }}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="order-detail">
-
-                                    Buyer
-
-                                    <strong>
-                                        {{ order.buyer_name }}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="order-detail">
-
-                                    Phone
-
-                                    <strong>
-                                        {{ order.buyer_phone }}
-                                    </strong>
-
-                                </div>
-
-
-                                <div class="order-detail">
-
-                                    Distance
-
-                                    <strong>
-                                        {{ order.distance_km }}
-                                        km
-                                    </strong>
-
-                                </div>
-
-
-                            </div>
-
-
-
-                            <!-- VIEW ROUTE -->
-
-                            <button
-                                type="button"
-                                class="route-button"
-                                onclick="showRoute(
-                                    {{ order.stp_lat }},
-                                    {{ order.stp_lon }},
-                                    '{{ order.location }}',
-                                    {{ order.distance_km }}
-                                )"
-                            >
-
-                                🗺 View Route
-
-                            </button>
-
-
-
-                            {% if order.tanker_request_status == "Pending" %}
-
-                            <!-- TANKER APPROVAL -->
-
-                            <div class="tanker-request-actions">
-
-                                <button
-                                    type="button"
-                                    class="tanker-request-button tanker-request-accept"
-                                    onclick="respondToTankerRequest('{{ order.order_id }}', 'accept')"
-                                >
-                                    ✓ Accept Request
-                                </button>
-
-                                <button
-                                    type="button"
-                                    class="tanker-request-button tanker-request-reject"
-                                    onclick="respondToTankerRequest('{{ order.order_id }}', 'reject')"
-                                >
-                                    ✕ Reject
-                                </button>
-
-                            </div>
-
-                            {% elif order.tanker_request_status == "Accepted" %}
-
-                            <!-- REQUEST ACCEPTED -->
-                            <div class="tanker-request-accepted">
-                                ✓ Request Accepted
-                            </div>
-
-                            <!-- ACCEPT PICKUP AFTER APPROVAL -->
-
-                            <form
-                                method="POST"
-                                action="/accept_pickup"
-                                class="pickup-form"
-                            >
-
-                                <input
-                                    type="hidden"
-                                    name="order_id"
-                                    value="{{ order.order_id }}"
-                                >
-
-                                <button
-                                    type="submit"
-                                    class="pickup-button"
-                                >
-                                    🚚 Start Delivery
-                                </button>
-
-                            </form>
-
-                            {% endif %}
-
-
-                        </div>
-
-
-                        {% endfor %}
-
-
-                        {% if not orders %}
-
-
-                        <div
-                            style="
-                                padding:50px 15px;
-                                text-align:center;
-                                color:#8793a5;
-                            "
-                        >
-
-                            <div
-                                style="
-                                    font-size:30px;
-                                    margin-bottom:10px;
-                                "
-                            >
-                                📋
-                            </div>
-
-
-                            <strong
-                                style="
-                                    display:block;
-                                    color:#526075;
-                                    font-size:13px;
-                                "
-                            >
-                                No Available Orders
-                            </strong>
-
-
-                            <span
-                                style="
-                                    display:block;
-                                    margin-top:5px;
-                                    font-size:10px;
-                                "
-                            >
-                                New pickup requests will appear here.
-                            </span>
-
-                        </div>
-
-
                         {% endif %}
+                    {% endfor %}
 
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- =================================================
-                     MAP
-                ================================================== -->
-
-                <div
-                    class="card map-card"
-                    id="map-section"
-                >
-
-
-                    <div class="card-header">
-
-
-                        <h2>
-                            Live Orders on Map
-                        </h2>
-
-
-                        <div class="map-actions">
-
-                            <span>
-                                Bengaluru
-                            </span>
-
+                    {% if active_trip_count == 0 %}
+                        <div class="trip-history-empty">
+                            <div style="font-size:26px;margin-bottom:8px;">🚚</div>
+                            <strong>No active trips</strong>
+                            <span>Accepted or Out for Delivery orders will appear here.</span>
                         </div>
-
-
-                    </div>
-
-
-                    <!-- ROUTE INFORMATION -->
-
-                    <div
-                        id="routeInfo"
-                        class="route-info"
-                    >
-
-                        <strong>
-                            Route Information
-                        </strong>
-
-
-                        <span class="route-stat">
-
-                            Road Distance:
-
-                            <strong id="routeDistance">
-                                --
-                            </strong>
-
-                        </span>
-
-
-                        <span class="route-stat">
-
-                            ETA:
-
-                            <strong id="routeTime">
-                                --
-                            </strong>
-
-                        </span>
-
-
-                    </div>
-
-
-                    <!-- MAP -->
-
-                    <div class="map-container">
-
-                        <div id="map"></div>
-
-                    </div>
-
-
+                    {% endif %}
                 </div>
-
-
             </div>
 
-
-
-            <!-- =================================================
-                 OPERATIONS
-            ================================================== -->
-
-            <div
-                class="card operations-card"
-                id="operations"
-            >
-
-
-                <div class="card-header">
-
-                    <h2>
-                        Tanker Operations
-                    </h2>
-
-                    <span>
-                        Current Overview
-                    </span>
-
+            <!-- DELIVERED HISTORY -->
+            <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                    <div style="font-size:11px;font-weight:600;color:#172033;">
+                        Delivered History
+                    </div>
+                    <div style="font-size:9px;color:#176bdc;font-weight:600;">
+                        {% set delivered_count = trip_history
+                            | selectattr("status", "equalto", "Delivered")
+                            | list
+                            | length %}
+                        {{ delivered_count }} Completed
+                    </div>
                 </div>
 
+                <div class="trip-history-list">
+                    {% for trip in trip_history %}
+                        {% if trip.status == 'Delivered' %}
+                            <div class="trip-history-item">
+                                <div class="trip-history-order">
+                                    <span>Order ID</span>
+                                    <strong>{{ trip.order_id }}</strong>
+                                </div>
 
-                <div class="operation-grid">
+                                <div class="trip-history-detail">
+                                    <span>STP</span>
+                                    <strong>{{ trip.stp_name or "N/A" }}</strong>
+                                </div>
 
+                                <div class="trip-history-detail">
+                                    <span>Delivered To</span>
+                                    <strong title="{{ trip.location or '' }}">
+                                        {{ trip.location or "N/A" }}
+                                    </strong>
+                                </div>
 
-                    <div class="operation-item">
+                                <div class="trip-history-detail">
+                                    <span>Quantity / Date</span>
+                                    <strong>{{ trip.quantity_kld or "0" }} KLD</strong>
+                                    <span>{{ trip.delivered_at or trip.created_at or "N/A" }}</span>
+                                </div>
 
-                        <p>
-                            Available Orders
-                        </p>
+                                <div class="trip-history-status trip-status-delivered">
+                                    ✓ Delivered
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
 
-                        <h3>
-                            {{ orders|length }}
-                        </h3>
-
-                    </div>
-
-
-                    <div class="operation-item">
-
-                        <p>
-                            Total Water Volume
-                        </p>
-
-                        <h3>
-
-                            {{ "%.0f"|format(
-                                total_quantity.value
-                            ) }}
-
-                            <span
-                                style="
-                                    font-size:10px;
-                                    color:#718096;
-                                "
-                            >
-                                KLD
-                            </span>
-
-                        </h3>
-
-                    </div>
-
-
-                    <div class="operation-item">
-
-                        <p>
-                            Route Service
-                        </p>
-
-                        <h3
-                            style="
-                                color:#199956;
-                            "
-                        >
-                            Active
-                        </h3>
-
-                    </div>
-
-
+                    {% if delivered_count == 0 %}
+                        <div class="trip-history-empty">
+                            <div style="font-size:26px;margin-bottom:8px;">✓</div>
+                            <strong>No delivered trips yet</strong>
+                            <span>Completed tanker deliveries will appear here automatically.</span>
+                        </div>
+                    {% endif %}
                 </div>
-
-
             </div>
-
-
         </div>
 
+    </div>
 
-            
+</main>
 
 
-
-    </main>
-
-
-</div>
-
-
-
-<!-- =========================================================
-     MAP JAVASCRIPT
-========================================================= -->
-
-<script>
-
-
-    /* =========================================================
-       MAP INITIALIZATION
-    ========================================================= */
-
-
-    var map =
-        L.map('map')
-        .setView(
-            [12.9716, 77.5946],
-            11
-        );
-
-
-    setTimeout(
-        () => {
-
-            map.invalidateSize();
-
-        },
-        200
-    );
-
-
-    L.tileLayer(
-
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-
-        {
-            attribution:
-                '© OpenStreetMap contributors'
-        }
-
-    ).addTo(map);
-
-    /* =========================================================
-       RECENTER MAP BUTTON
-    ========================================================= */
-
-    const RecenterControl = L.Control.extend({
-
-        options: {
-            position: 'topleft'
-        },
-
-        onAdd: function () {
-
-            const container = L.DomUtil.create(
-                'div',
-                'recenter-control leaflet-bar'
-            );
-
-            const button = L.DomUtil.create(
-                'button',
-                '',
-                container
-            );
-
-            button.type = 'button';
-            button.title = 'Recenter map';
-            button.setAttribute('aria-label', 'Recenter map');
-            button.innerHTML = '⌖';
-
-            L.DomEvent.disableClickPropagation(container);
-            L.DomEvent.disableScrollPropagation(container);
-
-            L.DomEvent.on(button, 'click', function (event) {
-
-                L.DomEvent.stopPropagation(event);
-
-                map.flyTo(
-                    [12.9716, 77.5946],
-                    11,
-                    {
-                        animate: true,
-                        duration: 0.8
-                    }
-                );
-
-            });
-
-            return container;
-        }
-    });
-
-    map.addControl(new RecenterControl());
-
-
-
-    var routeLayer = null;
-
-    var startMarker = null;
-
-    var endMarker = null;
-
-
-
-    /* =========================================================
-       ROUTE FUNCTION
-    ========================================================= */
-
-
-    function showRoute(
-        stpLat,
-        stpLon,
-        demandLocation,
-        distanceKm
-    ) {
-
-
-        if (
-            !stpLat ||
-            !stpLon ||
-            stpLat === 0 ||
-            stpLon === 0
-        ) {
-
-            alert(
-                "STP location not available"
-            );
-
-            return;
-        }
-
-
-        fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(demandLocation)}`
-        )
-
-        .then(
-            res => res.json()
-        )
-
-        .then(
-            demandData => {
-
-
-                if (
-                    !demandData ||
-                    demandData.length === 0
-                ) {
-
-                    alert(
-                        "Demand location not found"
-                    );
-
-                    return;
-                }
-
-
-                const demLat =
-                    parseFloat(
-                        demandData[0].lat
-                    );
-
-
-                const demLon =
-                    parseFloat(
-                        demandData[0].lon
-                    );
-
-
-
-                if (routeLayer) {
-
-                    map.removeLayer(
-                        routeLayer
-                    );
-
-                    routeLayer = null;
-                }
-
-
-                if (startMarker) {
-
-                    map.removeLayer(
-                        startMarker
-                    );
-                }
-
-
-                if (endMarker) {
-
-                    map.removeLayer(
-                        endMarker
-                    );
-                }
-
-
-
-                /* STP MARKER */
-
-                startMarker =
-
-                    L.marker(
-                        [
-                            stpLat,
-                            stpLon
-                        ]
-                    )
-
-                    .addTo(map)
-
-                    .bindPopup(
-                        "<b>STP Location</b>"
-                    )
-
-                    .openPopup();
-
-
-
-                /* DEMAND MARKER */
-
-                endMarker =
-
-                    L.marker(
-                        [
-                            demLat,
-                            demLon
-                        ]
-                    )
-
-                    .addTo(map)
-
-                    .bindPopup(
-                        "<b>Demand Location</b>"
-                    );
-
-
-
-                /* OSRM ROUTE */
-
-                fetch(
-
-                    `https://router.project-osrm.org/route/v1/driving/${stpLon},${stpLat};${demLon},${demLat}?overview=full&geometries=geojson`
-
-                )
-
-                .then(
-                    res => res.json()
-                )
-
-                .then(
-                    routeData => {
-
-
-                        if (
-                            !routeData ||
-                            !routeData.routes ||
-                            routeData.routes.length === 0
-                        ) {
-
-                            alert(
-                                "Route not found"
-                            );
-
-                            return;
-                        }
-
-
-                        const route =
-                            routeData.routes[0];
-
-
-                        const routeDistance =
-                            (
-                                route.distance / 1000
-                            ).toFixed(2);
-
-
-                        const timeMin =
-                            (
-                                route.duration / 60
-                            ).toFixed(1);
-
-
-
-                        document
-                            .getElementById(
-                                "routeDistance"
-                            )
-                            .innerText =
-                            routeDistance +
-                            " km";
-
-
-                        document
-                            .getElementById(
-                                "routeTime"
-                            )
-                            .innerText =
-                            timeMin +
-                            " mins";
-
-
-                        document
-                            .getElementById(
-                                "routeInfo"
-                            )
-                            .style.display =
-                            "block";
-
-
-
-                        routeLayer =
-
-                            L.geoJSON(
-                                route.geometry,
-                                {
-
-                                    style: {
-
-                                        color:
-                                            "#2563eb",
-
-                                        weight:
-                                            5
-
-                                    }
-
-                                }
-
-                            )
-
-                            .addTo(map);
-
-
-
-                        map.fitBounds(
-                            routeLayer.getBounds(),
-                            {
-                                padding:
-                                    [50, 50]
-                            }
-                        );
-
-                    }
-
-                );
-
-            }
-
-        );
-
-    }
-
-
-</script>
-
-
-<script>
-async function respondToTankerRequest(orderId, action) {
-    try {
-        const response = await fetch("/tanker/respond_request", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-            },
-            body: new URLSearchParams({
-                order_id: orderId,
-                action: action
-            })
-        });
-
-        const data = await response.json();
-
-        if (!data.success) {
-            alert(data.message || "Unable to update the delivery request.");
-            return;
-        }
-
-        window.location.reload();
-    } catch (error) {
-        console.error(error);
-        alert("Unable to connect to the delivery request service.");
-    }
-}
-</script>
-
-<!-- FIREBASE PUSH NOTIFICATIONS - TANKER OPERATOR -->
-<script type="module">
-
-    import { initializeApp }
-        from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-    import { getMessaging, getToken, onMessage }
-        from "https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging.js";
-
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-
-    const firebaseVapidKey = "YOUR_PUBLIC_VAPID_KEY";
-
-    function firebaseConfigReady() {
-        return Object.values(firebaseConfig).every(
-            value => value && !String(value).startsWith("YOUR_")
-        ) && firebaseVapidKey && !firebaseVapidKey.startsWith("YOUR_");
-    }
-
-    async function registerTankerPushNotifications() {
-        if (!firebaseConfigReady()) {
-            console.warn("FCM is not configured yet. Add the Firebase web config and VAPID key in tanker.html.");
-            return;
-        }
-        if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
-
-        try {
-            const permission = await Notification.requestPermission();
-            if (permission !== "granted") return;
-
-            const app = initializeApp(firebaseConfig);
-            const messaging = getMessaging(app);
-            const registration = await navigator.serviceWorker.register(
-                "/static/firebase-messaging-sw.js"
-            );
-
-            const token = await getToken(messaging, {
-                vapidKey: firebaseVapidKey,
-                serviceWorkerRegistration: registration
-            });
-
-            if (!token) return;
-
-            await fetch("/api/save_tanker_push_token", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: token })
-            });
-
-            onMessage(messaging, function(payload) {
-                const title = payload.notification?.title || "🚨 New Water Delivery Request";
-                const body = payload.notification?.body || "A new tanker delivery request is waiting for approval.";
-                alert(title + "\n\n" + body);
-                refreshTankerNotifications();
-            });
-        } catch (error) {
-            console.error("Tanker push notification setup failed:", error);
-        }
-    }
-
-    async function refreshTankerNotifications() {
-        try {
-            const response = await fetch("/api/tanker_notifications", { cache: "no-store" });
-            if (!response.ok) return;
-            const data = await response.json();
-            const badge = document.querySelector(".notification-badge");
-            if (badge) {
-                badge.textContent = String(data.count || 0);
-                badge.style.display = data.count ? "flex" : "none";
-            }
-        } catch (error) {
-            console.warn("Unable to refresh tanker notifications:", error);
-        }
-    }
-
-    const existingNotification = document.querySelector(".notification");
-    if (existingNotification) {
-        existingNotification.style.cursor = "pointer";
-        existingNotification.title = "Enable delivery notifications";
-        existingNotification.addEventListener("click", function() {
-            registerTankerPushNotifications();
-            refreshTankerNotifications();
-        });
-    }
-
-    registerTankerPushNotifications();
-    refreshTankerNotifications();
-    setInterval(refreshTankerNotifications, 3000);
-
-</script>
-
-<script>
-    // Keep My Trips synchronized with the current order status in orders.csv.
-    setTimeout(() => window.location.reload(), 5000);
-</script>
-
-</body>
+</div></body>
 
 </html>
