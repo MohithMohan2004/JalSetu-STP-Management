@@ -89,6 +89,10 @@ TANKER_REGISTRATIONS_FILE = os.path.join(
     "tanker_registrations.csv"
 )
 
+STP_REGISTRATIONS_FILE = os.path.join(
+    DATABASE_DIR,
+    "stp_registrations.csv"
+)
 # =========================================================
 # USER ACCOUNT DATABASE
 # =========================================================
@@ -278,8 +282,14 @@ def load_stps():
         return data.get("stps", [])
 
 def save_stps(stps):
-    with open(STP_FILE, "w") as f:
-        json.dump({"stps": stps}, f, indent=4)
+
+    with open(STP_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data["stps"] = stps
+
+    with open(STP_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
 def auto_reset_capacity():
     """Release STP capacity for accepted orders exactly 24 hours after acceptance."""
@@ -762,6 +772,205 @@ def current_user():
 def tanker_register():
     return render_template("tanker_register.html")
 
+# =========================================================
+# STP REGISTRATION
+# =========================================================
+
+@app.route("/stp/register", methods=["GET", "POST"])
+def stp_register():
+
+    if request.method == "GET":
+        return render_template("stp_register.html")
+
+    # -----------------------------
+    # Read submitted form data
+    # -----------------------------
+
+    owner_name = request.form.get("owner_name", "").strip()
+    phone = request.form.get("phone", "").strip()
+    email = request.form.get("email", "").strip()
+    company_name = request.form.get("company_name", "").strip()
+
+    stp_name = request.form.get("stp_name", "").strip()
+    technology = request.form.get("technology", "").strip()
+
+    total_capacity_kld = request.form.get(
+        "total_capacity_kld", "0"
+    )
+
+    current_load_kld = request.form.get(
+        "current_load_kld", "0"
+    )
+
+    treatment_cost_per_kl = request.form.get(
+        "treatment_cost_per_kl", "0"
+    )
+
+    quality_grade = request.form.get(
+        "quality_grade", ""
+    ).strip()
+
+    latitude = request.form.get(
+        "latitude", ""
+    ).strip()
+
+    longitude = request.form.get(
+        "longitude", ""
+    ).strip()
+
+
+    # -----------------------------
+    # Basic validation
+    # -----------------------------
+
+    if not owner_name:
+        return "Owner name is required", 400
+
+    if not phone:
+        return "Phone number is required", 400
+
+    if not email:
+        return "Email is required", 400
+
+    if not stp_name:
+        return "STP name is required", 400
+
+    if not technology:
+        return "STP technology is required", 400
+
+    if not latitude or not longitude:
+        return "STP location is required", 400
+
+
+    # -----------------------------
+    # Convert numerical values
+    # KLD → MLD
+    # -----------------------------
+
+    try:
+
+        total_capacity_mld = (
+            float(total_capacity_kld) / 1000
+        )
+
+        current_load_mld = (
+            float(current_load_kld) / 1000
+        )
+
+        treatment_cost = float(
+            treatment_cost_per_kl
+        )
+
+    except ValueError:
+
+        return "Invalid numerical value submitted", 400
+
+
+    # -----------------------------
+    # Validate capacity
+    # -----------------------------
+
+    if total_capacity_mld <= 0:
+        return "Total capacity must be greater than zero", 400
+
+    if current_load_mld < 0:
+        return "Current load cannot be negative", 400
+
+    if current_load_mld > total_capacity_mld:
+        return (
+            "Current load cannot exceed total capacity",
+            400
+        )
+
+
+    # -----------------------------
+    # Generate registration ID
+    # -----------------------------
+
+    registration_id = (
+        "REG-" +
+        datetime.now().strftime("%Y%m%d%H%M%S")
+    )
+
+
+    # -----------------------------
+    # Registration record
+    # -----------------------------
+
+    registration = {
+        "registration_id": registration_id,
+        "stp_id": "",
+        "owner_name": owner_name,
+        "phone": phone,
+        "email": email,
+        "company_name": company_name,
+        "stp_name": stp_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "technology": technology,
+        "total_capacity_mld": total_capacity_mld,
+        "current_load_mld": current_load_mld,
+        "treatment_cost_per_kl": treatment_cost,
+        "quality_grade": quality_grade,
+        "verification_status": "pending",
+        "registration_date": datetime.now().isoformat(),
+        "approved_at": ""
+    }
+
+
+    # -----------------------------
+    # Save registration
+    # -----------------------------
+
+    file_exists = os.path.exists(
+        STP_REGISTRATIONS_FILE
+    )
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        fieldnames = [
+            "registration_id",
+            "stp_id",
+            "owner_name",
+            "phone",
+            "email",
+            "company_name",
+            "stp_name",
+            "latitude",
+            "longitude",
+            "technology",
+            "total_capacity_mld",
+            "current_load_mld",
+            "treatment_cost_per_kl",
+            "quality_grade",
+            "verification_status",
+            "registration_date",
+            "approved_at"
+        ]
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(registration)
+
+
+    return render_template(
+        "stp_registration_success.html",
+        registration_id=registration_id,
+        stp_name=stp_name
+    )
+
+
 @app.route("/tanker/status", methods=["GET", "POST"])
 def tanker_status():
 
@@ -987,59 +1196,137 @@ def tanker_register_independent():
     return render_template("tanker_register_independent.html")
 
 
-
-# =========================================================
-# ADMIN DASHBOARD
-# =========================================================
-
 @app.route("/admin")
 def admin_dashboard():
+
+    # =========================
+    # LOAD STPs
+    # =========================
+
     stps = load_stps()
 
+
+    # =========================
+    # LOAD ORDERS
+    # =========================
+
     orders = []
+
     if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             orders = list(reader)
 
 
-    return render_template("admin.html", stps=stps, orders=orders)
-
+    # =========================
+    # LOAD TANKER REGISTRATIONS
+    # =========================
 
     tanker_operators = []
 
     if os.path.exists(TANKER_REGISTRATIONS_FILE):
-        with open(TANKER_REGISTRATIONS_FILE, "r", newline="", encoding="utf-8") as f:
+
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             tanker_operators = list(reader)
 
-    total_tanker_operators = len(tanker_operators)
+
+    total_tanker_operators = len(
+        tanker_operators
+    )
+
 
     pending_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "pending"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "pending"
     )
+
 
     approved_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "approved"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "approved"
     )
 
+
     rejected_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "rejected"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "rejected"
     )
+
+
+    # =========================
+    # LOAD STP REGISTRATIONS
+    # =========================
+
+    stp_registrations = []
+
+    if os.path.exists(STP_REGISTRATIONS_FILE):
+
+        with open(
+            STP_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            stp_registrations = list(reader)
+
+
+    # =========================
+    # ADMIN PAGE
+    # =========================
 
     return render_template(
         "admin.html",
+
         stps=stps,
+
         orders=orders,
+
         tanker_operators=tanker_operators,
-        total_tanker_operators=total_tanker_operators,
-        pending_tanker_operators=pending_tanker_operators,
-        approved_tanker_operators=approved_tanker_operators,
-        rejected_tanker_operators=rejected_tanker_operators
+
+        total_tanker_operators=
+            total_tanker_operators,
+
+        pending_tanker_operators=
+            pending_tanker_operators,
+
+        approved_tanker_operators=
+            approved_tanker_operators,
+
+        rejected_tanker_operators=
+            rejected_tanker_operators,
+
+        stp_registrations=
+            stp_registrations
     )
+
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
 def update_tanker_status(operator_id, status):
@@ -1088,6 +1375,294 @@ def update_tanker_status(operator_id, status):
 
     return redirect("/admin")
 
+# =========================
+# STP APPROVAL
+# =========================
+
+@app.route("/admin/stp/<registration_id>/status/<status>")
+def update_stp_status(registration_id, status):
+
+    # =========================
+    # VALIDATE STATUS
+    # =========================
+
+    if status not in ["approved", "rejected"]:
+        return redirect("/admin")
+
+
+    # =========================
+    # CHECK REGISTRATION FILE
+    # =========================
+
+    if not os.path.exists(STP_REGISTRATIONS_FILE):
+        return redirect("/admin")
+
+
+    # =========================
+    # LOAD REGISTRATIONS
+    # =========================
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        fieldnames = reader.fieldnames
+
+        rows = list(reader)
+
+
+    # =========================
+    # FIND REGISTRATION
+    # =========================
+
+    registration = None
+
+    for row in rows:
+
+        if row.get(
+            "registration_id"
+        ) == registration_id:
+
+            registration = row
+            break
+
+
+    if registration is None:
+        return redirect("/admin")
+
+
+    # =========================
+    # REJECT
+    # =========================
+
+    if status == "rejected":
+
+        registration[
+            "verification_status"
+        ] = "rejected"
+
+
+        with open(
+            STP_REGISTRATIONS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=fieldnames
+            )
+
+            writer.writeheader()
+            writer.writerows(rows)
+
+
+        return redirect("/admin")
+
+
+    # =========================
+    # APPROVE
+    # =========================
+
+    stps = load_stps()
+
+
+    # =========================
+    # GENERATE NEXT STP ID
+    # =========================
+
+    highest_id = 0
+
+    for stp in stps:
+
+        stp_id = str(
+            stp.get("stp_id", "")
+        ).strip()
+
+
+        if stp_id.startswith("PSTP"):
+
+            try:
+
+                number = int(
+                    stp_id.replace(
+                        "PSTP",
+                        ""
+                    )
+                )
+
+                highest_id = max(
+                    highest_id,
+                    number
+                )
+
+            except ValueError:
+
+                pass
+
+
+    new_stp_id = (
+        f"PSTP{highest_id + 1:03d}"
+    )
+
+
+    # =========================
+    # CONVERT VALUES
+    # =========================
+
+    try:
+
+        total_capacity = float(
+            registration.get(
+                "total_capacity_mld",
+                0
+            )
+        )
+
+        current_load = float(
+            registration.get(
+                "current_load_mld",
+                0
+            )
+        )
+
+        treatment_cost = float(
+            registration.get(
+                "treatment_cost_per_kl",
+                0
+            )
+        )
+
+        latitude = float(
+            registration.get(
+                "latitude",
+                0
+            )
+        )
+
+        longitude = float(
+            registration.get(
+                "longitude",
+                0
+            )
+        )
+
+    except ValueError:
+
+        return "Invalid STP registration data", 400
+
+
+    # =========================
+    # AVAILABLE CAPACITY
+    # =========================
+
+    available_capacity = (
+        total_capacity - current_load
+    )
+
+
+    # =========================
+    # CREATE STP
+    # =========================
+
+    now = datetime.now()
+
+    new_stp = {
+
+        "stp_id": new_stp_id,
+
+        "stp_name": registration.get(
+            "stp_name",
+            ""
+        ),
+
+        "latitude": latitude,
+
+        "longitude": longitude,
+
+        "technology": registration.get(
+            "technology",
+            ""
+        ),
+
+        "total_capacity_mld":
+            total_capacity,
+
+        "current_load_mld":
+            current_load,
+
+        "available_capacity_mld":
+            available_capacity,
+
+        "treatment_cost_per_kl":
+            treatment_cost,
+
+        "quality_grade":
+            registration.get(
+                "quality_grade",
+                "General"
+            ),
+
+        "last_reset_date":
+            now.strftime("%Y-%m-%d"),
+
+        "last_reset_at":
+            now.isoformat()
+
+    }
+
+
+    # =========================
+    # ADD STP TO JSON
+    # =========================
+
+    stps.append(new_stp)
+
+    save_stps(stps)
+
+
+    # =========================
+    # UPDATE REGISTRATION
+    # =========================
+
+    registration["stp_id"] = new_stp_id
+
+    registration[
+        "verification_status"
+    ] = "approved"
+
+    registration[
+        "approved_at"
+    ] = now.isoformat()
+
+
+    # =========================
+    # SAVE REGISTRATION CSV
+    # =========================
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+    return redirect("/admin")
 
 # =========================
 # ADD STP
