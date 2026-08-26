@@ -797,10 +797,6 @@
         }
 
     </style>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='css/responsive.css') }}">
-
 </head>
 
 <body>
@@ -854,7 +850,7 @@
                 <span>Assignments</span>
             </a>
 
-            <a href="/stp_track">
+            <a href="/track">
                 <div class="nav-icon">🚚</div>
                 <span>Tanker Tracking</span>
             </a>
@@ -1854,6 +1850,17 @@
 })();
 </script>
 <!-- END GLOBAL PROFILE / AVATAR / LOGOUT MENU -->
+
+{% include 'chatbot.html' %}
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='chatbot.css') }}"
+>
+
+<script
+    src="{{ url_for('static', filename='chatbot.js') }}">
+</script>
 
 </body>
 </html>

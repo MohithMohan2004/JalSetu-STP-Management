@@ -89,6 +89,10 @@ TANKER_REGISTRATIONS_FILE = os.path.join(
     "tanker_registrations.csv"
 )
 
+STP_REGISTRATIONS_FILE = os.path.join(
+    DATABASE_DIR,
+    "stp_registrations.csv"
+)
 # =========================================================
 # USER ACCOUNT DATABASE
 # =========================================================
@@ -99,7 +103,6 @@ USERS_FILE = os.path.join(
 )
 
 users_lock = threading.Lock()
-orders_lock = threading.Lock()
 
 USER_FIELDS = [
     "user_id",
@@ -110,42 +113,18 @@ USER_FIELDS = [
     "email",
     "password_hash",
     "role",
-    "stp_id",
-    "tanker_operator_id",
     "created_at",
     "account_status"
 ]
 
 def ensure_users_file():
-    """Create or safely update the Excel user database schema."""
+    """Create the Excel user database if it does not exist."""
     if not os.path.exists(USERS_FILE):
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "Users"
         sheet.append(USER_FIELDS)
         workbook.save(USERS_FILE)
-        return
-
-    with users_lock:
-        workbook = load_workbook(USERS_FILE)
-        sheet = workbook["Users"]
-
-        existing_headers = [
-            str(cell.value).strip() if cell.value is not None else ""
-            for cell in sheet[1]
-        ]
-
-        changed = False
-        for field in USER_FIELDS:
-            if field not in existing_headers:
-                sheet.cell(row=1, column=sheet.max_column + 1, value=field)
-                existing_headers.append(field)
-                changed = True
-
-        if changed:
-            workbook.save(USERS_FILE)
-
-        workbook.close()
 
 def load_users():
     """Load all registered users from users.xlsx."""
@@ -229,9 +208,7 @@ if not os.path.exists(ORDERS_FILE):
             "buyer_name",
             "buyer_phone",
             "status",
-            "created_at",
-            "tanker_request_status",
-            "delivered_at"
+            "created_at"
         ])
 
 ORDER_FIELDS = [
@@ -251,11 +228,7 @@ ORDER_FIELDS = [
     "payment_status",
     "accepted_at",
     "capacity_release_at",
-    "capacity_released",
-    "delivery_lat",
-    "delivery_lon",
-    "tanker_request_status",
-    "delivered_at"
+    "capacity_released"
 ]
 
 def ensure_orders_schema():
@@ -306,8 +279,14 @@ def load_stps():
         return data.get("stps", [])
 
 def save_stps(stps):
-    with open(STP_FILE, "w") as f:
-        json.dump({"stps": stps}, f, indent=4)
+
+    with open(STP_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    data["stps"] = stps
+
+    with open(STP_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4)
 
 def auto_reset_capacity():
     """Release STP capacity for accepted orders exactly 24 hours after acceptance."""
@@ -509,8 +488,6 @@ def login():
         session["user_phone"] = str(matched_user.get("mobile") or "")
         session["user_email"] = str(matched_user.get("email") or "")
         session["role"] = str(matched_user.get("role") or "").strip().lower()
-        session["stp_id"] = str(matched_user.get("stp_id") or "").strip()
-        session["tanker_operator_id"] = str(matched_user.get("tanker_operator_id") or "").strip()
 
         # Keep the existing buyer session variables.
         if session["role"] == "demand":
@@ -522,11 +499,10 @@ def login():
             return redirect(url_for("supply"))
 
         if session["role"] == "tanker":
-            # Keep the existing tanker dashboard flow, but use the
-            # registered Tanker Operator ID linked during signup.
-            session["tanker_operator_id"] = str(
-                matched_user.get("tanker_operator_id") or ""
-            ).strip()
+            # Keep the existing tanker dashboard flow.
+            # If this account is linked to an approved tanker operator,
+            # its operator id can be used later for tanker-specific assignments.
+            session["tanker_operator_id"] = session["user_id"]
             session["tanker_operator_name"] = session["user_name"]
             return redirect(url_for("tanker_dashboard"))
 
@@ -557,11 +533,7 @@ def signup():
         confirm_password = request.form.get("confirm_password", "")
         role = request.form.get("role", "").strip().lower()
 
-        # Role-specific identity fields from signup.html.
-        stp_id = request.form.get("stp_id", "").strip()
-        tanker_operator_id = request.form.get("tanker_id", "").strip()
-
-        allowed_roles = {"demand", "stp", "tanker", "admin"}
+        allowed_roles = {"demand", "stp", "tanker"}
 
         if not all([
             first_name,
@@ -583,56 +555,6 @@ def signup():
                 "signup.html",
                 signup_error="Please select a valid account type."
             )
-
-        # STP operators must provide an existing STP ID.
-        if role == "stp":
-            if not stp_id:
-                return render_template(
-                    "signup.html",
-                    signup_error="Please enter your STP ID."
-                )
-
-            stp_exists = any(
-                str(stp.get("stp_id") or "").strip().lower() == stp_id.lower()
-                for stp in load_stps()
-            )
-
-            if not stp_exists:
-                return render_template(
-                    "signup.html",
-                    signup_error="Invalid STP ID. Please enter a registered STP ID."
-                )
-
-        # Tanker operators must provide an existing tanker operator ID.
-        if role == "tanker":
-            if not tanker_operator_id:
-                return render_template(
-                    "signup.html",
-                    signup_error="Please enter your Tanker Operator ID."
-                )
-
-            tanker_exists = False
-            if os.path.exists(TANKER_REGISTRATIONS_FILE):
-                try:
-                    with open(
-                        TANKER_REGISTRATIONS_FILE,
-                        "r",
-                        newline="",
-                        encoding="utf-8"
-                    ) as f:
-                        reader = csv.DictReader(f)
-                        tanker_exists = any(
-                            str(row.get("operator_id") or "").strip().lower() == tanker_operator_id.lower()
-                            for row in reader
-                        )
-                except Exception as e:
-                    print("Tanker operator ID validation failed:", e)
-
-            if not tanker_exists:
-                return render_template(
-                    "signup.html",
-                    signup_error="Invalid Tanker Operator ID. Please enter a registered operator ID."
-                )
 
         if password != confirm_password:
             return render_template(
@@ -681,8 +603,6 @@ def signup():
             "email": email,
             "password_hash": generate_password_hash(password),
             "role": role,
-            "stp_id": stp_id if role == "stp" else "",
-            "tanker_operator_id": tanker_operator_id if role == "tanker" else "",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "account_status": "active"
         }
@@ -848,6 +768,205 @@ def current_user():
 @app.route("/tanker/register")
 def tanker_register():
     return render_template("tanker_register.html")
+
+# =========================================================
+# STP REGISTRATION
+# =========================================================
+
+@app.route("/stp/register", methods=["GET", "POST"])
+def stp_register():
+
+    if request.method == "GET":
+        return render_template("stp_register.html")
+
+    # -----------------------------
+    # Read submitted form data
+    # -----------------------------
+
+    owner_name = request.form.get("owner_name", "").strip()
+    phone = request.form.get("phone", "").strip()
+    email = request.form.get("email", "").strip()
+    company_name = request.form.get("company_name", "").strip()
+
+    stp_name = request.form.get("stp_name", "").strip()
+    technology = request.form.get("technology", "").strip()
+
+    total_capacity_kld = request.form.get(
+        "total_capacity_kld", "0"
+    )
+
+    current_load_kld = request.form.get(
+        "current_load_kld", "0"
+    )
+
+    treatment_cost_per_kl = request.form.get(
+        "treatment_cost_per_kl", "0"
+    )
+
+    quality_grade = request.form.get(
+        "quality_grade", ""
+    ).strip()
+
+    latitude = request.form.get(
+        "latitude", ""
+    ).strip()
+
+    longitude = request.form.get(
+        "longitude", ""
+    ).strip()
+
+
+    # -----------------------------
+    # Basic validation
+    # -----------------------------
+
+    if not owner_name:
+        return "Owner name is required", 400
+
+    if not phone:
+        return "Phone number is required", 400
+
+    if not email:
+        return "Email is required", 400
+
+    if not stp_name:
+        return "STP name is required", 400
+
+    if not technology:
+        return "STP technology is required", 400
+
+    if not latitude or not longitude:
+        return "STP location is required", 400
+
+
+    # -----------------------------
+    # Convert numerical values
+    # KLD → MLD
+    # -----------------------------
+
+    try:
+
+        total_capacity_mld = (
+            float(total_capacity_kld) / 1000
+        )
+
+        current_load_mld = (
+            float(current_load_kld) / 1000
+        )
+
+        treatment_cost = float(
+            treatment_cost_per_kl
+        )
+
+    except ValueError:
+
+        return "Invalid numerical value submitted", 400
+
+
+    # -----------------------------
+    # Validate capacity
+    # -----------------------------
+
+    if total_capacity_mld <= 0:
+        return "Total capacity must be greater than zero", 400
+
+    if current_load_mld < 0:
+        return "Current load cannot be negative", 400
+
+    if current_load_mld > total_capacity_mld:
+        return (
+            "Current load cannot exceed total capacity",
+            400
+        )
+
+
+    # -----------------------------
+    # Generate registration ID
+    # -----------------------------
+
+    registration_id = (
+        "REG-" +
+        datetime.now().strftime("%Y%m%d%H%M%S")
+    )
+
+
+    # -----------------------------
+    # Registration record
+    # -----------------------------
+
+    registration = {
+        "registration_id": registration_id,
+        "stp_id": "",
+        "owner_name": owner_name,
+        "phone": phone,
+        "email": email,
+        "company_name": company_name,
+        "stp_name": stp_name,
+        "latitude": latitude,
+        "longitude": longitude,
+        "technology": technology,
+        "total_capacity_mld": total_capacity_mld,
+        "current_load_mld": current_load_mld,
+        "treatment_cost_per_kl": treatment_cost,
+        "quality_grade": quality_grade,
+        "verification_status": "pending",
+        "registration_date": datetime.now().isoformat(),
+        "approved_at": ""
+    }
+
+
+    # -----------------------------
+    # Save registration
+    # -----------------------------
+
+    file_exists = os.path.exists(
+        STP_REGISTRATIONS_FILE
+    )
+
+    with open(
+        STP_REGISTRATIONS_FILE,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        fieldnames = [
+            "registration_id",
+            "stp_id",
+            "owner_name",
+            "phone",
+            "email",
+            "company_name",
+            "stp_name",
+            "latitude",
+            "longitude",
+            "technology",
+            "total_capacity_mld",
+            "current_load_mld",
+            "treatment_cost_per_kl",
+            "quality_grade",
+            "verification_status",
+            "registration_date",
+            "approved_at"
+        ]
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow(registration)
+
+
+    return render_template(
+        "stp_registration_success.html",
+        registration_id=registration_id,
+        stp_name=stp_name
+    )
+
 
 @app.route("/tanker/status", methods=["GET", "POST"])
 def tanker_status():
@@ -1074,59 +1193,137 @@ def tanker_register_independent():
     return render_template("tanker_register_independent.html")
 
 
-
-# =========================================================
-# ADMIN DASHBOARD
-# =========================================================
-
 @app.route("/admin")
 def admin_dashboard():
+
+    # =========================
+    # LOAD STPs
+    # =========================
+
     stps = load_stps()
 
+
+    # =========================
+    # LOAD ORDERS
+    # =========================
+
     orders = []
+
     if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             orders = list(reader)
 
 
-    return render_template("admin.html", stps=stps, orders=orders)
-
+    # =========================
+    # LOAD TANKER REGISTRATIONS
+    # =========================
 
     tanker_operators = []
 
     if os.path.exists(TANKER_REGISTRATIONS_FILE):
-        with open(TANKER_REGISTRATIONS_FILE, "r", newline="", encoding="utf-8") as f:
+
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
             tanker_operators = list(reader)
 
-    total_tanker_operators = len(tanker_operators)
+
+    total_tanker_operators = len(
+        tanker_operators
+    )
+
 
     pending_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "pending"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "pending"
     )
+
 
     approved_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "approved"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "approved"
     )
 
+
     rejected_tanker_operators = sum(
-        1 for operator in tanker_operators
-        if operator.get("verification_status", "").strip().lower() == "rejected"
+        1
+        for operator in tanker_operators
+        if operator.get(
+            "verification_status",
+            ""
+        ).strip().lower() == "rejected"
     )
+
+
+    # =========================
+    # LOAD STP REGISTRATIONS
+    # =========================
+
+    stp_registrations = []
+
+    if os.path.exists(STP_REGISTRATIONS_FILE):
+
+        with open(
+            STP_REGISTRATIONS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            stp_registrations = list(reader)
+
+
+    # =========================
+    # ADMIN PAGE
+    # =========================
 
     return render_template(
         "admin.html",
+
         stps=stps,
+
         orders=orders,
+
         tanker_operators=tanker_operators,
-        total_tanker_operators=total_tanker_operators,
-        pending_tanker_operators=pending_tanker_operators,
-        approved_tanker_operators=approved_tanker_operators,
-        rejected_tanker_operators=rejected_tanker_operators
+
+        total_tanker_operators=
+            total_tanker_operators,
+
+        pending_tanker_operators=
+            pending_tanker_operators,
+
+        approved_tanker_operators=
+            approved_tanker_operators,
+
+        rejected_tanker_operators=
+            rejected_tanker_operators,
+
+        stp_registrations=
+            stp_registrations
     )
+
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
 def update_tanker_status(operator_id, status):
@@ -1567,14 +1764,6 @@ def demand():
 def track_page():
     return render_template("track.html")
 
-@app.route("/api/stps")
-def api_stps():
-
-    return jsonify(load_stps())
-
-
-    auto_reset_capacity()
-    return jsonify(load_stps())
 
 
 # =========================================================
@@ -1659,58 +1848,28 @@ def api_search_place():
                 headers={"User-Agent": "wastewater-app"},
                 timeout=5
             )
-            reverse_data = response.json()
+            data = response.json()
         except Exception as e:
             print("Reverse API failed:", e)
-            reverse_data = {}
+            data = {}
+        
+        address = data.get("address", {})
 
-        address = reverse_data.get("address", {})
         location_name = format_clean_address(address, lat, lon)
 
-        if not location_name or not location_name.strip():
-            location_name = reverse_data.get(
-                "display_name",
-                f"{lat}, {lon}"
-            )
+        # fallback (if still empty)
+        if not location_name or location_name.strip() == "":
+            location_name = data.get("display_name", f"{lat}, {lon}")
 
         print("Using LIVE coordinates:", lat, lon)
 
     elif place and place != "Using Live Location":
-        search_queries = [
-            f"{place}, Bengaluru, Karnataka, India",
-            f"{place}, Bangalore, Karnataka, India",
-            f"{place}, Karnataka, India",
-        ]
-
-        geo_data = []
-
-        for search_place in search_queries:
-            geo_url = (
-                "https://nominatim.openstreetmap.org/search"
-                f"?format=json&limit=1&q="
-                f"{requests.utils.quote(search_place)}"
-            )
-
-            try:
-                response = requests.get(
-                    geo_url,
-                    headers={"User-Agent": "wastewater-app"},
-                    timeout=8
-                )
-
-                if response.ok:
-                    geo_data = response.json()
-
-                if geo_data:
-                    break
-
-            except Exception as e:
-                print("Location search failed:", e)
+        geo_url = f"https://nominatim.openstreetmap.org/search?format=json&q={place}, Bangalore"
+        response = requests.get(geo_url, headers={"User-Agent":"wastewater-app"})
+        geo_data = response.json()
 
         if not geo_data:
-            return jsonify({
-                "error": f"Unable to find location: {place}"
-            }), 404
+            return jsonify({"error":"Place not found"}), 404
 
         lat = float(geo_data[0]["lat"])
         lon = float(geo_data[0]["lon"])
@@ -1719,204 +1878,59 @@ def api_search_place():
     else:
         return jsonify({"error": "No location provided"}), 400
 
-    try:
-        required_kld = float(request.args.get("required_kld", 0) or 0)
-    except (TypeError, ValueError):
-        required_kld = 0.0
+    # 🔥 ADD THIS BLOCK HERE (VERY IMPORTANT)
 
-    required_quality = str(
-        request.args.get("quality") or ""
-    ).strip()
+    required_kld_raw = request.args.get("required_kld")
+    required_kld = float(required_kld_raw) if required_kld_raw and required_kld_raw.strip() != "" else 0
 
-    required_type = str(
-        request.args.get("type") or ""
-    ).strip()
-
-    required_mld = required_kld / 1000.0
-
-    # Remember the exact location used for this Demand search. The existing
-    # booking page may send only the displayed address/name when the user
-    # clicks Book Order, so create_order can still use the exact coordinates.
-    session["last_demand_location"] = {
-        "latitude": lat,
-        "longitude": lon,
-        "name": location_name
-    }
+    required_quality = request.args.get("quality")
+    required_type = request.args.get("type")
 
     stps = load_stps()
     nearby = []
 
-    requested_quality = required_quality.lower()
-    requested_type = required_type.lower()
-
     for stp in stps:
 
-        # STP must have coordinates.
-        try:
-            stp_lat = float(stp.get("latitude"))
-            stp_lon = float(stp.get("longitude"))
-        except (TypeError, ValueError):
+        if not stp.get("latitude") or not stp.get("longitude"):
             continue
 
-        # ---------------------------------------------------------
-        # 1. CAPACITY MATCH
-        # ---------------------------------------------------------
-        try:
-            raw_available = stp.get("available_capacity_mld")
-
-            if raw_available not in (None, ""):
-                available_capacity = float(raw_available)
-            else:
-                total_capacity = float(
-                    stp.get("total_capacity_mld", 0) or 0
-                )
-                current_load = float(
-                    stp.get("current_load_mld", 0) or 0
-                )
-                available_capacity = max(
-                    0.0,
-                    total_capacity - current_load
-                )
-        except (TypeError, ValueError):
-            available_capacity = 0.0
-
-        if required_mld > 0 and available_capacity < required_mld:
+        # FILTER BY QUALITY
+        if required_quality and stp.get("quality_grade") != required_quality:
+            continue
+        
+        # FILTER BY TYPE (SAFE FIX)
+        if required_type and stp.get("water_type") and stp.get("water_type") != required_type:
             continue
 
-        # ---------------------------------------------------------
-        # 2. QUALITY MATCH
-        # ---------------------------------------------------------
-        stp_quality = str(
-            stp.get("quality_grade") or ""
-        ).strip().lower()
+        # Stage 1: Fast filtering
+        approx_distance = haversine(lat, lon, stp["latitude"], stp["longitude"])
 
-        # If an STP has a quality value, it must match the user's
-        # requested quality. Empty STP quality remains compatible,
-        # matching the existing STP acceptance logic.
-        if (
-            requested_quality
-            and stp_quality
-            and requested_quality != stp_quality
-        ):
+        if approx_distance > 100:
             continue
 
-        # ---------------------------------------------------------
-        # 3. WATER TYPE MATCH
-        # ---------------------------------------------------------
-        stp_type = str(
-            stp.get("water_type") or ""
-        ).strip().lower()
+        # Stage 2: Accurate routing
+        distance = astar_distance(lat, lon, stp["latitude"], stp["longitude"])
 
-        # Some existing STP records do not contain water_type.
-        # Do NOT reject those records just because the Demand page
-        # selected "Treated". They are treated STPs in this system,
-        # and the existing acceptance logic treats an empty type
-        # as compatible.
-        if (
-            requested_type
-            and stp_type
-            and requested_type != stp_type
-        ):
-            continue
-
-        # ---------------------------------------------------------
-        # 4. LOCATION MATCH
-        # ---------------------------------------------------------
-        straight_distance = haversine(
-            lat,
-            lon,
-            stp_lat,
-            stp_lon
-        )
-
-        # Keep the STP search within a practical Bengaluru range.
-        if straight_distance > 100:
-            continue
-
-        # Use the existing A* route distance where available.
-        try:
-            route_distance = float(
-                astar_distance(
-                    lat,
-                    lon,
-                    stp_lat,
-                    stp_lon
-                )
-            )
-        except Exception as e:
-            print(
-                f"A* distance failed for {stp.get('stp_id')}:",
-                e
-            )
-            route_distance = None
-
-        # If A* cannot calculate a route, don't hide a valid STP.
-        # The Demand page itself uses OSRM to draw the actual road route.
-        if (
-            route_distance is None
-            or route_distance <= 0
-            or route_distance > 100
-        ):
-            route_distance = straight_distance
-
-        if route_distance > 100:
+        if distance > 100:
             continue
 
         stp_copy = stp.copy()
-        stp_copy["latitude"] = stp_lat
-        stp_copy["longitude"] = stp_lon
-        stp_copy["distance_km"] = round(
-            route_distance,
-            2
-        )
-        stp_copy["available_capacity_mld"] = round(
-            available_capacity,
-            6
-        )
-
-        stp_copy["match_reason"] = (
-            "Demand matched: capacity + quality + "
-            "water type + location"
-        )
-
+        stp_copy["distance_km"] = round(distance,2)
         nearby.append(stp_copy)
 
-    # IMPORTANT:
-    # Select the nearest STP ONLY from STPs that satisfy the demand.
-    nearby.sort(
-        key=lambda x: float(x.get("distance_km", 999999))
-    )
-
+    nearby.sort(key=lambda x: x["distance_km"])
     nearest = nearby[0] if nearby else None
-
+    
     if not nearest:
         return jsonify({
-            "searched_location": {
-                "name": location_name,
-                "latitude": lat,
-                "longitude": lon
-            },
-            "nearest_stp": None,
-            "all_stps": [],
-            "matching_error": (
-                "No STP currently satisfies the requested "
-                "quantity, quality, water type and location."
-            )
-        })
-
-    print(
-        "MATCHED STP:",
-        nearest.get("stp_id"),
-        nearest.get("stp_name"),
-        "| Demand:",
-        required_kld,
-        "KLD",
-        required_quality,
-        required_type,
-        "| Distance:",
-        nearest.get("distance_km"),
-        "km"
-    )
+        "searched_location": {
+            "name": location_name,
+            "latitude": lat,
+            "longitude": lon
+        },
+        "nearest_stp": None,
+        "all_stps": []
+    })
 
     return jsonify({
         "searched_location": {
@@ -1925,256 +1939,19 @@ def api_search_place():
             "longitude": lon
         },
         "nearest_stp": nearest,
-        "all_stps": nearby
+        "all_stps": [s for s in stps if s.get("latitude") and s.get("longitude")]
     })
-
-
-def resolve_delivery_coordinates(data):
-    """
-    Get the exact delivery coordinates supplied by the Demand page.
-    Supports several common key names so existing frontend code does not
-    need to be rewritten. For older bookings that only send an address,
-    use Nominatim once at order creation and persist the result.
-    """
-    lat_keys = ("delivery_lat", "latitude", "lat", "buyer_lat")
-    lon_keys = ("delivery_lon", "longitude", "lon", "lng", "buyer_lon")
-
-    lat = next((data.get(k) for k in lat_keys if data.get(k) not in (None, "")), None)
-    lon = next((data.get(k) for k in lon_keys if data.get(k) not in (None, "")), None)
-
-    try:
-        if lat is not None and lon is not None:
-            return float(lat), float(lon)
-    except (TypeError, ValueError):
-        pass
-
-    # Fallback only when the Demand page did not send coordinates.
-    location = str(data.get("location") or "").strip()
-    if not location:
-        return None, None
-
-    try:
-        geo_url = (
-            "https://nominatim.openstreetmap.org/search"
-            f"?format=json&limit=1&q={requests.utils.quote(location)}"
-        )
-        response = requests.get(
-            geo_url,
-            headers={"User-Agent": "wastewater-app"},
-            timeout=8
-        )
-        geo_data = response.json()
-        if geo_data:
-            return float(geo_data[0]["lat"]), float(geo_data[0]["lon"])
-    except Exception as e:
-        print("Delivery location geocoding failed:", e)
-
-    return None, None
-
 
 @app.route("/create_order", methods=["POST"])
 def create_order():
     data = request.json or {}
 
-    required = [
-        "stp_id", "stp_name", "quantity_kld", "quality",
-        "water_type", "distance_km", "location"
-    ]
+    required = ["stp_id", "stp_name", "quantity_kld", "quality", "water_type", "distance_km", "location"]
     missing = [key for key in required if key not in data]
     if missing:
         return jsonify({"error": "Missing fields", "fields": missing}), 400
 
-    # -------------------------------------------------------------
-    # EXACT DEMAND LOCATION
-    # -------------------------------------------------------------
-    # First use coordinates sent by the frontend.
-    delivery_lat, delivery_lon = resolve_delivery_coordinates(data)
-
-    # If the existing Demand page only sends the displayed location,
-    # reuse the exact coordinates from the user's most recent search/live
-    # location instead of geocoding an approximate address.
-    if delivery_lat is None or delivery_lon is None:
-        last_location = session.get("last_demand_location") or {}
-
-        try:
-            if (
-                last_location.get("latitude") is not None
-                and last_location.get("longitude") is not None
-            ):
-                delivery_lat = float(last_location["latitude"])
-                delivery_lon = float(last_location["longitude"])
-        except (TypeError, ValueError):
-            delivery_lat = delivery_lon = None
-
-    if delivery_lat is None or delivery_lon is None:
-        return jsonify({
-            "error": "Delivery location could not be resolved."
-        }), 422
-
-    # -------------------------------------------------------------
-    # DEMAND REQUIREMENTS
-    # -------------------------------------------------------------
-    try:
-        requested_kld = float(data.get("quantity_kld") or 0)
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid quantity"}), 400
-
-    if requested_kld <= 0:
-        return jsonify({"error": "Quantity must be greater than zero"}), 400
-
-    requested_mld = requested_kld / 1000.0
-    requested_quality = str(
-        data.get("quality") or ""
-    ).strip().lower()
-    requested_type = str(
-        data.get("water_type") or ""
-    ).strip().lower()
-
-    # -------------------------------------------------------------
-    # FINAL SERVER-SIDE STP MATCH
-    # -------------------------------------------------------------
-    # Do not blindly trust the STP id returned by the browser.
-    # Recalculate the best feasible STP using the same rules as
-    # /api/search_place.
-    feasible_stps = []
-
-    for stp in load_stps():
-
-        try:
-            stp_lat = float(stp.get("latitude"))
-            stp_lon = float(stp.get("longitude"))
-        except (TypeError, ValueError):
-            continue
-
-        # Capacity: use explicit available capacity when present;
-        # otherwise calculate total - current load.
-        try:
-            raw_available = stp.get("available_capacity_mld")
-
-            if raw_available not in (None, ""):
-                available_capacity = float(raw_available)
-            else:
-                total_capacity = float(
-                    stp.get("total_capacity_mld", 0) or 0
-                )
-                current_load = float(
-                    stp.get("current_load_mld", 0) or 0
-                )
-                available_capacity = max(
-                    0.0,
-                    total_capacity - current_load
-                )
-        except (TypeError, ValueError):
-            available_capacity = 0.0
-
-        if requested_mld > 0 and available_capacity < requested_mld:
-            continue
-
-        # Quality: match when the STP record contains a quality value.
-        stp_quality = str(
-            stp.get("quality_grade") or ""
-        ).strip().lower()
-
-        if (
-            requested_quality
-            and stp_quality
-            and requested_quality != stp_quality
-        ):
-            continue
-
-        # Water type: match when the STP record contains a type.
-        # Empty type remains compatible with existing STP records.
-        stp_type = str(
-            stp.get("water_type") or ""
-        ).strip().lower()
-
-        if (
-            requested_type
-            and stp_type
-            and requested_type != stp_type
-        ):
-            continue
-
-        # Location feasibility.
-        straight_distance = haversine(
-            delivery_lat,
-            delivery_lon,
-            stp_lat,
-            stp_lon
-        )
-
-        if straight_distance > 100:
-            continue
-
-        # The deployment environment may not have the A* graph.
-        # Fall back to haversine instead of rejecting a valid STP.
-        try:
-            route_distance = float(
-                astar_distance(
-                    delivery_lat,
-                    delivery_lon,
-                    stp_lat,
-                    stp_lon
-                )
-            )
-        except Exception as e:
-            print(
-                f"A* distance failed for {stp.get('stp_id')}: {e}"
-            )
-            route_distance = None
-
-        if (
-            route_distance is None
-            or route_distance <= 0
-            or route_distance > 100
-        ):
-            route_distance = straight_distance
-
-        if route_distance > 100:
-            continue
-
-        candidate = stp.copy()
-        candidate["latitude"] = stp_lat
-        candidate["longitude"] = stp_lon
-        candidate["distance_km"] = round(
-            route_distance,
-            2
-        )
-        candidate["available_capacity_mld"] = round(
-            available_capacity,
-            6
-        )
-
-        feasible_stps.append(candidate)
-
-    if not feasible_stps:
-        print(
-            "ORDER BLOCKED: no feasible STP for",
-            requested_kld,
-            "KLD",
-            requested_quality,
-            requested_type
-        )
-
-        return jsonify({
-            "error": (
-                "No STP satisfies your requested quantity, water quality, "
-                "water type and delivery location."
-            )
-        }), 422
-
-    # Closest STP among ONLY the STPs that satisfy the demand.
-    matching_stp = min(
-        feasible_stps,
-        key=lambda stp: float(stp["distance_km"])
-    )
-
     order_id = "ORD-" + uuid.uuid4().hex[:10].upper()
-
-    # Use the server-selected STP, not a random/browser-selected STP.
-    data["stp_id"] = matching_stp["stp_id"]
-    data["stp_name"] = matching_stp["stp_name"]
-    data["distance_km"] = matching_stp["distance_km"]
 
     row = {
         "order_id": order_id,
@@ -2186,132 +1963,21 @@ def create_order():
         "distance_km": data["distance_km"],
         "location": data["location"],
         "buyer_user_id": session.get("user_id") or "",
-        "buyer_name": (
-            session.get("buyer_name")
-            or session.get("user_name")
-            or "Unknown"
-        ),
-        "buyer_phone": (
-            session.get("buyer_phone")
-            or session.get("user_phone")
-            or "N/A"
-        ),
+        "buyer_name": session.get("buyer_name") or session.get("user_name") or "Unknown",
+        "buyer_phone": session.get("buyer_phone") or session.get("user_phone") or "N/A",
         "status": "Pending",
-        "created_at": datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "payment_status": "Pending",
         "accepted_at": "",
         "capacity_release_at": "",
-        "capacity_released": "False",
-        "delivery_lat": delivery_lat,
-        "delivery_lon": delivery_lon
+        "capacity_released": "False"
     }
 
     with open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=ORDER_FIELDS
-        )
+        writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
         writer.writerow(row)
 
-    print(
-        "ORDER CREATED:",
-        order_id,
-        "| STP:",
-        matching_stp.get("stp_id"),
-        matching_stp.get("stp_name"),
-        "| Delivery:",
-        delivery_lat,
-        delivery_lon
-    )
-
-    return jsonify({
-        "message": "Order created successfully",
-        "order_id": order_id,
-        "stp_id": matching_stp["stp_id"],
-        "stp_name": matching_stp["stp_name"]
-    })
-
-
-@app.route("/api/order_tracking/<order_id>")
-def api_order_tracking(order_id):
-    if not session.get("user_id"):
-        return jsonify({"success": False, "error": "Login required"}), 401
-
-    order = None
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                if str(row.get("order_id", "")).strip() == str(order_id).strip():
-                    order = row
-                    break
-
-    if not order:
-        return jsonify({"success": False, "error": "Order not found"}), 404
-
-    current_user_id = str(session.get("user_id") or "").strip()
-    buyer_user_id = str(order.get("buyer_user_id") or "").strip()
-    user_role = str(session.get("role") or "").strip().lower()
-
-    if user_role == "demand":
-        if current_user_id and buyer_user_id and current_user_id != buyer_user_id:
-            return jsonify({"success": False, "error": "Unauthorized"}), 403
-
-    elif user_role == "stp":
-        selected_stp_id = str(
-            request.args.get("stp_id")
-            or session.get("selected_stp_id")
-            or ""
-        ).strip()
-
-        if (
-            selected_stp_id
-            and str(order.get("stp_id") or "").strip() != selected_stp_id
-        ):
-            return jsonify({"success": False, "error": "Unauthorized"}), 403
-
-    else:
-        return jsonify({"success": False, "error": "Unauthorized"}), 403
-
-    stp_lat = stp_lon = None
-    for stp in load_stps():
-        if str(stp.get("stp_id", "")).strip() == str(order.get("stp_id", "")).strip():
-            stp_lat = stp.get("latitude")
-            stp_lon = stp.get("longitude")
-            break
-
-    try:
-        delivery_lat = float(order.get("delivery_lat"))
-        delivery_lon = float(order.get("delivery_lon"))
-    except (TypeError, ValueError):
-        delivery_lat, delivery_lon = resolve_delivery_coordinates(order)
-
-    if stp_lat is None or stp_lon is None:
-        return jsonify({"success": False, "error": "STP coordinates unavailable"}), 404
-
-    if delivery_lat is None or delivery_lon is None:
-        return jsonify({
-            "success": False,
-            "error": "Exact delivery location is unavailable for this order"
-        }), 422
-
-    return jsonify({
-        "success": True,
-        "order_id": order.get("order_id"),
-        "status": order.get("status"),
-        "stp": {
-            "id": order.get("stp_id"),
-            "name": order.get("stp_name"),
-            "latitude": float(stp_lat),
-            "longitude": float(stp_lon)
-        },
-        "delivery": {
-            "latitude": float(delivery_lat),
-            "longitude": float(delivery_lon),
-            "location": order.get("location", "")
-        }
-    })
+    return jsonify({"message": "Order created successfully", "order_id": order_id})
 
 
 @app.route("/invoice")
@@ -2448,6 +2114,10 @@ def pay_now():
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
         for row in reader:
+
+            # Remove unnamed CSV columns
+            row.pop(None, None)
+
             if row.get("order_id", "").strip() == order_id:
                 current_user_id = session.get("user_id")
                 current_buyer_name = session.get("buyer_name") or session.get("user_name")
@@ -2506,6 +2176,7 @@ def confirm_cod():
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
         for row in reader:
+            row.pop(None, None)
             if row.get("order_id", "").strip() == order_id:
                 current_user_id = session.get("user_id")
                 current_buyer_name = session.get("buyer_name") or session.get("user_name")
@@ -2546,57 +2217,6 @@ def confirm_cod():
     return redirect(url_for("demand", payment_success=order_id))
 
 
-
-
-@app.route("/api/stp_orders")
-def stp_orders():
-    """Return orders assigned to the logged-in STP operator."""
-    if not session.get("user_id"):
-        return jsonify({"error": "Please log in to view STP orders."}), 401
-
-    if str(session.get("role", "")).lower().strip() != "stp":
-        return jsonify({"error": "Unauthorized"}), 403
-
-    selected_stp_id = str(
-        request.args.get("stp_id")
-        or session.get("selected_stp_id")
-        or ""
-    ).strip()
-
-    results = []
-
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                row_stp_id = str(row.get("stp_id") or "").strip()
-
-                if selected_stp_id and row_stp_id != selected_stp_id:
-                    continue
-
-                results.append({
-                    "order_id": row.get("order_id"),
-                    "status": row.get("status"),
-                    "location": row.get("location"),
-                    "stp_id": row.get("stp_id"),
-                    "stp_name": row.get("stp_name"),
-                    "quantity_kld": row.get("quantity_kld"),
-                    "quality": row.get("quality"),
-                    "water_type": row.get("water_type"),
-                    "distance_km": row.get("distance_km"),
-                    "buyer_name": row.get("buyer_name"),
-                    "buyer_phone": row.get("buyer_phone"),
-                    "created_at": row.get("created_at"),
-                    "payment_status": row.get("payment_status", ""),
-                    "delivery_lat": row.get("delivery_lat", ""),
-                    "delivery_lon": row.get("delivery_lon", "")
-                })
-
-    results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-
-    return jsonify({
-        "stp_id": selected_stp_id,
-        "orders": results
-    })
 
 
 @app.route("/api/my_orders")
@@ -2671,26 +2291,11 @@ def track_order():
 @app.route('/supply')
 def supply():
 
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-
-    if str(session.get("role", "")).lower() != "stp":
-        return "Unauthorized", 403
 
     auto_reset_capacity()
 
     stps = load_stps()
     selected_id = request.args.get("stp_id")
-
-    # Remember the STP selected by this operator so STP Order Tracking
-    # can show the same STP's orders.
-    if selected_id:
-        session["selected_stp_id"] = str(selected_id).strip()
-
-    selected_stp_id = str(
-        session.get("selected_stp_id") or selected_id or ""
-    ).strip()
-
     selected_stp = None
     prediction = None
     weekly_forecast = None
@@ -2796,11 +2401,7 @@ def upload_quality():
 @app.route("/handle_request", methods=["POST"])
 def handle_request():
 
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
 
-    if str(session.get("role", "")).lower() != "stp":
-        return "Unauthorized", 403
 
     auto_reset_capacity()
 
@@ -2931,30 +2532,10 @@ def handle_request():
 
 @app.route("/update_order_status", methods=["POST"])
 def update_order_status():
-    
-    if not session.get("user_id"):
-        return jsonify({"success": False, "error": "Login required"}), 401
-
-    user_role = str(session.get("role", "")).lower().strip()
-
     auto_reset_capacity()
 
     order_id = (request.form.get("order_id") or "").strip()
     new_status = (request.form.get("status") or "").strip()
-
-    # STP operators can update the normal workflow.
-    # Demand users can only persist Delivered for their own order,
-    # which is required when the Track Order tanker animation reaches
-    # the exact destination.
-    if user_role != "stp":
-        if not (
-            user_role == "demand"
-            and new_status == "Delivered"
-        ):
-            return jsonify({
-                "success": False,
-                "error": "Unauthorized"
-            }), 403
 
     allowed_statuses = {"Pending", "Accepted", "Out for Delivery", "Delivered", "Rejected"}
     if new_status not in allowed_statuses:
@@ -2971,24 +2552,6 @@ def update_order_status():
         reader = csv.DictReader(f)
         for row in reader:
             if row.get("order_id", "").strip() == order_id:
-
-                if user_role == "demand":
-                    session_user_id = str(
-                        session.get("user_id") or ""
-                    ).strip()
-                    order_user_id = str(
-                        row.get("buyer_user_id") or ""
-                    ).strip()
-
-                    if (
-                        not session_user_id
-                        or order_user_id != session_user_id
-                    ):
-                        return jsonify({
-                            "success": False,
-                            "error": "Unauthorized"
-                        }), 403
-
                 stp_id_redirect = row.get("stp_id")
                 current_status = row.get("status", "").strip()
                 status_order = {"Pending": 0, "Accepted": 1, "Out for Delivery": 2, "Delivered": 3, "Rejected": -1}
@@ -3050,49 +2613,23 @@ def update_order_status():
         for row in updated_rows:
             writer.writerow({field: row.get(field, "") for field in ORDER_FIELDS})
 
-    if user_role == "demand":
-        return jsonify({
-            "success": True,
-            "order_id": order_id,
-            "status": "Delivered"
-        })
-
     return redirect(url_for("supply", stp_id=stp_id_redirect))
 
-@app.route("/stp_track")
-def stp_track():
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-
-    role = str(session.get("role", "")).lower().strip()
-
-    if role != "stp":
-        return jsonify({"error": "Unauthorized"}), 403
-
-    return render_template("stp_track.html")
 
 @app.route("/tanker")
 def tanker_dashboard():
 
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-
-    if str(session.get("role", "")).lower() != "tanker":
-        return "Unauthorized", 403
 
     auto_reset_capacity()
 
     orders = []
 
     if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+        with open(ORDERS_FILE, "r") as f:
             reader = csv.DictReader(f)
 
             for row in reader:
-                current_order_status = str(row.get("status") or "").strip()
 
-                if current_order_status not in {"Accepted", "Out for Delivery"}:
-                    continue
                 if row["status"] == "Accepted":
 
                     stps = load_stps()
@@ -3355,420 +2892,808 @@ def chatbot():
 
             if not stps:
 
-                # A tanker request is created when the STP accepts the order.
-                # Keep this separate from the main order status so:
-                # Accepted = STP accepted the order
-                # Pending = tanker has not accepted the delivery request yet
-                # Accepted = tanker accepted the delivery request
-                # Rejected = tanker rejected the delivery request
-                tanker_request_status = str(
-                    row.get("tanker_request_status") or ""
-                ).strip()
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
 
-                if current_order_status == "Out for Delivery":
-                    tanker_request_status = "Accepted"
-                elif tanker_request_status not in {"Accepted", "Rejected"}:
-                    tanker_request_status = "Pending"
 
-                # A tanker-rejected request should not remain in the
-                # available-orders list.
-                if tanker_request_status == "Rejected":
-                    continue
+            available_count = 0
 
-                stps = load_stps()
-                stp_lat = None
-                stp_lon = None
-
-                for stp in stps:
-                    if str(stp["stp_id"]) == str(row["stp_id"]):
-                        stp_lat = stp.get("latitude")
-                        stp_lon = stp.get("longitude")
-                        break
-
-                row["stp_lat"] = stp_lat
-                row["stp_lon"] = stp_lon
-                row["tanker_request_status"] = tanker_request_status
+            for stp in stps:
 
                 try:
-                    row["delivery_lat"] = float(row.get("delivery_lat"))
-                    row["delivery_lon"] = float(row.get("delivery_lon"))
+
+                    capacity = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    if capacity > 0:
+                        available_count += 1
+
                 except (TypeError, ValueError):
-                    row["delivery_lat"] = None
-                    row["delivery_lon"] = None
 
-                orders.append(row)
-
-    # Keep the existing active orders/history behavior.
-    # My Trips follows the current order status stored in orders.csv.
-    trip_history = []
-
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-
-            for row in reader:
-                status = str(row.get("status") or "").strip()
-
-                if status in {"", "Pending", "Rejected"}:
                     continue
 
-                # A tanker-rejected request is not treated as an active trip.
-                tanker_request_status = str(
-                    row.get("tanker_request_status") or ""
-                ).strip()
 
-                if status == "Accepted" and tanker_request_status == "Rejected":
-                    continue
-
-                trip_history.append({
-                    "order_id": row.get("order_id", ""),
-                    "stp_name": row.get("stp_name", ""),
-                    "quantity_kld": row.get("quantity_kld", ""),
-                    "location": row.get("location", ""),
-                    "buyer_name": row.get("buyer_name", ""),
-                    "buyer_phone": row.get("buyer_phone", ""),
-                    "distance_km": row.get("distance_km", ""),
-                    "status": status,
-                    "created_at": row.get("created_at", ""),
-                    "delivered_at": row.get("delivered_at", ""),
-                    "payment_status": row.get("payment_status", "")
-                })
-
-    trip_history.sort(
-        key=lambda item: item.get("created_at") or "",
-        reverse=True
-    )
-
-    return render_template(
-        "tanker.html",
-        orders=orders,
-        trip_history=trip_history
-    )
-
-
-@app.route("/trip_history")
-def trip_history():
-
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-
-    if str(session.get("role", "")).lower() != "tanker":
-        return "Unauthorized", 403
-
-    auto_reset_capacity()
-
-    history = []
-
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-
-            for row in reader:
-                status = str(row.get("status") or "").strip()
-
-                if status in {"", "Pending", "Rejected"}:
-                    continue
-
-                tanker_request_status = str(
-                    row.get("tanker_request_status") or ""
-                ).strip()
-
-                if status == "Accepted" and tanker_request_status == "Rejected":
-                    continue
-
-                history.append({
-                    "order_id": row.get("order_id", ""),
-                    "stp_name": row.get("stp_name", ""),
-                    "quantity_kld": row.get("quantity_kld", ""),
-                    "location": row.get("location", ""),
-                    "buyer_name": row.get("buyer_name", ""),
-                    "buyer_phone": row.get("buyer_phone", ""),
-                    "distance_km": row.get("distance_km", ""),
-                    "status": status,
-                    "created_at": row.get("created_at", ""),
-                    "delivered_at": row.get("delivered_at", ""),
-                    "payment_status": row.get("payment_status", "")
-                })
-
-    history.sort(
-        key=lambda item: item.get("created_at") or "",
-        reverse=True
-    )
-
-    return render_template(
-        "trip_history.html",
-        trip_history=history
-    )
-
-
-@app.route("/tanker/respond_request", methods=["POST"])
-def respond_to_tanker_request():
-
-    if not session.get("user_id"):
-        return jsonify({
-            "success": False,
-            "message": "Please log in first."
-        }), 401
-
-    if str(session.get("role", "")).lower() != "tanker":
-        return jsonify({
-            "success": False,
-            "message": "Unauthorized."
-        }), 403
-
-    order_id = str(request.form.get("order_id") or "").strip()
-    action = str(request.form.get("action") or "").strip().lower()
-
-    if not order_id:
-        return jsonify({
-            "success": False,
-            "message": "Order ID is required."
-        }), 400
-
-    if action not in {"accept", "reject"}:
-        return jsonify({
-            "success": False,
-            "message": "Invalid tanker request action."
-        }), 400
-
-    new_request_status = "Accepted" if action == "accept" else "Rejected"
-
-    with orders_lock:
-        if not os.path.exists(ORDERS_FILE):
-            return jsonify({
-                "success": False,
-                "message": "Orders file not found."
-            }), 404
-
-        with open(
-            ORDERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-            reader = csv.DictReader(f)
-            fieldnames = list(reader.fieldnames or [])
-            rows = list(reader)
-
-        # Older orders.csv files may not yet contain the new field.
-        if "tanker_request_status" not in fieldnames:
-            fieldnames.append("tanker_request_status")
-
-        found = False
-
-        for row in rows:
-            if str(row.get("order_id") or "").strip() != order_id:
-                continue
-
-            found = True
-            order_status = str(row.get("status") or "").strip()
-
-            if order_status != "Accepted":
-                return jsonify({
-                    "success": False,
-                    "message": "This delivery request is no longer available."
-                }), 400
-
-            row["tanker_request_status"] = new_request_status
-            break
-
-        if not found:
-            return jsonify({
-                "success": False,
-                "message": f"Order {order_id} was not found."
-            }), 404
-
-        with open(
-            ORDERS_FILE,
-            "w",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-            writer = csv.DictWriter(
-                f,
-                fieldnames=fieldnames,
-                extrasaction="ignore"
+            reply = (
+                f"There are {len(stps)} STPs "
+                f"in the system.\n\n"
+                f"{available_count} currently have "
+                f"available capacity."
             )
-            writer.writeheader()
-            writer.writerows(rows)
 
-    if action == "accept":
+            return jsonify({
+                "reply": reply
+            })
+
+                  # =====================================================
+        # MY ORDERS / TANKER / DELIVERY STATUS
+        # =====================================================
+
+        order_query = (
+            "my order" in text
+            or "my orders" in text
+            or "order status" in text
+            or "where is my order" in text
+            or "how much water did i order" in text
+            or "how much did i order" in text
+            or "what quantity did i order" in text
+            or "how many kld did i order" in text
+            or "what is my order quantity" in text
+        )
+
+        tanker_query = (
+            "where is my tanker" in text
+            or "tanker status" in text
+            or "has my tanker been assigned" in text
+            or "is my tanker assigned" in text
+        )
+
+        delivery_query = (
+            "delivery status" in text
+            or "what is my delivery status" in text
+            or "where is my delivery" in text
+            or "when will my delivery arrive" in text
+            or "when will my order arrive" in text
+        )
+
+        if (
+            order_query
+            or tanker_query
+            or delivery_query
+        ):
+
+            user_id = session.get("user_id")
+
+            buyer_name = (
+                session.get("buyer_name")
+                or session.get("user_name")
+            )
+
+            buyer_phone = (
+                session.get("buyer_phone")
+                or session.get("user_phone")
+            )
+
+            # -------------------------------------------------
+            # USER MUST BE LOGGED IN
+            # -------------------------------------------------
+
+            if not user_id:
+
+                return jsonify({
+                    "reply": (
+                        "Please log in first so I can "
+                        "access your orders."
+                    )
+                })
+
+            orders = []
+
+            # -------------------------------------------------
+            # LOAD USER'S ORDERS
+            # -------------------------------------------------
+
+            if os.path.exists(ORDERS_FILE):
+
+                with open(
+                    ORDERS_FILE,
+                    "r",
+                    newline="",
+                    encoding="utf-8"
+                ) as f:
+
+                    reader = csv.DictReader(f)
+
+                    for row in reader:
+
+                        matches_user = (
+                            user_id
+                            and
+                            row.get("buyer_user_id", "")
+                            == user_id
+                        )
+
+                        matches_legacy = (
+                            not row.get(
+                                "buyer_user_id",
+                                ""
+                            )
+                            and buyer_name
+                            and buyer_phone
+                            and
+                            row.get("buyer_name")
+                            == buyer_name
+                            and
+                            row.get("buyer_phone")
+                            == buyer_phone
+                        )
+
+                        if (
+                            matches_user
+                            or matches_legacy
+                        ):
+
+                            orders.append(row)
+
+            # -------------------------------------------------
+            # NO ORDERS
+            # -------------------------------------------------
+
+            if not orders:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any orders "
+                        "associated with your account."
+                    )
+                })
+
+            # -------------------------------------------------
+            # MOST RECENT ORDER
+            # -------------------------------------------------
+
+            orders.sort(
+                key=lambda x:
+                    x.get("created_at") or "",
+                reverse=True
+            )
+
+            latest = orders[0]
+
+            order_id = (
+                latest.get("order_id")
+                or "Unknown"
+            )
+
+            status = (
+                latest.get("status")
+                or "Unknown"
+            )
+
+            stp_name = (
+                latest.get("stp_name")
+                or "Unknown STP"
+            )
+
+            location = (
+                latest.get("location")
+                or "your delivery location"
+            )
+
+            quantity = (
+                latest.get("quantity_kld")
+                or "Unknown"
+            )
+
+            # =================================================
+            # QUANTITY QUESTION
+            # =================================================
+
+            if (
+                "how much water did i order" in text
+                or "how much did i order" in text
+                or "what quantity did i order" in text
+                or "how many kld did i order" in text
+                or "what is my order quantity" in text
+            ):
+
+                return jsonify({
+                    "reply": (
+                        f"Your latest order {order_id} "
+                        f"is for {quantity} KLD of treated "
+                        f"wastewater from {stp_name}."
+                    )
+                })
+
+            # =================================================
+            # TANKER QUESTION
+            # =================================================
+
+            if tanker_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"🚚 Your tanker has not been "
+                        f"assigned yet.\n\n"
+                        f"Order {order_id} is still awaiting "
+                        f"STP approval."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"🚚 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"The order is currently waiting "
+                        f"for tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently Out for Delivery.\n\n"
+                        f"STP: {stp_name}\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has "
+                        f"already been delivered.\n\n"
+                        f"The tanker delivery is complete."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your order {order_id} was rejected, "
+                        f"so a tanker has not been assigned."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # DELIVERY QUESTION
+            # =================================================
+
+            if delivery_query:
+
+                if status == "Pending":
+
+                    reply = (
+                        f"📦 Your delivery has not started yet.\n\n"
+                        f"Order {order_id} is awaiting "
+                        f"STP approval. A tanker will be "
+                        f"available after the order is accepted."
+                    )
+
+                elif status == "Accepted":
+
+                    reply = (
+                        f"📦 Your order {order_id} has been "
+                        f"accepted by {stp_name}.\n\n"
+                        f"It is currently waiting for "
+                        f"tanker pickup."
+                    )
+
+                elif status == "Out for Delivery":
+
+                    reply = (
+                        f"🚚 Your order {order_id} is "
+                        f"currently out for delivery.\n\n"
+                        f"Quantity: {quantity} KLD\n"
+                        f"Delivery location: {location}"
+                    )
+
+                elif status == "Delivered":
+
+                    reply = (
+                        f"✅ Your order {order_id} has been "
+                        f"delivered successfully."
+                    )
+
+                elif status == "Rejected":
+
+                    reply = (
+                        f"Your delivery cannot proceed because "
+                        f"order {order_id} was rejected."
+                    )
+
+                else:
+
+                    reply = (
+                        f"Your order {order_id} currently "
+                        f"has status: {status}."
+                    )
+
+                return jsonify({
+                    "reply": reply
+                })
+
+            # =================================================
+            # GENERAL ORDER STATUS
+            # =================================================
+
+            if status == "Pending":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is currently Pending. "
+                    f"It is awaiting STP approval."
+                )
+
+            elif status == "Accepted":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Accepted by {stp_name}. "
+                    f"It is waiting for tanker pickup."
+                )
+
+            elif status == "Out for Delivery":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"is Out for Delivery 🚚.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD\n"
+                    f"Delivery location: {location}"
+                )
+
+            elif status == "Delivered":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has been Delivered ✅.\n\n"
+                    f"STP: {stp_name}\n"
+                    f"Quantity: {quantity} KLD"
+                )
+
+            elif status == "Rejected":
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"was Rejected.\n\n"
+                    f"If you want, I can help you "
+                    f"find another suitable STP."
+                )
+
+            else:
+
+                reply = (
+                    f"Your latest order {order_id} "
+                    f"has status: {status}."
+                )
+
+            return jsonify({
+                "reply": reply
+            })
+        # =====================================================
+        # NEAREST STP
+        # =====================================================
+
+        if (
+            "nearest stp" in text
+            or "closest stp" in text
+            or "stp near me" in text
+            or "stp nearby" in text
+            or "which stp is near" in text
+            or "which stp is closest" in text
+        ):
+
+            # -------------------------------------------------
+            # Check whether browser location is available
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to find the "
+                        "nearest STP. Please allow location "
+                        "access in your browser and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # Load STPs
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "I couldn't find any STPs "
+                        "in the system."
+                    )
+                })
+
+
+            nearest_stp = None
+            nearest_distance = float("inf")
+
+
+            # -------------------------------------------------
+            # Compare distance to every STP
+            # -------------------------------------------------
+
+            for stp in stps:
+
+                try:
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                if distance < nearest_distance:
+
+                    nearest_distance = distance
+
+                    nearest_stp = stp
+
+
+            # -------------------------------------------------
+            # No valid STP coordinates
+            # -------------------------------------------------
+
+            if nearest_stp is None:
+
+                return jsonify({
+                    "reply": (
+                        "I found STPs in the system, "
+                        "but their location coordinates "
+                        "are unavailable."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # STP details
+            # -------------------------------------------------
+
+            stp_name = (
+                nearest_stp.get("name")
+                or nearest_stp.get("stp_name")
+                or nearest_stp.get("stp_id")
+                or "Nearest STP"
+            )
+
+
+            available_capacity = (
+                nearest_stp.get(
+                    "available_capacity_mld"
+                )
+                or "Unknown"
+            )
+
+
+            reply = (
+                f"The nearest STP is "
+                f"{stp_name}, approximately "
+                f"{nearest_distance:.2f} km away.\n\n"
+                f"Available capacity: "
+                f"{available_capacity} MLD."
+            )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+        # =====================================================
+        # SMART STP RECOMMENDATION
+        # =====================================================
+
+        recommendation_words = [
+            "which stp should i choose",
+            "which stp should i select",
+            "which stp is best",
+            "recommend an stp",
+            "recommend a stp",
+            "find an stp",
+            "suitable stp",
+            "best stp",
+            "stp for me",
+            "stp for my requirement",
+            "need an stp"
+        ]
+
+        has_recommendation_intent = any(
+            phrase in text
+            for phrase in recommendation_words
+        )
+
+        if (
+            has_recommendation_intent
+            and requested_kld is not None
+        ):
+
+            # -------------------------------------------------
+            # USER LOCATION REQUIRED
+            # -------------------------------------------------
+
+            if latitude is None or longitude is None:
+
+                return jsonify({
+                    "reply": (
+                        "I need your location to recommend "
+                        "the nearest suitable STP. Please "
+                        "allow location access and try again."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # LOAD STP DATA
+            # -------------------------------------------------
+
+            stps = load_stps()
+
+            if not stps:
+
+                return jsonify({
+                    "reply": (
+                        "There are currently no STPs "
+                        "available in the system."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # FIND SUITABLE STPs
+            # -------------------------------------------------
+
+            suitable_stps = []
+
+
+            for stp in stps:
+
+                try:
+
+                    available_mld = float(
+                        stp.get(
+                            "available_capacity_mld",
+                            0
+                        ) or 0
+                    )
+
+                    available_kld = (
+                        available_mld * 1000
+                    )
+
+
+                    stp_lat = float(
+                        stp.get("latitude")
+                    )
+
+                    stp_lon = float(
+                        stp.get("longitude")
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
+
+                    continue
+
+
+                # -------------------------------------------------
+                # CAPACITY CHECK
+                # -------------------------------------------------
+
+                if available_kld < requested_kld:
+                    continue
+
+
+                # -------------------------------------------------
+                # DISTANCE
+                # -------------------------------------------------
+
+                distance = haversine(
+                    latitude,
+                    longitude,
+                    stp_lat,
+                    stp_lon
+                )
+
+
+                stp_name = (
+                    stp.get("name")
+                    or stp.get("stp_name")
+                    or stp.get("stp_id")
+                    or "Unnamed STP"
+                )
+
+
+                suitable_stps.append({
+
+                    "name": stp_name,
+
+                    "stp_id": stp.get(
+                        "stp_id",
+                        ""
+                    ),
+
+                    "distance": distance,
+
+                    "available_kld": available_kld,
+
+                    "quality": stp.get(
+                        "quality_grade",
+                        "Unknown"
+                    ),
+
+                    "water_type": stp.get(
+                        "water_type",
+                        "Unknown"
+                    )
+
+                })
+
+
+            # -------------------------------------------------
+            # NO SUITABLE STP
+            # -------------------------------------------------
+
+            if not suitable_stps:
+
+                return jsonify({
+                    "reply": (
+                        f"I couldn't find an STP near you "
+                        f"with at least {requested_kld:g} KLD "
+                        f"of available capacity."
+                    )
+                })
+
+
+            # -------------------------------------------------
+            # SORT BY DISTANCE
+            # -------------------------------------------------
+
+            suitable_stps.sort(
+                key=lambda x: x["distance"]
+            )
+
+
+            # -------------------------------------------------
+            # TOP 3 OPTIONS
+            # -------------------------------------------------
+
+            top_stps = suitable_stps[:3]
+
+            best = top_stps[0]
+
+
+            # -------------------------------------------------
+            # BUILD RESPONSE
+            # -------------------------------------------------
+
+            reply = (
+                f"I found {len(suitable_stps)} suitable "
+                f"STP(s) for your requirement of "
+                f"{requested_kld:g} KLD.\n\n"
+            )
+
+
+            reply += (
+                f"🏆 Recommended: {best['name']}\n"
+                f"Distance: {best['distance']:.2f} km\n"
+                f"Available capacity: "
+                f"{best['available_kld']:.0f} KLD\n"
+            )
+
+
+            if best["quality"] != "Unknown":
+
+                reply += (
+                    f"Quality: {best['quality']}\n"
+                )
+
+
+            if best["water_type"] != "Unknown":
+
+                reply += (
+                    f"Water type: {best['water_type']}\n"
+                )
+
+
+            # -------------------------------------------------
+            # ALTERNATIVES
+            # -------------------------------------------------
+
+            if len(top_stps) > 1:
+
+                reply += "\nOther suitable options:\n"
+
+                for index, stp in enumerate(
+                    top_stps[1:],
+                    start=2
+                ):
+
+                    reply += (
+                        f"{index}. {stp['name']} — "
+                        f"{stp['distance']:.2f} km away, "
+                        f"{stp['available_kld']:.0f} KLD available\n"
+                    )
+
+
+            return jsonify({
+                "reply": reply
+            })
+
+
+        # =====================================================
+        # DEFAULT RESPONSE
+        # =====================================================
+
         return jsonify({
-            "success": True,
-            "message": "Delivery request accepted."
+            "reply": (
+                "I understood your question, but I don't "
+                "have a specific function for it yet.\n\n"
+                "Try asking me about STPs, orders, routing, "
+                "demand, predictions or tanker information."
+            )
         })
 
-    return jsonify({
-        "success": True,
-        "message": "Delivery request rejected."
-    })
 
+    except Exception as e:
 
-@app.route("/api/tanker_notifications")
-def tanker_notifications():
+        print(
+            "CHATBOT ERROR:",
+            e
+        )
 
-    if not session.get("user_id"):
         return jsonify({
-            "count": 0,
-            "notifications": []
-        }), 401
-
-    if str(session.get("role", "")).lower() != "tanker":
-        return jsonify({
-            "count": 0,
-            "notifications": []
-        }), 403
-
-    notifications = []
-
-    if os.path.exists(ORDERS_FILE):
-        with open(
-            ORDERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-            reader = csv.DictReader(f)
-
-            for row in reader:
-                status = str(row.get("status") or "").strip()
-                tanker_request_status = str(
-                    row.get("tanker_request_status") or ""
-                ).strip()
-
-                # Legacy Accepted orders without the new field are treated
-                # as pending tanker requests.
-                if (
-                    status == "Accepted"
-                    and tanker_request_status not in {"Accepted", "Rejected"}
-                ):
-                    notifications.append({
-                        "order_id": row.get("order_id", ""),
-                        "stp_name": row.get("stp_name", ""),
-                        "quantity_kld": row.get("quantity_kld", ""),
-                        "location": row.get("location", ""),
-                        "message": "New delivery request waiting for approval."
-                    })
-
-    return jsonify({
-        "count": len(notifications),
-        "notifications": notifications
-    })
-
-
-TANKER_CAPACITY_KLD = 12
-AVAILABLE_TANKERS = 5
-
-
-@app.route("/accept_pickup", methods=["POST"])
-def accept_pickup():
-
-    if not session.get("user_id"):
-        return redirect(url_for("login"))
-
-    if str(session.get("role", "")).lower() != "tanker":
-        return "Unauthorized", 403
-
-    order_id = str(request.form.get("order_id") or "").strip()
-
-    if not order_id:
-        return "No Order ID received", 400
-
-    updated_rows = []
-    tanker_info = None
-    stp_id_redirect = None
-    fieldnames = []
-
-    with orders_lock:
-        with open(
-            ORDERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-            reader = csv.DictReader(f)
-            fieldnames = list(reader.fieldnames or [])
-            rows = list(reader)
-
-        if "tanker_request_status" not in fieldnames:
-            fieldnames.append("tanker_request_status")
-
-        for row in rows:
-
-            if str(row.get("order_id") or "").strip() != order_id:
-                updated_rows.append(row)
-                continue
-
-            stp_id_redirect = row.get("stp_id")
-
-            order_status = str(row.get("status") or "").strip()
-            tanker_request_status = str(
-                row.get("tanker_request_status") or ""
-            ).strip()
-
-            if order_status != "Accepted":
-                updated_rows.append(row)
-                continue
-
-            if tanker_request_status != "Accepted":
-                updated_rows.append(row)
-                continue
-
-            try:
-                quantity = float(row.get("quantity_kld") or 0)
-            except (TypeError, ValueError):
-                updated_rows.append(row)
-                continue
-
-            tankers_required = math.ceil(
-                quantity / TANKER_CAPACITY_KLD
+            "reply": (
+                "Sorry, something went wrong while "
+                "processing your request."
             )
-
-            tanker_info = {
-                "order_id": row.get("order_id"),
-                "quantity": quantity,
-                "tankers_required": tankers_required,
-                "available_tankers": AVAILABLE_TANKERS,
-                "sufficient": tankers_required <= AVAILABLE_TANKERS,
-                "buyer_name": row.get("buyer_name"),
-                "buyer_phone": row.get("buyer_phone"),
-            }
-
-            row["status"] = "Out for Delivery"
-            row["tanker_request_status"] = "Accepted"
-
-            updated_rows.append(row)
-
-        if tanker_info is None:
-            return (
-                f"Order {order_id} is not available for pickup. "
-                "The tanker must accept the delivery request first, "
-                "and the STP order must still be Accepted.",
-                400
-            )
-
-        with open(
-            ORDERS_FILE,
-            "w",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-            writer = csv.DictWriter(
-                f,
-                fieldnames=fieldnames,
-                extrasaction="ignore"
-            )
-            writer.writeheader()
-            writer.writerows(updated_rows)
-
-    return render_template(
-        "tanker_summary.html",
-        info=tanker_info,
-        stp_id=stp_id_redirect
-    )
-
-
-import os
+        }), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
@@ -3777,4 +3702,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         threaded=True
-    )
+    )   
