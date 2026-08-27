@@ -81,6 +81,11 @@ if not os.path.exists(DATABASE_DIR):
 # ✅ KEEP orders.csv INSIDE database/
 ORDERS_FILE = os.path.join(DATABASE_DIR, "orders.csv")
 
+PRICING_FILE = os.path.join(
+    BASE_DIR,
+    "data",
+    "stp_pricing.csv"
+)
 
 # =========================================================
 
@@ -278,6 +283,19 @@ def load_stps():
         data = json.load(f)
         return data.get("stps", [])
 
+def load_stp_pricing():
+    if not os.path.exists(PRICING_FILE):
+        return []
+
+    with open(
+        PRICING_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as file:
+
+        return list(csv.DictReader(file))
+    
 def save_stps(stps):
 
     with open(STP_FILE, "r", encoding="utf-8") as f:
@@ -363,8 +381,7 @@ def haversine(lat1, lon1, lat2, lon2):
          math.cos(math.radians(lat2)) *
          math.sin(dlon/2)**2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c
-
+    return R * c    
 # =========================================================
 # A* DISTANCE FUNCTION
 # =========================================================
@@ -2485,6 +2502,164 @@ def supply():
     prediction=prediction,
     weekly_forecast=weekly_forecast
     )
+
+# =========================================================
+# STP PRICING
+# =========================================================
+
+@app.route("/api/stp_pricing/<stp_id>")
+def get_stp_pricing(stp_id):
+
+    pricing = load_stp_pricing()
+
+    for row in pricing:
+
+        if str(row["stp_id"]).strip() == str(stp_id).strip():
+
+            return jsonify({
+                "success": True,
+                "pricing": {
+                    "base_price_per_kld":
+                        float(row["base_price_per_kld"]),
+
+                    "peak_incentive":
+                        float(row["peak_incentive"]),
+
+                    "off_peak_incentive":
+                        float(row["off_peak_incentive"]),
+
+                    "peak_start":
+                        row["peak_start"],
+
+                    "peak_end":
+                        row["peak_end"],
+
+                    "off_peak_start":
+                        row["off_peak_start"],
+
+                    "off_peak_end":
+                        row["off_peak_end"],
+
+                    "sustainability_credit":
+                        float(row["sustainability_credit"]),
+
+                    "reliability_bonus":
+                        float(row["reliability_bonus"])
+                }
+            })
+
+    return jsonify({
+        "success": False,
+        "message": "Pricing not found"
+    }), 404
+
+@app.route("/api/update_pricing", methods=["POST"])
+def update_pricing():
+
+    data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "No pricing data received"
+        }), 400
+
+    stp_id = data.get("stp_id")
+
+    if not stp_id:
+        return jsonify({
+            "success": False,
+            "message": "STP ID is required"
+        }), 400
+
+    try:
+        base_price = float(data["base_price_per_kld"])
+        peak = float(data["peak_incentive"])
+        off_peak = float(data["off_peak_incentive"])
+        sustainability = float(data["sustainability_credit"])
+        reliability = float(data["reliability_bonus"])
+
+        if base_price < 0:
+            raise ValueError
+
+        if peak < 0 or off_peak < 0:
+            raise ValueError
+
+        if not 0 <= sustainability <= 100:
+            raise ValueError
+
+        if not 0 <= reliability <= 100:
+            raise ValueError
+
+    except (ValueError, TypeError, KeyError):
+
+        return jsonify({
+            "success": False,
+            "message": "Invalid pricing values"
+        }), 400
+
+    pricing = load_stp_pricing()
+    found = False
+
+    for row in pricing:
+
+        if str(row["stp_id"]).strip() == str(stp_id).strip():
+
+            row["base_price_per_kld"] = base_price
+            row["peak_incentive"] = peak
+            row["off_peak_incentive"] = off_peak
+
+            row["peak_start"] = data.get("peak_start", "")
+            row["peak_end"] = data.get("peak_end", "")
+
+            row["off_peak_start"] = data.get("off_peak_start", "")
+            row["off_peak_end"] = data.get("off_peak_end", "")
+
+            row["sustainability_credit"] = sustainability
+            row["reliability_bonus"] = reliability
+
+            found = True
+            break
+
+    if not found:
+
+        return jsonify({
+            "success": False,
+            "message": "STP pricing record not found"
+        }), 404
+
+    fieldnames = [
+        "stp_id",
+        "base_price_per_kld",
+        "peak_incentive",
+        "off_peak_incentive",
+        "peak_start",
+        "peak_end",
+        "off_peak_start",
+        "off_peak_end",
+        "sustainability_credit",
+        "reliability_bonus"
+    ]
+
+    with open(
+        PRICING_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+        writer.writerows(pricing)
+
+    return jsonify({
+        "success": True,
+        "message": "Pricing updated successfully"
+    })
 
 @app.route("/update_capacity", methods=["POST"])
 def update_capacity():
