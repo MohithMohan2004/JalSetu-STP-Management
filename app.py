@@ -2252,6 +2252,126 @@ def my_orders():
     results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
     return jsonify(results)
 
+@app.route("/api/order_tracking/<order_id>")
+def order_tracking(order_id):
+
+    if not os.path.exists(ORDERS_FILE):
+        return jsonify({
+            "success": False,
+            "error": "Orders file not found"
+        }), 404
+
+    order = None
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            if str(row.get("order_id", "")).strip() == str(order_id).strip():
+                order = row
+                break
+
+    if not order:
+        return jsonify({
+            "success": False,
+            "error": "Order not found"
+        }), 404
+
+    # -----------------------------------------
+    # FIND STP
+    # -----------------------------------------
+
+    stps = load_stps()
+
+    stp = None
+
+    for s in stps:
+        if str(s.get("stp_id", "")).strip() == str(order.get("stp_id", "")).strip():
+            stp = s
+            break
+
+    if not stp:
+        return jsonify({
+            "success": False,
+            "error": "STP not found"
+        }), 404
+
+    # -----------------------------------------
+    # GEOCODE DELIVERY LOCATION
+    # -----------------------------------------
+
+    location = str(order.get("location", "")).strip()
+
+    delivery_lat = None
+    delivery_lon = None
+
+    if location:
+
+        try:
+            geo_url = (
+                "https://nominatim.openstreetmap.org/search"
+                "?format=json"
+                "&limit=1"
+                "&countrycodes=in"
+                "&q="
+                + requests.utils.quote(
+                    location + ", Bangalore"
+                )
+            )
+
+            response = requests.get(
+                geo_url,
+                headers={
+                    "User-Agent": "wastewater-app"
+                },
+                timeout=10
+            )
+
+            geo_data = response.json()
+
+            if geo_data:
+                delivery_lat = float(geo_data[0]["lat"])
+                delivery_lon = float(geo_data[0]["lon"])
+
+        except Exception as e:
+            print(
+                "Tracking geocoding error:",
+                e
+            )
+
+    # -----------------------------------------
+    # RETURN COMPLETE TRACKING DATA
+    # -----------------------------------------
+
+    return jsonify({
+        "success": True,
+
+        "order_id": order.get("order_id", ""),
+
+        "status": order.get(
+            "status",
+            "Pending"
+        ),
+
+        "stp": {
+            "id": stp.get("stp_id", ""),
+            "name": stp.get("stp_name", ""),
+            "latitude": float(stp.get("latitude")),
+            "longitude": float(stp.get("longitude"))
+        },
+
+        "delivery": {
+            "location": location,
+            "latitude": delivery_lat,
+            "longitude": delivery_lon
+        }
+    })
 
 @app.route("/api/track_order")
 def track_order():
@@ -3702,4 +3822,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         threaded=True
+        
     )   
