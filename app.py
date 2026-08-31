@@ -1349,40 +1349,62 @@ def update_tanker_status(operator_id, status):
     if status not in ["approved", "rejected"]:
         return redirect("/admin")
 
+    # Make sure the tanker registration file exists
+    if not os.path.exists(TANKER_REGISTRATIONS_FILE):
+        return redirect("/admin")
+
     rows = []
 
-    if os.path.exists(TANKER_REGISTRATIONS_FILE):
+    # Read all existing tanker registrations
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
 
-        with open(
-            TANKER_REGISTRATIONS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames
+        rows = list(reader)
 
-            reader = csv.DictReader(f)
-            fieldnames = reader.fieldnames
-            rows = list(reader)
+    # If the CSV is empty or damaged
+    if not fieldnames:
+        return redirect("/admin")
 
-        # Update the matching operator
-        for operator in rows:
+    operator_found = False
 
-            if operator.get("operator_id") == operator_id:
-                operator["verification_status"] = status
-                break
+    # Update the selected tanker operator
+    for operator in rows:
 
-        # Save updated CSV
-        with open(
-            TANKER_REGISTRATIONS_FILE,
-            "w",
-            newline="",
-            encoding="utf-8"
-        ) as f:
+        if operator.get("operator_id") == operator_id:
 
-            writer = csv.DictWriter(
-                f,
-                fieldnames=fieldnames
-            )
+            operator["verification_status"] = status
+
+            operator_found = True
+
+            break
+
+    # If operator ID does not exist
+    if not operator_found:
+        return redirect("/admin")
+
+    # Save the entire CSV again
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=fieldnames
+        )
+
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return redirect("/admin")
 
 @app.route("/api/stp_orders")
 def api_stp_orders():
@@ -1995,6 +2017,238 @@ def create_order():
         writer.writerow(row)
 
     return jsonify({"message": "Order created successfully", "order_id": order_id})
+
+# =========================================================
+# REORDER EXISTING ORDER
+# =========================================================
+
+@app.route("/reorder/<order_id>", methods=["POST"])
+def reorder_order(order_id):
+
+    # -----------------------------------------------------
+    # USER MUST BE LOGGED IN
+    # -----------------------------------------------------
+
+    user_id = session.get("user_id")
+
+    buyer_name = (
+        session.get("buyer_name")
+        or session.get("user_name")
+    )
+
+    buyer_phone = (
+        session.get("buyer_phone")
+        or session.get("user_phone")
+    )
+
+    if not user_id:
+        return jsonify({
+            "success": False,
+            "error": "Please log in to reorder."
+        }), 401
+
+
+    # -----------------------------------------------------
+    # ONLY DEMAND USERS CAN REORDER
+    # -----------------------------------------------------
+
+    if str(session.get("role") or "").lower() != "demand":
+        return jsonify({
+            "success": False,
+            "error": "Only demand users can reorder."
+        }), 403
+
+
+    # -----------------------------------------------------
+    # CHECK ORDERS FILE
+    # -----------------------------------------------------
+
+    if not os.path.exists(ORDERS_FILE):
+        return jsonify({
+            "success": False,
+            "error": "Orders file not found."
+        }), 404
+
+
+    # -----------------------------------------------------
+    # FIND ORIGINAL ORDER
+    # -----------------------------------------------------
+
+    original_order = None
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            if (
+                str(row.get("order_id", "")).strip()
+                ==
+                str(order_id).strip()
+            ):
+
+                # -----------------------------------------
+                # VERIFY THAT THIS ORDER BELONGS
+                # TO THE CURRENT LOGGED-IN USER
+                # -----------------------------------------
+
+                matches_user = (
+                    user_id
+                    and
+                    row.get("buyer_user_id", "") == user_id
+                )
+
+                matches_legacy = (
+                    not row.get("buyer_user_id", "")
+                    and buyer_name
+                    and buyer_phone
+                    and row.get("buyer_name") == buyer_name
+                    and row.get("buyer_phone") == buyer_phone
+                )
+
+                if not (
+                    matches_user
+                    or matches_legacy
+                ):
+
+                    return jsonify({
+                        "success": False,
+                        "error": "You cannot reorder another user's order."
+                    }), 403
+
+                original_order = row
+                break
+
+
+    # -----------------------------------------------------
+    # ORDER NOT FOUND
+    # -----------------------------------------------------
+
+    if original_order is None:
+
+        return jsonify({
+            "success": False,
+            "error": "Original order not found."
+        }), 404
+
+
+    # -----------------------------------------------------
+    # GENERATE NEW ORDER ID
+    # -----------------------------------------------------
+
+    new_order_id = (
+        "ORD-" +
+        uuid.uuid4().hex[:10].upper()
+    )
+
+
+    # -----------------------------------------------------
+    # CREATE NEW ORDER USING OLD ORDER DETAILS
+    # -----------------------------------------------------
+
+    new_order = {
+
+        "order_id":
+            new_order_id,
+
+        "stp_id":
+            original_order.get("stp_id", ""),
+
+        "stp_name":
+            original_order.get("stp_name", ""),
+
+        "quantity_kld":
+            original_order.get("quantity_kld", ""),
+
+        "quality":
+            original_order.get("quality", ""),
+
+        "water_type":
+            original_order.get("water_type", ""),
+
+        "distance_km":
+            original_order.get("distance_km", ""),
+
+        "location":
+            original_order.get("location", ""),
+
+        # Always use CURRENT logged-in account
+        "buyer_user_id":
+            user_id,
+
+        "buyer_name":
+            buyer_name or "Unknown",
+
+        "buyer_phone":
+            buyer_phone or "N/A",
+
+        # Reset order state
+        "status":
+            "Pending",
+
+        "created_at":
+            datetime.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        # Payment must be selected again
+        "payment_status":
+            "Pending",
+
+        # Old fulfilment data must NOT be copied
+        "accepted_at":
+            "",
+
+        "capacity_release_at":
+            "",
+
+        "capacity_released":
+            "False"
+    }
+
+
+    # -----------------------------------------------------
+    # SAVE NEW ORDER
+    # -----------------------------------------------------
+
+    with open(
+        ORDERS_FILE,
+        "a",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=ORDER_FIELDS
+        )
+
+        writer.writerow(new_order)
+
+
+    # -----------------------------------------------------
+    # RETURN NEW ORDER ID
+    # -----------------------------------------------------
+
+    return jsonify({
+
+        "success": True,
+
+        "message":
+            "Order recreated successfully.",
+
+        "original_order_id":
+            order_id,
+
+        "new_order_id":
+            new_order_id
+    })
 
 
 @app.route("/invoice")
