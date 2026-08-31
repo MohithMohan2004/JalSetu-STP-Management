@@ -1309,8 +1309,7 @@
 
 
             <a
-                href="#"
-                class="active"
+                href="/tanker"
             >
 
                 <div class="nav-icon">
@@ -1337,7 +1336,7 @@
             </a>
 
 
-            <a href="#orders">
+            <a href="/trip_history">
 
                 <div class="nav-icon">
                     🚚
@@ -1835,28 +1834,83 @@
 
                             {% if order.status == "Accepted" %}
 
-                            <!-- MANUAL ACCEPT PICKUP -->
+                                {% if order.request_type == "stp_transfer" %}
 
-                            <form
-                                method="POST"
-                                action="{{ url_for('accept_pickup') }}"
-                                class="pickup-form"
-                            >
+                                    <!-- STP TRANSFER PICKUP -->
 
-                                <input
-                                    type="hidden"
-                                    name="order_id"
-                                    value="{{ order.order_id }}"
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('accept_transfer_pickup') }}"
+                                        class="pickup-form"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="transfer_id"
+                                            value="{{ order.transfer_id }}"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="pickup-button"
+                                        >
+                                            ✓ Accept Transfer Pickup
+                                        </button>
+
+                                    </form>
+
+                                {% else %}
+
+                                    <!-- NORMAL DEMAND ORDER PICKUP -->
+
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('accept_pickup') }}"
+                                        class="pickup-form"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="order_id"
+                                            value="{{ order.order_id }}"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="pickup-button"
+                                        >
+                                            ✓ Accept Pickup
+                                        </button>
+
+                                    </form>
+
+                                {% endif %}
+
+                            {% elif order.status == "Out for Delivery"
+                                and order.request_type == "stp_transfer" %}
+
+                                <!-- STP TRANSFER DELIVERY -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('complete_transfer') }}"
+                                    class="pickup-form"
                                 >
 
-                                <button
-                                    type="submit"
-                                    class="pickup-button"
-                                >
-                                    ✓ Accept Pickup
-                                </button>
+                                    <input
+                                        type="hidden"
+                                        name="transfer_id"
+                                        value="{{ order.transfer_id }}"
+                                    >
 
-                            </form>
+                                    <button
+                                        type="submit"
+                                        class="pickup-button"
+                                    >
+                                        ✓ Mark Delivered
+                                    </button>
+
+                                </form>
 
                             {% endif %}
 
@@ -2094,6 +2148,10 @@
 
 
         </div>
+
+
+            
+
 
 
     </main>

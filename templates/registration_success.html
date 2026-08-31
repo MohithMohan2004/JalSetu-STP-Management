@@ -4,12 +4,13 @@
 <head>
 
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>STP Registration Submitted</title>
+    <title>Tanker Registration Submitted</title>
 
     <style>
 
@@ -18,7 +19,6 @@
             padding: 0;
             box-sizing: border-box;
         }
-
 
         body {
 
@@ -37,7 +37,6 @@
             padding: 20px;
         }
 
-
         .card {
 
             background: white;
@@ -55,7 +54,6 @@
 
             text-align: center;
         }
-
 
         .success-icon {
 
@@ -79,14 +77,12 @@
             color: #16a34a;
         }
 
-
         h1 {
 
             color: #163b65;
 
             margin-bottom: 10px;
         }
-
 
         .subtitle {
 
@@ -96,7 +92,6 @@
 
             margin-bottom: 25px;
         }
-
 
         .details {
 
@@ -111,7 +106,6 @@
             margin-bottom: 25px;
         }
 
-
         .detail-row {
 
             display: flex;
@@ -124,18 +118,15 @@
                 1px solid #e5e7eb;
         }
 
-
         .detail-row:last-child {
 
             border-bottom: none;
         }
 
-
         .label {
 
             color: #6b7280;
         }
-
 
         .value {
 
@@ -146,12 +137,10 @@
             text-align: right;
         }
 
-
         .status {
 
             color: #d97706;
         }
-
 
         .info-box {
 
@@ -172,7 +161,6 @@
 
             margin-bottom: 25px;
         }
-
 
         .btn {
 
@@ -195,12 +183,10 @@
             margin-top: 10px;
         }
 
-
         .btn:hover {
 
             background: #12558a;
         }
-
 
         .secondary-btn {
 
@@ -211,12 +197,17 @@
             border: 1px solid #1769aa;
         }
 
-
         .secondary-btn:hover {
 
             background: #eef6ff;
         }
 
+        .operator-id {
+
+            font-size: 18px;
+
+            letter-spacing: 0.5px;
+        }
 
         @media (max-width: 600px) {
 
@@ -225,14 +216,12 @@
                 padding: 30px 20px;
             }
 
-
             .detail-row {
 
                 flex-direction: column;
 
                 gap: 4px;
             }
-
 
             .value {
 
@@ -243,9 +232,11 @@
 
     </style>
 
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='css/responsive.css') }}">
-          
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/responsive.css') }}"
+    >
+
 </head>
 
 
@@ -265,14 +256,14 @@
     <!-- TITLE -->
 
     <h1>
-        STP Registration Submitted
+        Tanker Registration Submitted
     </h1>
 
 
     <p class="subtitle">
 
-        Your STP registration has been successfully
-        submitted for admin verification.
+        Your tanker partner registration has been
+        successfully submitted for admin verification.
 
     </p>
 
@@ -285,11 +276,11 @@
         <div class="detail-row">
 
             <span class="label">
-                Registration ID
+                Operator ID
             </span>
 
-            <span class="value">
-                {{ registration_id }}
+            <span class="value operator-id">
+                {{ operator_id }}
             </span>
 
         </div>
@@ -298,11 +289,11 @@
         <div class="detail-row">
 
             <span class="label">
-                STP Name
+                Operator Type
             </span>
 
             <span class="value">
-                {{ stp_name }}
+                {{ operator_type }}
             </span>
 
         </div>
@@ -324,7 +315,7 @@
     </div>
 
 
-    <!-- WHAT HAPPENS NEXT -->
+    <!-- INFORMATION -->
 
     <div class="info-box">
 
@@ -334,60 +325,41 @@
 
         <br><br>
 
-        Your submitted STP information will be
-        reviewed by the administrator.
+        Your tanker registration will now be reviewed
+        by the administrator.
 
         <br><br>
 
-        Once your registration is approved, the system
-        will assign a permanent STP ID and add your STP
-        to the WasteWater Management platform.
+        Please save your
+        <strong>Operator ID</strong>.
+
+        You will need your Operator ID together with
+        your registered phone number to check your
+        registration status.
 
         <br><br>
 
-        After approval, your STP will be available for
-        eligible water-demand requests and bookings.
+        Once approved, your tanker account can proceed
+        to the next stage of the platform.
 
     </div>
 
 
-    <a href="{{ url_for('tanker_status') }}"
-    style="
-        display:inline-block;
-        margin-top:15px;
-        padding:12px 22px;
-        background:#2563eb;
-        color:#fff;
-        text-decoration:none;
-        border-radius:8px;
-        font-weight:600;
-    ">
-        🔍 Check Registration Status
-    </a>
-    
-    <a href="{{ url_for('tanker_status') }}"
-    style="
-        display:inline-block;
-        margin-top:15px;
-        padding:12px 22px;
-        background:#2563eb;
-        color:#fff;
-        text-decoration:none;
-        border-radius:8px;
-        font-weight:600;
-    ">
-        🔍 Check Registration Status
-    </a>
-
-    <a href="/" class="btn secondary-btn">
-        Back to Home
     <!-- BUTTONS -->
 
     <a
-        href="/stp/register"
+        href="{{ url_for('tanker_status') }}"
         class="btn"
     >
-        Register Another STP
+        🔍 Check Registration Status
+    </a>
+
+
+    <a
+        href="/tanker/register"
+        class="btn secondary-btn"
+    >
+        Register Another Tanker
     </a>
 
 
