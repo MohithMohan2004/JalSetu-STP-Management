@@ -635,7 +635,23 @@ def login():
             return redirect(url_for("demand"))
 
         if session["role"] == "stp":
-            return redirect(url_for("supply"))
+
+            stp_id = str(session.get("stp_id") or "").strip()
+
+            if not stp_id:
+                session.clear()
+
+                return render_template(
+                    "login.html",
+                    login_error="No STP is assigned to this account."
+                )
+
+            return redirect(
+                url_for(
+                    "supply",
+                    stp_id=stp_id
+                )
+            )
 
         if session["role"] == "tanker":
             # Keep the existing tanker dashboard flow, but use the
