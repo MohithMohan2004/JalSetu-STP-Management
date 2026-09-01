@@ -15,9 +15,7 @@ import osmnx as ox
 import networkx as nx
 from ml.predict_demand import predict_next_day, predict_week
 
-
-
-
+from datetime import timedelta
 
 
 
@@ -46,6 +44,10 @@ app.config.from_object(Config)
 
 
 
+
+
+
+
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -57,7 +59,58 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
+
+
+
+
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = False  # localhost only
+
+
+
+
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# =========================================================
+# ROLE-BASED ACCESS CONTROL
+# =========================================================
+from functools import wraps
+
+ROLE_HOME_ENDPOINT = {
+    "admin": "admin_dashboard",
+    "stp": "supply",
+    "demand": "demand",
+    "tanker": "tanker_dashboard",
+}
+
+def login_required(role=None):
+    """Restrict a route to logged-in users, optionally of a specific role.
+
+    - Not logged in -> redirect to /login
+    - Logged in but wrong role -> redirect to that user's own dashboard
+      (rather than showing them someone else's page)
+    """
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            if not session.get("user_id"):
+                return redirect(url_for("login"))
+
+            user_role = str(session.get("role") or "").strip().lower()
+
+            if role and user_role != role:
+                home_endpoint = ROLE_HOME_ENDPOINT.get(user_role)
+                if home_endpoint:
+                    return redirect(url_for(home_endpoint))
+                session.clear()
+                return redirect(url_for("login"))
+
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
+
 # =========================================================
 # LOAD ROAD NETWORK FOR A* ROUTING
 # =========================================================
@@ -1241,6 +1294,7 @@ def tanker_register_independent():
 
 
 @app.route("/admin")
+@login_required(role="admin")
 def admin_dashboard():
 
     # =========================
@@ -1373,6 +1427,7 @@ def admin_dashboard():
 
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
+@login_required(role="admin")
 def update_tanker_status(operator_id, status):
 
     # Only allow valid statuses
@@ -1499,6 +1554,7 @@ def api_stps():
     return jsonify(load_stps())
 
 @app.route("/admin/stp/<registration_id>/status/<status>")
+@login_required(role="admin")
 def update_stp_status(registration_id, status):
 
     # =========================
@@ -1761,6 +1817,7 @@ def update_stp_status(registration_id, status):
 # ADD STP
 # =========================
 @app.route("/admin/add_stp", methods=["POST"])
+@login_required(role="admin")
 def add_stp():
     stps = load_stps()
 
@@ -1790,6 +1847,7 @@ def add_stp():
 # DELETE STP
 # =========================
 @app.route("/admin/delete_stp/<stp_id>")
+@login_required(role="admin")
 def delete_stp(stp_id):
     stps = load_stps()
 
@@ -1804,6 +1862,7 @@ def delete_stp(stp_id):
 # =========================================================
 
 @app.route('/demand')
+@login_required(role="demand")
 def demand():
     payment_success = request.args.get("payment_success")
 
@@ -1995,6 +2054,7 @@ def api_search_place():
     })
 
 @app.route("/create_order", methods=["POST"])
+@login_required(role="demand")
 def create_order():
     data = request.json or {}
 
@@ -2033,6 +2093,7 @@ def create_order():
 
 
 @app.route("/invoice")
+@login_required(role="demand")
 def invoice():
 
     order_id = request.args.get("order_id")
@@ -2149,6 +2210,7 @@ def invoice():
 # =========================================================
 
 @app.route("/pay_now", methods=["POST"])
+@login_required(role="demand")
 def pay_now():
     order_id = request.form.get("order_id", "").strip()
 
@@ -2211,6 +2273,7 @@ def pay_now():
 
 
 @app.route("/confirm_cod", methods=["POST"])
+@login_required(role="demand")
 def confirm_cod():
     order_id = request.form.get("order_id", "").strip()
 
@@ -2272,6 +2335,7 @@ def confirm_cod():
 
 
 @app.route("/api/my_orders")
+@login_required(role="demand")
 def my_orders():
     user_id = session.get("user_id")
     buyer_name = session.get("buyer_name") or session.get("user_name")
@@ -2305,6 +2369,7 @@ def my_orders():
     return jsonify(results)
 
 @app.route("/api/order_tracking/<order_id>")
+@login_required(role="demand")
 def order_tracking(order_id):
 
     if not os.path.exists(ORDERS_FILE):
@@ -2461,6 +2526,7 @@ def track_order():
 # =========================================================
 
 @app.route('/supply')
+@login_required(role="stp")
 def supply():
 
 
@@ -2589,6 +2655,7 @@ def get_stp_pricing(stp_id):
     }), 404
 
 @app.route("/api/update_pricing", methods=["POST"])
+@login_required(role="stp")
 def update_pricing():
 
     data = request.get_json()
@@ -2697,6 +2764,7 @@ def update_pricing():
     })
 
 @app.route("/update_capacity", methods=["POST"])
+@login_required(role="stp")
 def update_capacity():
 
     stp_id = request.form["stp_id"]
@@ -2713,6 +2781,7 @@ def update_capacity():
     return redirect(url_for("supply", stp_id=stp_id))
 
 @app.route("/upload_quality", methods=["POST"])
+@login_required(role="stp")
 def upload_quality():
 
     stp_id = request.form["stp_id"]
@@ -2729,6 +2798,7 @@ def upload_quality():
     return redirect(url_for("supply", stp_id=stp_id))
 
 @app.route("/handle_request", methods=["POST"])
+@login_required(role="stp")
 def handle_request():
 
 
@@ -2861,6 +2931,7 @@ def handle_request():
     return redirect(url_for("supply", stp_id=stp_id_redirect))
 
 @app.route("/update_order_status", methods=["POST"])
+@login_required(role="stp")
 def update_order_status():
     auto_reset_capacity()
 
@@ -2947,6 +3018,7 @@ def update_order_status():
 
 
 @app.route("/tanker")
+@login_required(role="tanker")
 def tanker_dashboard():
 
 
@@ -2983,6 +3055,7 @@ TANKER_CAPACITY_KLD = 12
 AVAILABLE_TANKERS = 5
 
 @app.route("/accept_pickup", methods=["POST"])
+@login_required(role="tanker")
 def accept_pickup():
 
     order_id = request.form.get("order_id")
