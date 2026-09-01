@@ -31,6 +31,41 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
 
 .order-track-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 .track-order-btn{border:1px solid #1976f3;background:#1976f3;color:#fff;border-radius:7px;padding:9px 14px;font:600 10px Inter,Arial,sans-serif;cursor:pointer}
+.reorder-btn{
+    border:1px solid #16a34a;
+    background:#ffffff;
+    color:#16834d;
+
+    border-radius:7px;
+
+    padding:9px 14px;
+
+    font:600 10px Inter,Arial,sans-serif;
+
+    cursor:pointer;
+
+    transition:
+        background .2s ease,
+        color .2s ease,
+        transform .15s ease;
+}
+
+
+.reorder-btn:hover{
+    background:#ecfdf3;
+    color:#11743f;
+}
+
+
+.reorder-btn:active{
+    transform:scale(.97);
+}
+
+
+.reorder-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
 .route-panel{display:none;margin-top:16px;border:1px solid #e5ebf3;border-radius:12px;overflow:hidden;background:#fff}
 .route-panel.show{display:block}
 .route-header{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid #edf1f5}
@@ -72,8 +107,6 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
 }
 @keyframes tankerVehicleBob{
     from{transform:translateY(-1px)}
-    to{transform:translateY(1px)}
-}
     to{transform:translateY(1px)}
 }
 
@@ -282,7 +315,32 @@ function createOrderCard(order){
                 <div class="detail"><span class="detail-label">Payment Status</span><span class="detail-value">${paymentLabel(order.payment_status)}</span></div>
             </div>
             <div class="order-track-actions">
-                ${info.step!==-1 ? `<button type="button" class="track-order-btn" onclick="toggleRoute(this,'${escapeHTML(order.order_id||"")}')">Track Order</button>` : ""}
+
+                ${info.step!==-1
+                    ? `<button
+                            type="button"
+                            class="track-order-btn"
+                            onclick="toggleRoute(
+                                this,
+                                '${escapeHTML(order.order_id||"")}'
+                            )"
+                    >
+                            Track Order
+                    </button>`
+                    : ""
+                }
+
+                <button
+                    type="button"
+                    class="reorder-btn"
+                    onclick="reorderOrder(
+                        this,
+                        '${escapeHTML(order.order_id||"")}'
+                    )"
+                >
+                    ↻ Reorder
+                </button>
+
             </div>
             <div class="route-panel">
                 <div class="route-header">
@@ -303,6 +361,139 @@ function createOrderCard(order){
         <div class="progress-wrap">${buildProgress(order,info)}</div>
     `;
     return card;
+}
+
+async function reorderOrder(button, orderId){
+
+    if(!orderId){
+        alert("Order ID is missing.");
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // ASK USER BEFORE CREATING DUPLICATE ORDER
+    // -----------------------------------------------------
+
+    const confirmed = confirm(
+        "Reorder this order with the same STP, quantity, " +
+        "water quality and delivery location?"
+    );
+
+    if(!confirmed){
+        return;
+    }
+
+
+    // -----------------------------------------------------
+    // BUTTON LOADING STATE
+    // -----------------------------------------------------
+
+    const originalText = button.innerText;
+
+    button.disabled = true;
+
+    button.innerText = "Reordering...";
+
+
+    try{
+
+
+        // -------------------------------------------------
+        // SEND REORDER REQUEST
+        // -------------------------------------------------
+
+        const response = await fetch(
+            "/reorder/" + encodeURIComponent(orderId),
+            {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            }
+        );
+
+
+        // -------------------------------------------------
+        // USER SESSION EXPIRED
+        // -------------------------------------------------
+
+        if(response.status === 401){
+
+            window.location.replace("/login");
+
+            return;
+        }
+
+
+        const data = await response.json();
+
+
+        // -------------------------------------------------
+        // ERROR
+        // -------------------------------------------------
+
+        if(
+            !response.ok
+            ||
+            !data.success
+        ){
+
+            throw new Error(
+                data.error
+                ||
+                "Unable to reorder."
+            );
+        }
+
+
+        // -------------------------------------------------
+        // MAKE SURE NEW ORDER ID EXISTS
+        // -------------------------------------------------
+
+        if(!data.new_order_id){
+
+            throw new Error(
+                "New Order ID was not returned."
+            );
+        }
+
+
+        // -------------------------------------------------
+        // SEND USER TO EXISTING INVOICE / PAYMENT PAGE
+        // -------------------------------------------------
+
+        window.location.replace(
+            "/invoice?order_id=" +
+            encodeURIComponent(
+                data.new_order_id
+            )
+        );
+
+
+    }catch(error){
+
+
+        console.error(
+            "Reorder error:",
+            error
+        );
+
+
+        alert(
+            error.message
+            ||
+            "Unable to reorder. Please try again."
+        );
+
+
+        button.disabled = false;
+
+        button.innerText = originalText;
+
+    }
+
 }
 
 async function loadMyOrders(showError){

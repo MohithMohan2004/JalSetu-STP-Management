@@ -1,50 +1,21 @@
 /* =========================================================
-   WASTEWATER ASSISTANT CHATBOT
-   Uses the Flask session + /api/chat backend.
+   WASTEWATER CHATBOT
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
 
-    const toggle = document.getElementById("ww-chatbot-toggle");
-    const windowElement = document.getElementById("ww-chatbot-window");
-    const close = document.getElementById("ww-chatbot-close");
-    const input = document.getElementById("ww-chatbot-input");
-    const send = document.getElementById("ww-chatbot-send");
-    const messages = document.getElementById("ww-chatbot-messages");
-    const typing = document.getElementById("ww-chatbot-typing");
-
-    if (
-        !toggle ||
-        !windowElement ||
-        !close ||
-        !input ||
-        !send ||
-        !messages ||
-        !typing
-    ) {
-        console.error(
-            "Wastewater chatbot: required HTML elements are missing."
-        );
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // BROWSER LOCATION
-    // ---------------------------------------------------------
+        // =====================================================
+    // GET USER LOCATION
+    // =====================================================
 
     window.chatbotLatitude = null;
     window.chatbotLongitude = null;
 
-    function requestChatbotLocation() {
 
-        if (!navigator.geolocation) {
-            console.log(
-                "Geolocation is not supported by this browser."
-            );
-            return;
-        }
+    if (navigator.geolocation) {
 
         navigator.geolocation.getCurrentPosition(
+
             function (position) {
 
                 window.chatbotLatitude =
@@ -60,27 +31,44 @@ document.addEventListener("DOMContentLoaded", function () {
                 );
 
             },
+
             function (error) {
 
                 console.log(
-                    "Chatbot location unavailable:",
-                    error.message
+                    "Location permission not granted."
                 );
 
-            },
-            {
-                enableHighAccuracy: false,
-                timeout: 8000,
-                maximumAge: 300000
             }
+
         );
+
     }
 
-    requestChatbotLocation();
+    const toggle =
+        document.getElementById("ww-chatbot-toggle");
 
-    // ---------------------------------------------------------
-    // OPEN / CLOSE CHATBOT
-    // ---------------------------------------------------------
+    const windowElement =
+        document.getElementById("ww-chatbot-window");
+
+    const close =
+        document.getElementById("ww-chatbot-close");
+
+    const input =
+        document.getElementById("ww-chatbot-input");
+
+    const send =
+        document.getElementById("ww-chatbot-send");
+
+    const messages =
+        document.getElementById("ww-chatbot-messages");
+
+    const typing =
+        document.getElementById("ww-chatbot-typing");
+
+
+    /* =====================================================
+       OPEN CHAT
+    ===================================================== */
 
     toggle.addEventListener("click", function () {
 
@@ -90,15 +78,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         input.focus();
 
-        // Try requesting location again when chatbot is opened.
-        if (
-            window.chatbotLatitude === null ||
-            window.chatbotLongitude === null
-        ) {
-            requestChatbotLocation();
-        }
-
     });
+
+
+    /* =====================================================
+       CLOSE CHAT
+    ===================================================== */
 
     close.addEventListener("click", function () {
 
@@ -108,9 +93,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     });
 
-    // ---------------------------------------------------------
-    // ADD MESSAGE
-    // ---------------------------------------------------------
+
+    /* =====================================================
+       ADD MESSAGE
+    ===================================================== */
 
     function addMessage(message, sender) {
 
@@ -135,6 +121,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         }
 
+
         const bubble =
             document.createElement("div");
 
@@ -142,57 +129,54 @@ document.addEventListener("DOMContentLoaded", function () {
             "ww-chat-bubble"
         );
 
-        /*
-         * Use textContent instead of innerHTML.
-         *
-         * This keeps chatbot responses safe and prevents
-         * HTML/JavaScript injection through chatbot replies.
-         */
-        bubble.textContent =
-            String(message);
+        bubble.textContent = message;
 
-        wrapper.appendChild(
-            bubble
-        );
 
-        messages.appendChild(
-            wrapper
-        );
+        wrapper.appendChild(bubble);
+
+        messages.appendChild(wrapper);
+
 
         messages.scrollTop =
             messages.scrollHeight;
+
     }
 
-    // ---------------------------------------------------------
-    // SEND MESSAGE
-    // ---------------------------------------------------------
+
+    /* =====================================================
+       SEND MESSAGE
+    ===================================================== */
 
     async function sendMessage() {
 
         const message =
             input.value.trim();
 
+
         if (!message) {
             return;
         }
 
-        // Display user's message immediately.
+
+        /* Show user's message */
+
         addMessage(
             message,
             "user"
         );
 
-        // Clear input.
+
+        /* Clear input */
+
         input.value = "";
 
-        // Prevent duplicate requests while processing.
-        input.disabled = true;
-        send.disabled = true;
 
-        // Show typing indicator.
+        /* Show typing */
+
         typing.classList.remove(
             "ww-chatbot-typing-hidden"
         );
+
 
         try {
 
@@ -202,109 +186,32 @@ document.addEventListener("DOMContentLoaded", function () {
                     {
                         method: "POST",
 
-                        /*
-                         * IMPORTANT:
-                         * Send the Flask session cookie.
-                         * This allows the backend to identify
-                         * the logged-in buyer.
-                         */
-                        credentials: "same-origin",
-
                         headers: {
                             "Content-Type":
-                                "application/json",
-
-                            "Accept":
                                 "application/json"
                         },
 
-                        body: JSON.stringify({
-
-                            message:
-                                message,
-
-                            latitude:
-                                window.chatbotLatitude,
-
-                            longitude:
-                                window.chatbotLongitude
-
-                        })
+                       body: JSON.stringify({
+                        message: message,
+                        latitude: window.chatbotLatitude || null,
+                        longitude: window.chatbotLongitude || null
+                    })
                     }
                 );
 
-            /*
-             * Flask should normally return JSON.
-             *
-             * If the server returns an HTML error page,
-             * this prevents JSON parsing from hiding the
-             * actual problem.
-             */
-            const contentType =
-                response.headers.get(
-                    "content-type"
-                ) || "";
-
-            if (
-                !contentType.includes(
-                    "application/json"
-                )
-            ) {
-
-                const rawText =
-                    await response.text();
-
-                console.error(
-                    "Chatbot returned non-JSON response:",
-                    response.status,
-                    rawText
-                );
-
-                throw new Error(
-                    "Server returned a non-JSON response."
-                );
-            }
 
             const data =
                 await response.json();
 
-            // -------------------------------------------------
-            // SUCCESSFUL CHATBOT RESPONSE
-            // -------------------------------------------------
 
-            if (
-                data &&
-                data.reply
-            ) {
+            if (data.reply) {
 
                 addMessage(
                     data.reply,
                     "bot"
                 );
 
-            }
-
-            // -------------------------------------------------
-            // ERROR SENT BY BACKEND
-            // -------------------------------------------------
-
-            else if (
-                data &&
-                data.error
-            ) {
-
-                addMessage(
-                    data.error,
-                    "bot"
-                );
-
-            }
-
-            // -------------------------------------------------
-            // EMPTY RESPONSE
-            // -------------------------------------------------
-
-            else {
+            } else {
 
                 addMessage(
                     "I couldn't understand that request.",
@@ -313,68 +220,57 @@ document.addEventListener("DOMContentLoaded", function () {
 
             }
 
-        }
 
-        catch (error) {
+        } catch (error) {
 
             console.error(
-                "Chatbot request failed:",
+                "Chatbot error:",
                 error
             );
 
+
             addMessage(
-                "Sorry, I couldn't process that request. Please try again.",
+                "Sorry, I'm unable to connect to the assistant right now.",
                 "bot"
             );
 
-        }
+        } finally {
 
-        finally {
-
-            // Hide typing indicator.
             typing.classList.add(
                 "ww-chatbot-typing-hidden"
             );
 
-            // Re-enable input.
-            input.disabled = false;
-            send.disabled = false;
-
-            input.focus();
         }
+
     }
 
-    // ---------------------------------------------------------
-    // SEND BUTTON
-    // ---------------------------------------------------------
+
+    /* =====================================================
+       SEND BUTTON
+    ===================================================== */
 
     send.addEventListener(
         "click",
         sendMessage
     );
 
-    // ---------------------------------------------------------
-    // ENTER KEY
-    // ---------------------------------------------------------
+
+    /* =====================================================
+       ENTER KEY
+    ===================================================== */
 
     input.addEventListener(
         "keydown",
         function (event) {
 
-            if (
-                event.key === "Enter"
-            ) {
+            if (event.key === "Enter") {
 
                 event.preventDefault();
 
-                if (
-                    !input.disabled
-                ) {
+                sendMessage();
 
-                    sendMessage();
-
-                }
             }
+
         }
     );
 
