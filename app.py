@@ -3507,6 +3507,14 @@ def handle_transfer_request():
         writer.writeheader()
         writer.writerows(updated_rows)
 
+    # =========================================================
+    # SUCCESS RESPONSE
+    # =========================================================
+
+    return redirect(
+        request.referrer or url_for("supply")
+    )
+        
 import os
 # =========================================================
 # WASTEWATER CHATBOT API
