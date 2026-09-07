@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request, render_template, redirect, url_for
 from flask import session
-from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+from openpyxl import Workbook, load_workbook
+
+import threading
 import uuid
 from datetime import datetime, date, timedelta
 import json
@@ -12,9 +15,6 @@ import csv
 import osmnx as ox
 import networkx as nx
 from ml.predict_demand import predict_next_day, predict_week
-from dotenv import load_dotenv
-from supabase import create_client
-from config import Config
 
 
 def format_clean_address(address, lat, lon):
@@ -37,22 +37,9 @@ def format_clean_address(address, lat, lon):
         print("Format error:", e)
         return f"{lat}, {lon}"
 
-load_dotenv()
-
 app = Flask(__name__)
-app.config.from_object(Config)
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-app.secret_key = os.getenv("FLASK_SECRET_KEY")
-
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=7)
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = False
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+app.secret_key = "secret123"
 
 # =========================================================
 # LOAD ROAD NETWORK FOR A* ROUTING
@@ -117,6 +104,122 @@ STP_REGISTRATIONS_FILE = os.path.join(
     "stp_registrations.csv"
 )
 # =========================================================
+# USER ACCOUNT DATABASE
+# =========================================================
+
+USERS_FILE = os.path.join(
+    DATABASE_DIR,
+    "users.xlsx"
+)
+
+users_lock = threading.Lock()
+
+USER_FIELDS = [
+    "user_id",
+    "first_name",
+    "last_name",
+    "username",
+    "mobile",
+    "email",
+    "password_hash",
+    "role",
+    "stp_id",
+    "tanker_operator_id",
+    "created_at",
+    "account_status"
+]
+
+def ensure_users_file():
+    """Create or safely update the Excel user database schema."""
+    if not os.path.exists(USERS_FILE):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Users"
+        sheet.append(USER_FIELDS)
+        workbook.save(USERS_FILE)
+        return
+
+    with users_lock:
+        workbook = load_workbook(USERS_FILE)
+        sheet = workbook["Users"]
+
+        existing_headers = [
+            str(cell.value).strip() if cell.value is not None else ""
+            for cell in sheet[1]
+        ]
+
+        changed = False
+        for field in USER_FIELDS:
+            if field not in existing_headers:
+                sheet.cell(row=1, column=sheet.max_column + 1, value=field)
+                existing_headers.append(field)
+                changed = True
+
+        if changed:
+            workbook.save(USERS_FILE)
+
+        workbook.close()
+
+def load_users():
+    """Load all registered users from users.xlsx."""
+    ensure_users_file()
+
+    with users_lock:
+        workbook = load_workbook(USERS_FILE)
+        sheet = workbook["Users"]
+
+        rows = list(sheet.iter_rows(values_only=True))
+
+        if not rows:
+            return []
+
+        headers = [str(value).strip() if value is not None else "" for value in rows[0]]
+
+        users = []
+        for values in rows[1:]:
+            user = {}
+            for index, header in enumerate(headers):
+                user[header] = values[index] if index < len(values) else ""
+            users.append(user)
+
+        return users
+
+def append_user(user):
+    """Append one user safely to users.xlsx."""
+    ensure_users_file()
+
+    with users_lock:
+        workbook = load_workbook(USERS_FILE)
+        sheet = workbook["Users"]
+
+        # Ensure the expected header exists.
+        existing_headers = [
+            cell.value for cell in sheet[1]
+        ]
+
+        if existing_headers != USER_FIELDS:
+            sheet.delete_rows(1, sheet.max_row)
+            sheet.append(USER_FIELDS)
+
+        sheet.append([
+            user.get(field, "") for field in USER_FIELDS
+        ])
+
+        workbook.save(USERS_FILE)
+
+
+def safe_user_value(user, field_name, default=""):
+    """Return a consistent string for legacy and newly migrated users."""
+    value = user.get(field_name, default)
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+ensure_users_file()
+
+# =========================================================
+
 # SYNTHETIC / DEMAND HEATMAP DATASET
 # =========================================================
 
@@ -312,7 +415,7 @@ def load_stp_pricing():
     ) as file:
 
         return list(csv.DictReader(file))
-
+    
 def save_stps(stps):
 
     with open(STP_FILE, "r", encoding="utf-8") as f:
@@ -454,47 +557,6 @@ def astar_distance(lat1, lon1, lat2, lon2):
     return distance_km
 
 # =========================================================
-# ROLE-BASED ACCESS CONTROL
-# =========================================================
-
-ROLE_HOME_ENDPOINT = {
-    "admin": "admin_dashboard",
-    "demand": "demand",
-    "stp": "supply",
-    "tanker": "tanker_dashboard",
-}
-
-
-def login_required(role=None):
-    """Require a logged-in user, optionally restricted to one role.
-
-    - No session user -> redirect to /login.
-    - Role mismatch -> redirect to the user's OWN dashboard (never an
-      error page), using ROLE_HOME_ENDPOINT.
-    - Unrecognized/invalid role stored in the session -> clear the
-      session and redirect to /login.
-    """
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapped_view(*args, **kwargs):
-            if not session.get("user_id"):
-                return redirect(url_for("login"))
-
-            user_role = str(session.get("role") or "").strip().lower()
-
-            if user_role not in ROLE_HOME_ENDPOINT:
-                session.clear()
-                return redirect(url_for("login"))
-
-            if role is not None and user_role != str(role).strip().lower():
-                return redirect(url_for(ROLE_HOME_ENDPOINT[user_role]))
-
-            return view_func(*args, **kwargs)
-        return wrapped_view
-    return decorator
-
-
-# =========================================================
 # HOME + LOGIN
 # =========================================================
 
@@ -507,141 +569,111 @@ def login():
 
     if request.method == 'POST':
 
-        login_identifier = request.form.get(
-            "login_identifier", ""
-        ).strip()
-
+        login_identifier = request.form.get("login_identifier", "").strip()
         password = request.form.get("password", "")
 
         if not login_identifier or not password:
             return render_template(
                 "login.html",
-                login_error="Please enter your email and password."
+                login_error="Please enter your username/email and password."
             )
 
-        try:
-            # Supabase Auth login
-            response = supabase.auth.sign_in_with_password({
-                "email": login_identifier,
-                "password": password
-            })
+        users = load_users()
+        matched_user = None
 
-            if not response.user:
+        for user in users:
+            username = str(user.get("username") or "").strip().lower()
+            email = str(user.get("email") or "").strip().lower()
+
+            if login_identifier.lower() in [username, email]:
+                matched_user = user
+                break
+
+        if matched_user is None:
+            return render_template(
+                "login.html",
+                login_error="Invalid username/email or password."
+            )
+
+        if str(matched_user.get("account_status") or "").strip().lower() != "active":
+            return render_template(
+                "login.html",
+                login_error="Your account is not active. Please contact the administrator."
+            )
+
+        password_hash = str(matched_user.get("password_hash") or "")
+
+        if not password_hash or not check_password_hash(password_hash, password):
+            return render_template(
+                "login.html",
+                login_error="Invalid username/email or password."
+            )
+
+        # Each browser receives its own independent Flask session.
+        session.clear()
+
+        session["user_id"] = str(matched_user.get("user_id") or "")
+        session["first_name"] = str(matched_user.get("first_name") or "")
+        session["last_name"] = str(matched_user.get("last_name") or "")
+        session["username"] = str(matched_user.get("username") or "")
+
+        session["user_name"] = (
+            f"{matched_user.get('first_name', '')} "
+            f"{matched_user.get('last_name', '')}"
+        ).strip()
+
+        session["user_phone"] = str(matched_user.get("mobile") or "")
+        session["user_email"] = str(matched_user.get("email") or "")
+        session["role"] = str(matched_user.get("role") or "").strip().lower()
+        session["stp_id"] = safe_user_value(matched_user, "stp_id")
+        session["tanker_operator_id"] = safe_user_value(matched_user, "tanker_operator_id")
+
+        # Keep the existing buyer session variables.
+        if session["role"] == "demand":
+            session["buyer_name"] = session["user_name"]
+            session["buyer_phone"] = session["user_phone"]
+            return redirect(url_for("demand"))
+
+        if session["role"] == "stp":
+
+            stp_id = str(session.get("stp_id") or "").strip()
+
+            if not stp_id:
+                session.clear()
+
                 return render_template(
                     "login.html",
-                    login_error="Invalid email or password."
+                    login_error="No STP is assigned to this account."
                 )
 
-            user = response.user
-
-            # Get metadata saved during signup
-            metadata = user.user_metadata or {}
-
-            # Clear previous Flask session
-            session.clear()
-
-            session.permanent = True
-
-            # Preserve existing session structure
-            session["user_id"] = str(user.id)
-            session["first_name"] = str(
-                metadata.get("first_name", "")
-            )
-            session["last_name"] = str(
-                metadata.get("last_name", "")
-            )
-            session["username"] = str(
-                metadata.get("username", "")
+            return redirect(
+                url_for(
+                    "supply",
+                    stp_id=stp_id
+                )
             )
 
-            session["user_name"] = (
-                f"{session['first_name']} "
-                f"{session['last_name']}"
+        if session["role"] == "tanker":
+            # Keep the existing tanker dashboard flow, but use the
+            # registered Tanker Operator ID linked during signup.
+            session["tanker_operator_id"] = str(
+                matched_user.get("tanker_operator_id") or ""
             ).strip()
+            session["tanker_operator_name"] = session["user_name"]
+            return redirect(url_for("tanker_dashboard"))
 
-            session["user_phone"] = str(
-                metadata.get("mobile", "")
-            )
+        if session["role"] == "admin":
+            return redirect(url_for("admin_dashboard"))
 
-            session["user_email"] = str(
-                user.email or ""
-            )
+        session.clear()
 
-            session["role"] = str(
-                metadata.get("role", "")
-            ).strip().lower()
-
-            session["stp_id"] = metadata.get(
-                "stp_id", ""
-            )
-
-            session["tanker_operator_id"] = metadata.get(
-                "tanker_operator_id", ""
-            )
-
-            # Existing role redirects
-            if session["role"] == "demand":
-
-                session["buyer_name"] = session["user_name"]
-                session["buyer_phone"] = session["user_phone"]
-
-                return redirect(url_for("demand"))
-  
-            if session["role"] == "stp":
-
-                stp_id = str(session.get("stp_id") or "").strip()
-
-                if not stp_id:
-                    session.clear()
-
-                    return render_template(
-                        "login.html",
-                        login_error="No STP is assigned to this account."
-                    )
-
-                return redirect(
-                    url_for(
-                        "supply",
-                        stp_id=stp_id
-                    )
-                )
-
-            if session["role"] == "tanker":
-
-                session["tanker_operator_name"] = (
-                    session["user_name"]
-                )
-
-                return redirect(
-                    url_for("tanker_dashboard")
-                ) 
-                return redirect(
-                    url_for("tanker_dashboard")
-                )
-
-            if session["role"] == "admin":
-                return redirect(
-                    url_for("admin_dashboard")
-                )
-
-            # Invalid/missing role
-            session.clear()
-
-            return render_template(
-                "login.html",
-                login_error="Your account has an invalid role."
-            )
-
-        except Exception as e:
-
-            print("Supabase login error:", e)
-
-            return render_template(
-                "login.html",
-                login_error="Invalid email or password."
-            )
+        return render_template(
+            "login.html",
+            login_error="Your account has an invalid role."
+        )
 
     return render_template("login.html")
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -743,74 +775,58 @@ def signup():
         if len(password) < 8:
             return render_template(
                 "signup.html",
-                signup_error=(
-                    "Password must be at least 8 characters long."
-                )
+                signup_error="Password must be at least 8 characters long."
             )
 
-        try:
+        users = load_users()
 
-            # Create user in Supabase Auth
-            response = supabase.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": {
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "username": username,
-                        "mobile": mobile,
-                        "role": role,
-                        "stp_id": (
-                            stp_id if role == "stp" else ""
-                        ),
-                        "tanker_operator_id": (
-                            tanker_operator_id
-                            if role == "tanker"
-                            else ""
-                        )
-                    }
-                }
-            })
+        for user in users:
+            existing_username = str(user.get("username") or "").strip().lower()
+            existing_email = str(user.get("email") or "").strip().lower()
 
-            if not response.user:
+            if username == existing_username:
                 return render_template(
                     "signup.html",
-                    signup_error=(
-                        "Unable to create account. "
-                        "Please try again."
-                    )
+                    signup_error="That username is already registered."
                 )
 
-            return redirect(
-                url_for(
-                    "login",
-                    signup_success=(
-                        "Account created successfully. "
-                        "Please log in."
-                    )
+            if email == existing_email:
+                return render_template(
+                    "signup.html",
+                    signup_error="That email address is already registered."
                 )
+
+            if mobile == str(user.get("mobile") or "").strip():
+                return render_template(
+                    "signup.html",
+                    signup_error="That mobile number is already registered."
+                )
+
+        user_id = "USR-" + uuid.uuid4().hex[:10].upper()
+
+        new_user = {
+            "user_id": user_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "mobile": mobile,
+            "email": email,
+            "password_hash": generate_password_hash(password),
+            "role": role,
+            "stp_id": stp_id if role == "stp" else "",
+            "tanker_operator_id": tanker_operator_id if role == "tanker" else "",
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "account_status": "active"
+        }
+
+        append_user(new_user)
+
+        return redirect(
+            url_for(
+                "login",
+                signup_success="Account created successfully. Please log in."
             )
-
-        except Exception as e:
-
-            print("Supabase signup error:", e)
-
-            error_message = str(e)
-
-            if "already registered" in error_message.lower():
-                error_message = (
-                    "That email address is already registered."
-                )
-            else:
-                error_message = (
-                    "Unable to create account. Please try again."
-                )
-
-            return render_template(
-                "signup.html",
-                signup_error=error_message
-            )
+        )
 
     stps = load_stps()
     return render_template(
@@ -821,46 +837,74 @@ def signup():
 
 @app.route("/logout")
 def logout():
-
-    try:
-        supabase.auth.sign_out()
-    except Exception as e:
-        print("Supabase logout error:", e)
-
     session.clear()
-
     return redirect(url_for("login"))
-
 
 @app.route("/delete_account", methods=["POST"])
 def delete_account():
 
+    # User must be logged in
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    try:
-        # Sign out from Supabase
-        supabase.auth.sign_out()
+    user_id = str(session.get("user_id") or "")
 
-        # Clear Flask session
-        session.clear()
+    if not user_id:
+        return redirect(url_for("login"))
 
+    # Make sure users.xlsx exists
+    ensure_users_file()
+
+    with users_lock:
+
+        workbook = load_workbook(USERS_FILE)
+        sheet = workbook["Users"]
+
+        headers = [
+            str(cell.value).strip() if cell.value is not None else ""
+            for cell in sheet[1]
+        ]
+
+        # Find user_id column
+        if "user_id" not in headers:
+            workbook.close()
+            return "User ID column not found in users.xlsx", 500
+
+        user_id_column = headers.index("user_id") + 1
+
+        user_found = False
+
+        # Find and delete the logged-in user's row
+        for row in range(2, sheet.max_row + 1):
+
+            current_user_id = str(
+                sheet.cell(
+                    row=row,
+                    column=user_id_column
+                ).value or ""
+            ).strip()
+
+            if current_user_id == user_id:
+
+                sheet.delete_rows(row, 1)
+                user_found = True
+                break
+
+        workbook.save(USERS_FILE)
+        workbook.close()
+
+    # Clear the current login session
+    session.clear()
+
+    if user_found:
         return redirect(
             url_for(
                 "login",
-                account_deleted=(
-                    "You have been logged out. "
-                    "Account deletion requires Supabase admin configuration."
-                )
+                account_deleted="Account deleted successfully."
             )
         )
 
-    except Exception as e:
-        print("Supabase account deletion error:", e)
-
-        return redirect(
-            url_for("profile")
-        )
+    return redirect(url_for("login"))
 
 
 # =========================================================
@@ -874,42 +918,34 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    try:
-        # Get the currently authenticated Supabase user
-        response = supabase.auth.get_user()
+    # Get the complete user record from users.xlsx
+    users = load_users()
+    logged_in_user = None
 
-        if not response.user:
-            session.clear()
-            return redirect(url_for("login"))
+    for user in users:
+        if str(user.get("user_id") or "") == str(session.get("user_id") or ""):
+            logged_in_user = user
+            break
 
-        user = response.user
-        metadata = user.user_metadata or {}
-
-        return render_template(
-            "profile.html",
-            user={
-                "user_id": str(user.id),
-                "first_name": metadata.get("first_name", ""),
-                "last_name": metadata.get("last_name", ""),
-                "name": (
-                    f"{metadata.get('first_name', '')} "
-                    f"{metadata.get('last_name', '')}"
-                ).strip(),
-                "username": metadata.get("username", ""),
-                "mobile": metadata.get("mobile", ""),
-                "email": user.email or "",
-                "role": metadata.get("role", ""),
-                "created_at": (
-                    user.created_at or ""
-                ),
-                "account_status": "active"
-            }
-        )
-
-    except Exception as e:
-        print("Supabase profile error:", e)
+    if logged_in_user is None:
         session.clear()
         return redirect(url_for("login"))
+
+    return render_template(
+        "profile.html",
+        user={
+            "user_id": logged_in_user.get("user_id", ""),
+            "first_name": logged_in_user.get("first_name", ""),
+            "last_name": logged_in_user.get("last_name", ""),
+            "name": f"{logged_in_user.get('first_name', '')} {logged_in_user.get('last_name', '')}".strip(),
+            "username": logged_in_user.get("username", ""),
+            "mobile": logged_in_user.get("mobile", ""),
+            "email": logged_in_user.get("email", ""),
+            "role": logged_in_user.get("role", ""),
+            "created_at": logged_in_user.get("created_at", ""),
+            "account_status": logged_in_user.get("account_status", "")
+        }
+    )
     
 @app.route("/api/current_user")
 def current_user():
@@ -1374,7 +1410,6 @@ def tanker_register_independent():
 
 
 @app.route("/admin")
-@login_required(role="admin")
 def admin_dashboard():
 
     # =========================
@@ -1507,7 +1542,6 @@ def admin_dashboard():
 
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
-@login_required(role="admin")
 def update_tanker_status(operator_id, status):
 
     # Only allow valid statuses
@@ -1571,40 +1605,113 @@ def update_tanker_status(operator_id, status):
 
     return redirect("/admin")
 
+@app.route("/stp_dashboard")
+def stp_dashboard():
+
+    # Only STP operators can access this
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    # Get the STP assigned to the logged-in operator
+    stp_id = str(
+        session.get("stp_id") or ""
+    ).strip()
+
+    if not stp_id:
+        return redirect(url_for("login"))
+
+    # Redirect to THAT operator's STP dashboard
+    return redirect(
+        url_for(
+            "supply",
+            stp_id=stp_id
+        )
+    )
+
 @app.route("/api/stp_orders")
 def api_stp_orders():
 
+    # Only STP operators can access this API
     if session.get("role") != "stp":
-        return jsonify([]), 403
+        return jsonify({
+            "error": "Unauthorized"
+        }), 403
 
-    stp_id = str(session.get("stp_id") or "").strip()
+
+    # Get the STP assigned to the LOGGED-IN operator
+    stp_id = str(
+        session.get("stp_id") or ""
+    ).strip()
+
 
     if not stp_id:
-        return jsonify([])
+        return jsonify({
+            "error": "No STP assigned to this account"
+        }), 400
+
 
     orders = []
 
-    if os.path.exists(ORDERS_FILE):
 
-        with open(
-            ORDERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
+    if not os.path.exists(ORDERS_FILE):
 
-            reader = csv.DictReader(f)
+        return jsonify([])
 
-            for order in reader:
 
-                if (
-                    str(order.get("stp_id") or "").strip()
-                    == stp_id
-                ):
-                    orders.append(order)
+    # Read all orders
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for order in reader:
+
+            # STP assigned to this order
+            order_stp_id = str(
+                order.get("stp_id") or ""
+            ).strip()
+
+
+            # ====================================
+            # ONLY SHOW ORDERS FOR LOGGED-IN STP
+            # ====================================
+            if order_stp_id != stp_id:
+                continue
+
+
+            orders.append(order)
+
+
+    # Latest orders first
+    orders.sort(
+        key=lambda order:
+            order.get("created_at") or "",
+        reverse=True
+    )
+
+
+    # Debugging
+    print("\n" + "=" * 50)
+    print("STP ORDER TRACKER")
+    print("Logged-in STP ID:", stp_id)
+    print("Orders found:", len(orders))
+
+    for order in orders:
+        print(
+            "Order:",
+            order.get("order_id"),
+            "| STP:",
+            order.get("stp_id")
+        )
+
+    print("=" * 50 + "\n")
+
 
     return jsonify(orders)
-
 
 @app.route("/api/stp_order_tracking/<order_id>")
 def stp_order_tracking(order_id):
@@ -1639,7 +1746,6 @@ def api_stps():
     return jsonify(load_stps())
 
 @app.route("/admin/stp/<registration_id>/status/<status>")
-@login_required(role="admin")
 def update_stp_status(registration_id, status):
 
     # =========================
@@ -1902,7 +2008,6 @@ def update_stp_status(registration_id, status):
 # ADD STP
 # =========================
 @app.route("/admin/add_stp", methods=["POST"])
-@login_required(role="admin")
 def add_stp():
     stps = load_stps()
 
@@ -1932,7 +2037,6 @@ def add_stp():
 # DELETE STP
 # =========================
 @app.route("/admin/delete_stp/<stp_id>")
-@login_required(role="admin")
 def delete_stp(stp_id):
     stps = load_stps()
 
@@ -1947,7 +2051,6 @@ def delete_stp(stp_id):
 # =========================================================
 
 @app.route('/demand')
-@login_required(role="demand")
 def demand():
     payment_success = request.args.get("payment_success")
 
@@ -2139,7 +2242,6 @@ def api_search_place():
     })
 
 @app.route("/create_order", methods=["POST"])
-@login_required(role="demand")
 def create_order():
     data = request.json or {}
 
@@ -2650,47 +2752,36 @@ def confirm_cod():
 
 @app.route("/api/my_orders")
 def my_orders():
+    user_id = session.get("user_id")
+    buyer_name = session.get("buyer_name") or session.get("user_name")
+    buyer_phone = session.get("buyer_phone") or session.get("user_phone")
 
-    role = session.get("role")
+    if not user_id and not buyer_name and not buyer_phone:
+        return jsonify({"error": "Please log in to view your orders."}), 401
 
-    user_id = str(session.get("user_id") or "").strip()
-    stp_id = str(session.get("stp_id") or "").strip()
+    results = []
+    if os.path.exists(ORDERS_FILE):
+        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                matches_user = bool(user_id and row.get("buyer_user_id", "") == user_id)
+                matches_legacy = (
+                    not row.get("buyer_user_id", "") and buyer_name and buyer_phone and
+                    row.get("buyer_name") == buyer_name and row.get("buyer_phone") == buyer_phone
+                )
+                if matches_user or matches_legacy:
+                    results.append({
+                        "order_id": row.get("order_id"),
+                        "status": row.get("status"),
+                        "location": row.get("location"),
+                        "stp_name": row.get("stp_name"),
+                        "quantity_kld": row.get("quantity_kld"),
+                        "created_at": row.get("created_at"),
+                        "payment_status": row.get("payment_status", "")
+                    })
 
-    orders = []
-
-    if not os.path.exists(ORDERS_FILE):
-        return jsonify([])
-
-    with open(
-        ORDERS_FILE,
-        "r",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        reader = csv.DictReader(f)
-
-        for order in reader:
-
-            # Demand user → show their own orders
-            if role == "demand":
-
-                if (
-                    str(order.get("user_id") or "").strip()
-                    == user_id
-                ):
-                    orders.append(order)
-
-            # STP owner → show orders assigned to their STP
-            elif role == "stp":
-
-                if (
-                    str(order.get("stp_id") or "").strip()
-                    == stp_id
-                ):
-                    orders.append(order)
-
-    return jsonify(orders)
+    results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return jsonify(results)
 
 @app.route("/api/order_tracking/<order_id>")
 def order_tracking(order_id):
@@ -2844,191 +2935,50 @@ def track_order():
     results.sort(key=lambda x: x["order_id"], reverse=True)
     return jsonify(results)
 
+@app.route("/track_stp")
+def track_stp():
+
+    # Only STP operators can access this page
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    return render_template("track_stp.html")
 # =========================================================
 # SUPPLY SIDE
 # =========================================================
 
 @app.route('/supply')
-@login_required(role="stp")
 def supply():
+
 
     auto_reset_capacity()
 
     stps = load_stps()
     selected_id = request.args.get("stp_id")
-
     selected_stp = None
     prediction = None
     weekly_forecast = None
 
-    # ==========================================
-    # FIND SELECTED STP
-    # ==========================================
     if selected_id:
-
-        selected_id = str(selected_id).strip()
-
         for stp in stps:
-
-            if str(stp.get("stp_id", "")).strip() == selected_id:
-
+            if str(stp["stp_id"]) == str(selected_id):
                 selected_stp = stp
 
                 try:
+                    print("STP ID sent to ML:", stp["stp_id"])
 
-                    print("STP ID sent to ML:", selected_stp["stp_id"])
-
-                    prediction = predict_next_day(
-                        str(selected_stp["stp_id"])
-                    )
-
-                    weekly_forecast = predict_week(
-                        str(selected_stp["stp_id"])
-                    )
+                    prediction = predict_next_day(str(stp["stp_id"]))
+                    weekly_forecast = predict_week(str(stp["stp_id"]))
 
                     if prediction is not None:
                         prediction = round(prediction, 2)
 
                     print("Prediction:", prediction)
-
                 except Exception as e:
-
                     print("Prediction error:", e)
-
                     prediction = None
-                    weekly_forecast = None
-
-                break
-
-
-    # ==========================================
-    # LOAD ORDERS FOR THIS STP
-    # ==========================================
 
     demands = []
-
-    if selected_stp and os.path.exists(ORDERS_FILE):
-
-        selected_stp_id = str(
-            selected_stp.get("stp_id", "")
-        ).strip()
-
-        print("Loading orders for STP:", selected_stp_id)
-
-        try:
-
-            with open(
-                ORDERS_FILE,
-                "r",
-                newline="",
-                encoding="utf-8"
-            ) as f:
-
-                reader = csv.DictReader(f)
-
-                for order in reader:
-
-                    order_stp_id = str(
-                        order.get("stp_id", "")
-                    ).strip()
-
-                    print(
-                        "Checking order:",
-                        order.get("order_id"),
-                        "| Order STP:",
-                        order_stp_id,
-                        "| Selected STP:",
-                        selected_stp_id
-                    )
-
-                    # ==========================================
-                    # ONLY SHOW ORDERS FOR THIS STP
-                    # ==========================================
-
-                    if order_stp_id == selected_stp_id:
-
-                        demands.append({
-                            "request_id": order.get(
-                                "order_id",
-                                ""
-                            ),
-
-                            "site_name": order.get(
-                                "location",
-                                ""
-                            ),
-
-                            "buyer_name": order.get(
-                                "customer_name",
-                                ""
-                            ),
-
-                            "buyer_phone": order.get(
-                                "customer_phone",
-                                ""
-                            ),
-
-                            "quantity": order.get(
-                                "quantity_kld",
-                                ""
-                            ),
-
-                            "quality_required": order.get(
-                                "quality",
-                                ""
-                            ),
-
-                            "status": order.get(
-                                "status",
-                                "Pending"
-                            ),
-
-                            # Keep original order data too
-                            "order_id": order.get(
-                                "order_id",
-                                ""
-                            ),
-
-                            "stp_id": order_stp_id,
-
-                            "stp_name": order.get(
-                                "stp_name",
-                                ""
-                            )
-                        })
-
-
-        except Exception as e:
-
-            print("Error loading orders:", e)
-
-
-    print(
-        f"Found {len(demands)} orders "
-        f"for STP {selected_id}"
-    )
-
-
-    # ==========================================
-    # RENDER PAGE
-    # ==========================================
-
-    return render_template(
-
-        "supply.html",
-
-        stps=stps,
-
-        selected_stp=selected_stp,
-
-        selected_id=selected_id,
-
-        demands=demands,
-
-        prediction=prediction,
-
-        weekly_forecast=weekly_forecast
-    )
 
     # =========================================================
     # STP-TO-STP TRANSFER REQUESTS
@@ -3113,7 +3063,6 @@ def supply():
 # =========================================================
 
 @app.route('/request-water')
-@login_required(role="stp")
 def request_water():
 
     stps = load_stps()
@@ -3144,7 +3093,6 @@ def request_water():
     )
 
 @app.route('/request-water/create', methods=['POST'])
-@login_required(role="stp")
 def create_stp_transfer():
 
     data = request.json or {}
@@ -3479,7 +3427,6 @@ def create_stp_transfer():
 # =========================================================
 
 @app.route("/handle_transfer_request", methods=["POST"])
-@login_required(role="stp")
 def handle_transfer_request():
 
     transfer_id = (request.form.get("transfer_id") or "").strip()
@@ -4690,7 +4637,6 @@ def get_stp_pricing(stp_id):
     }), 404
 
 @app.route("/api/update_pricing", methods=["POST"])
-@login_required(role="stp")
 def update_pricing():
 
     data = request.get_json()
@@ -4799,7 +4745,6 @@ def update_pricing():
     })
 
 @app.route("/update_capacity", methods=["POST"])
-@login_required(role="stp")
 def update_capacity():
 
     stp_id = request.form["stp_id"]
@@ -4816,7 +4761,6 @@ def update_capacity():
     return redirect(url_for("supply", stp_id=stp_id))
 
 @app.route("/upload_quality", methods=["POST"])
-@login_required(role="stp")
 def upload_quality():
 
     stp_id = request.form["stp_id"]
@@ -4833,8 +4777,9 @@ def upload_quality():
     return redirect(url_for("supply", stp_id=stp_id))
 
 @app.route("/handle_request", methods=["POST"])
-@login_required(role="stp")
 def handle_request():
+
+
 
     auto_reset_capacity()
 
@@ -4964,7 +4909,6 @@ def handle_request():
     return redirect(url_for("supply", stp_id=stp_id_redirect))
 
 @app.route("/update_order_status", methods=["POST"])
-@login_required(role="stp")
 def update_order_status():
     auto_reset_capacity()
 
@@ -5051,7 +4995,6 @@ def update_order_status():
 
 
 @app.route("/trip_history")
-@login_required(role="tanker")
 def trip_history():
     auto_reset_capacity()
 
@@ -5074,7 +5017,6 @@ AVAILABLE_TANKERS = 5
 
 
 @app.route("/tanker")
-@login_required(role="tanker")
 def tanker_dashboard():
 
     auto_reset_capacity()
@@ -5201,7 +5143,6 @@ def tanker_dashboard():
     )
 
 @app.route("/accept_pickup", methods=["POST"])
-@login_required(role="tanker")
 def accept_pickup():
 
     order_id = request.form.get("order_id")
@@ -5262,7 +5203,6 @@ import os
     "/accept_transfer_pickup",
     methods=["POST"]
 )
-@login_required(role="tanker")
 def accept_transfer_pickup():
 
     transfer_id = (
@@ -5364,7 +5304,6 @@ def accept_transfer_pickup():
     )
 
 @app.route("/complete_transfer", methods=["POST"])
-@login_required(role="tanker")
 def complete_transfer():
 
     transfer_id = (
