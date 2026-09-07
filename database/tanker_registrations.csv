@@ -1,0 +1,4 @@
+operator_id,operator_name,operator_type,phone,email,area,pincode,contract_id,contract_start,contract_end,tanker_registration_no,tanker_capacity_kl,vehicle_model,water_type_supported,service_radius_km,verification_status,registration_date
+OP-BLR-0001,MANORANJAN S ,contracted,07892012246,eng23am0042@dsu.edu.in,,,123456,2026-08-20,2026-09-30,KA-50-EF-2327,10,tanker,,,approved,2026-08-31
+OP-BLR-0002,MANORANJAN S ,independent,07892012246,eng23am0042@dsu.edu.in,sahakar nagar,560097,,,,KA-50-EF-2327,8,tanker,treated,5,approved,2026-08-31
+OP-BLR-0003,Mohith Mohan,independent,9876543210,something@dsu.com,Hebbal,122490,,,,KA-01-MJ-1487,10,Tata Tank,treated,7,approved,2026-08-31

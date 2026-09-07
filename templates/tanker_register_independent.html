@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Independent Tanker Operator</title>
+
+    <!-- MAIN PROJECT CSS -->
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     NAVBAR
+====================================================== -->
+
+<header class="navbar">
+
+    <div class="logo">
+
+        <a
+            href="/"
+            style="text-decoration:none;"
+        >
+
+            <span class="logo-text">
+                WasteWater Management
+            </span>
+
+        </a>
+
+    </div>
+
+
+    <nav>
+
+        <a href="/">
+            Home
+        </a>
+
+        <a
+            href="/tanker/register"
+            class="active"
+        >
+            Tanker Partner
+        </a>
+
+        <a href="/tanker/status">
+            Check Status
+        </a>
+
+    </nav>
+
+</header>
+
+
+
+<!-- =====================================================
+     PAGE
+====================================================== -->
+
+<main class="tanker-form-page">
+
+
+    <!-- PAGE HEADER -->
+
+    <section class="tanker-form-header">
+
+        <h1>
+            Independent Tanker Operator
+        </h1>
+        
+        <p>
+            Join the Purvankara Tanker Partner Network
+        </p>
+
+    </section>
+
+
+
+    <!-- FORM -->
+
+    <section class="tanker-form-container">
+
+        <div class="tanker-form-card">
+
+
+            <!-- CARD HEADER -->
+
+            <div class="tanker-form-card-header">
+
+                <h2>
+                    Operator Registration
+                </h2>
+
+                <p>
+                    Register your tanker and become an independent
+                    delivery partner. Once your account is verified,
+                    you can receive eligible customer delivery
+                    opportunities through the platform.
+                </p>
+
+            </div>
+
+
+
+            <!-- NOTICE -->
+
+            <div class="tanker-form-notice">
+
+                <div class="tanker-form-notice-icon">
+                    ℹ️
+                </div>
+
+                <div>
+
+                    <strong>
+                        Verification Required
+                    </strong>
+
+                    <br>
+
+                    Your application will be reviewed before your
+                    account becomes active. You will be able to
+                    receive orders only after verification.
+
+                </div>
+
+            </div>
+
+
+
+            <!-- FORM -->
+
+            <form
+                method="POST"
+                action="/tanker/register/independent"
+            >
+
+
+                <!-- =====================================
+                     PERSONAL DETAILS
+                ====================================== -->
+
+                <div class="tanker-form-section">
+
+                    <h3>
+                        Personal Details
+                    </h3>
+
+
+                    <div class="tanker-form-group">
+
+                        <label for="operator_name">
+                            Full Name
+                            <span class="required-mark">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="operator_name"
+                            name="operator_name"
+                            placeholder="Enter your full name"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="tanker-form-row">
+
+                        <div class="tanker-form-group">
+
+                            <label for="phone">
+                                Mobile Number
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <input
+                                type="tel"
+                                id="phone"
+                                name="phone"
+                                placeholder="Enter mobile number"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="tanker-form-group">
+
+                            <label for="email">
+                                Email Address
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                placeholder="Enter email address"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =====================================
+                     OPERATING LOCATION
+                ====================================== -->
+
+                <div class="tanker-form-section">
+
+                    <h3>
+                        Operating Location
+                    </h3>
+
+
+                    <div class="tanker-form-row">
+
+                        <div class="tanker-form-group">
+
+                            <label for="area">
+                                Operating Area
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="area"
+                                name="area"
+                                placeholder="Example: Whitefield"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="tanker-form-group">
+
+                            <label for="pincode">
+                                Pincode
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="pincode"
+                                name="pincode"
+                                placeholder="Enter pincode"
+                                maxlength="6"
+                                inputmode="numeric"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =====================================
+                     TANKER DETAILS
+                ====================================== -->
+
+                <div class="tanker-form-section">
+
+                    <h3>
+                        Tanker Details
+                    </h3>
+
+                    <div class="tanker-form-group">
+
+                        <label for="registration_no">
+                            Tanker Registration Number
+                            <span class="required-mark">*</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="registration_no"
+                            name="registration_no"
+                            placeholder="Example: KA-01-AB-1234"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="tanker-form-row">
+
+                        <div class="tanker-form-group">
+
+                            <label for="capacity">
+                                Tanker Capacity
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <select
+                                id="capacity"
+                                name="capacity"
+                                required
+                            >
+
+                                <option value="">
+                                    Select capacity
+                                </option>
+
+                                <option value="5">
+                                    5 KL
+                                </option>
+
+                                <option value="6">
+                                    6 KL
+                                </option>
+
+                                <option value="8">
+                                    8 KL
+                                </option>
+
+                                <option value="10">
+                                    10 KL
+                                </option>
+
+                                <option value="12">
+                                    12 KL
+                                </option>
+
+                                <option value="16">
+                                    16 KL
+                                </option>
+
+                                <option value="20">
+                                    20 KL
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="tanker-form-group">
+
+                            <label for="vehicle_model">
+                                Vehicle Model
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="vehicle_model"
+                                name="vehicle_model"
+                                placeholder="Enter vehicle model"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =====================================
+                     SERVICE PREFERENCES
+                ====================================== -->
+
+                <div class="tanker-form-section">
+
+                    <h3>
+                        Service Preferences
+                    </h3>
+
+
+                    <div class="tanker-form-row">
+
+                        <div class="tanker-form-group">
+
+                            <label for="water_type">
+                                Water Type Supported
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <select
+                                id="water_type"
+                                name="water_type"
+                                required
+                            >
+
+                                <option value="">
+                                    Select water type
+                                </option>
+
+                                <option value="treated">
+                                    Treated Water
+                                </option>
+
+                                <option value="fresh">
+                                    Fresh Water
+                                </option>
+
+                                <option value="general">
+                                    General Water
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                        <div class="tanker-form-group">
+
+                            <label for="radius">
+                                Maximum Service Radius
+                                <span class="required-mark">*</span>
+                            </label>
+
+                            <select
+                                id="radius"
+                                name="radius"
+                                required
+                            >
+
+                                <option value="">
+                                    Select radius
+                                </option>
+
+                                <option value="2">
+                                    2 km
+                                </option>
+
+                                <option value="5">
+                                    5 km
+                                </option>
+
+                                <option value="7">
+                                    7 km
+                                </option>
+
+                                <option value="10">
+                                    9 km
+                                </option>
+
+                                <option value="10">
+                                    10 km
+                                </option>
+
+                                <option value="15">
+                                    15 km
+                                </option>
+                                
+                            </select>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =====================================
+                     ACTIONS
+                ====================================== -->
+
+                <div class="tanker-form-actions">
+
+                    <a
+                        href="/tanker/register"
+                        class="tanker-form-secondary"
+                    >
+                        ← Back
+                    </a>
+
+
+                    <button
+                        type="submit"
+                        class="tanker-form-primary"
+                    >
+                        Submit Registration
+                        →
+                    </button>
+
+                </div>
+
+
+            </form>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+</body>
+
+</html>
