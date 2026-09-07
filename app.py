@@ -3737,7 +3737,7 @@ def chatbot():
 
             return jsonify({"reply": "\n".join(reply_lines)})
 
-        # ---------------------------------------------------------
+               # ---------------------------------------------------------
         # NEAREST STP
         # ---------------------------------------------------------
         nearest_stp_query = any(
@@ -3761,34 +3761,110 @@ def chatbot():
         )
 
         if nearest_stp_query:
-            if latitude is None or longitude is None:
-                return jsonify({
-                    "reply": (
-                        "📍 I need your location to find the nearest STP.\n\n"
-                        "Please allow location access in your browser and "
-                        "try again."
-                    )
-                })
 
+            # Check whether the user mentioned a location
+            location_match = re.search(
+                r"(?:nearest|closest)\s+stp\s+(?:to|near|in)\s+(.+)$",
+                text,
+                re.IGNORECASE
+            )
+
+            mentioned_location = None
+
+            if location_match:
+                mentioned_location = location_match.group(1).strip()
+
+            # -----------------------------------------------------
+            # USER PROVIDED A LOCATION
+            # -----------------------------------------------------
+            if mentioned_location:
+
+                try:
+                    geo_url = (
+                        "https://nominatim.openstreetmap.org/search"
+                        "?format=json"
+                        "&limit=1"
+                        "&countrycodes=in"
+                        "&q="
+                        + requests.utils.quote(
+                            mentioned_location + ", Bangalore"
+                        )
+                    )
+
+                    response = requests.get(
+                        geo_url,
+                        headers={"User-Agent": "wastewater-app"},
+                        timeout=10
+                    )
+
+                    geo_data = response.json()
+
+                    if not geo_data:
+                        return jsonify({
+                            "reply": (
+                                f"I couldn't find '{mentioned_location}'. "
+                                "Please try another location."
+                            )
+                        })
+
+                    search_latitude = float(geo_data[0]["lat"])
+                    search_longitude = float(geo_data[0]["lon"])
+
+                except Exception as e:
+                    print("Chatbot geocoding error:", e)
+
+                    return jsonify({
+                        "reply": (
+                            "I couldn't look up that location right now. "
+                            "Please try again."
+                        )
+                    })
+
+            # -----------------------------------------------------
+            # NO LOCATION PROVIDED → USE BROWSER LOCATION
+            # -----------------------------------------------------
+            else:
+
+                if latitude is None or longitude is None:
+                    return jsonify({
+                        "reply": (
+                            "I need your location to find the nearest STP.\n\n"
+                            "Please allow location access in your browser "
+                            "and try again."
+                        )
+                    })
+
+                search_latitude = latitude
+                search_longitude = longitude
+
+            # -----------------------------------------------------
+            # LOAD STPs
+            # -----------------------------------------------------
             stps = load_stps()
+
             if not stps:
                 return jsonify({
                     "reply": "I couldn't find any STPs in the system."
                 })
 
+            # -----------------------------------------------------
+            # FIND THE NEAREST STP
+            # -----------------------------------------------------
             nearest_stp = None
             nearest_distance = float("inf")
 
             for stp in stps:
+
                 try:
                     stp_lat = float(stp.get("latitude"))
                     stp_lon = float(stp.get("longitude"))
+
                 except (TypeError, ValueError):
                     continue
 
                 distance = haversine(
-                    latitude,
-                    longitude,
+                    search_latitude,
+                    search_longitude,
                     stp_lat,
                     stp_lon
                 )
@@ -3797,6 +3873,9 @@ def chatbot():
                     nearest_distance = distance
                     nearest_stp = stp
 
+            # -----------------------------------------------------
+            # HANDLE NO VALID STP COORDINATES
+            # -----------------------------------------------------
             if nearest_stp is None:
                 return jsonify({
                     "reply": (
@@ -3805,6 +3884,9 @@ def chatbot():
                     )
                 })
 
+            # -----------------------------------------------------
+            # FORMAT RESPONSE
+            # -----------------------------------------------------
             stp_name = (
                 nearest_stp.get("stp_name")
                 or nearest_stp.get("name")
@@ -3814,10 +3896,13 @@ def chatbot():
 
             try:
                 available_kld = (
-                    float(nearest_stp.get("available_capacity_mld") or 0)
-                    * 1000
+                    float(
+                        nearest_stp.get("available_capacity_mld") or 0
+                    ) * 1000
                 )
+
                 capacity_text = f"{available_kld:.0f} KLD"
+
             except (TypeError, ValueError):
                 capacity_text = "Unknown"
 
