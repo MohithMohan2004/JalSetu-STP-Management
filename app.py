@@ -415,7 +415,7 @@ def load_stp_pricing():
     ) as file:
 
         return list(csv.DictReader(file))
-
+    
 def save_stps(stps):
 
     with open(STP_FILE, "r", encoding="utf-8") as f:
@@ -638,13 +638,6 @@ def login():
 
             stp_id = str(session.get("stp_id") or "").strip()
 
-            print("================================")
-            print("LOGGED-IN STP USER:", session.get("username"))
-            print("USER DATA STP ID:", matched_user.get("stp_id"))
-            print("SESSION STP ID:", session.get("stp_id"))
-            print("REDIRECTING WITH STP ID:", stp_id)
-            print("================================")
-
             if not stp_id:
                 session.clear()
 
@@ -654,7 +647,10 @@ def login():
                 )
 
             return redirect(
-                url_for("supply", stp_id=stp_id)
+                url_for(
+                    "supply",
+                    stp_id=stp_id
+                )
             )
 
         if session["role"] == "tanker":
@@ -677,6 +673,7 @@ def login():
         )
 
     return render_template("login.html")
+
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -1608,40 +1605,113 @@ def update_tanker_status(operator_id, status):
 
     return redirect("/admin")
 
+@app.route("/stp_dashboard")
+def stp_dashboard():
+
+    # Only STP operators can access this
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    # Get the STP assigned to the logged-in operator
+    stp_id = str(
+        session.get("stp_id") or ""
+    ).strip()
+
+    if not stp_id:
+        return redirect(url_for("login"))
+
+    # Redirect to THAT operator's STP dashboard
+    return redirect(
+        url_for(
+            "supply",
+            stp_id=stp_id
+        )
+    )
+
 @app.route("/api/stp_orders")
 def api_stp_orders():
 
+    # Only STP operators can access this API
     if session.get("role") != "stp":
-        return jsonify([]), 403
+        return jsonify({
+            "error": "Unauthorized"
+        }), 403
 
-    stp_id = str(session.get("stp_id") or "").strip()
+
+    # Get the STP assigned to the LOGGED-IN operator
+    stp_id = str(
+        session.get("stp_id") or ""
+    ).strip()
+
 
     if not stp_id:
-        return jsonify([])
+        return jsonify({
+            "error": "No STP assigned to this account"
+        }), 400
+
 
     orders = []
 
-    if os.path.exists(ORDERS_FILE):
 
-        with open(
-            ORDERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
+    if not os.path.exists(ORDERS_FILE):
 
-            reader = csv.DictReader(f)
+        return jsonify([])
 
-            for order in reader:
 
-                if (
-                    str(order.get("stp_id") or "").strip()
-                    == stp_id
-                ):
-                    orders.append(order)
+    # Read all orders
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for order in reader:
+
+            # STP assigned to this order
+            order_stp_id = str(
+                order.get("stp_id") or ""
+            ).strip()
+
+
+            # ====================================
+            # ONLY SHOW ORDERS FOR LOGGED-IN STP
+            # ====================================
+            if order_stp_id != stp_id:
+                continue
+
+
+            orders.append(order)
+
+
+    # Latest orders first
+    orders.sort(
+        key=lambda order:
+            order.get("created_at") or "",
+        reverse=True
+    )
+
+
+    # Debugging
+    print("\n" + "=" * 50)
+    print("STP ORDER TRACKER")
+    print("Logged-in STP ID:", stp_id)
+    print("Orders found:", len(orders))
+
+    for order in orders:
+        print(
+            "Order:",
+            order.get("order_id"),
+            "| STP:",
+            order.get("stp_id")
+        )
+
+    print("=" * 50 + "\n")
+
 
     return jsonify(orders)
-
 
 @app.route("/api/stp_order_tracking/<order_id>")
 def stp_order_tracking(order_id):
@@ -2682,47 +2752,36 @@ def confirm_cod():
 
 @app.route("/api/my_orders")
 def my_orders():
+    user_id = session.get("user_id")
+    buyer_name = session.get("buyer_name") or session.get("user_name")
+    buyer_phone = session.get("buyer_phone") or session.get("user_phone")
 
-    role = session.get("role")
+    if not user_id and not buyer_name and not buyer_phone:
+        return jsonify({"error": "Please log in to view your orders."}), 401
 
-    user_id = str(session.get("user_id") or "").strip()
-    stp_id = str(session.get("stp_id") or "").strip()
+    results = []
+    if os.path.exists(ORDERS_FILE):
+        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                matches_user = bool(user_id and row.get("buyer_user_id", "") == user_id)
+                matches_legacy = (
+                    not row.get("buyer_user_id", "") and buyer_name and buyer_phone and
+                    row.get("buyer_name") == buyer_name and row.get("buyer_phone") == buyer_phone
+                )
+                if matches_user or matches_legacy:
+                    results.append({
+                        "order_id": row.get("order_id"),
+                        "status": row.get("status"),
+                        "location": row.get("location"),
+                        "stp_name": row.get("stp_name"),
+                        "quantity_kld": row.get("quantity_kld"),
+                        "created_at": row.get("created_at"),
+                        "payment_status": row.get("payment_status", "")
+                    })
 
-    orders = []
-
-    if not os.path.exists(ORDERS_FILE):
-        return jsonify([])
-
-    with open(
-        ORDERS_FILE,
-        "r",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        reader = csv.DictReader(f)
-
-        for order in reader:
-
-            # Demand user → show their own orders
-            if role == "demand":
-
-                if (
-                    str(order.get("user_id") or "").strip()
-                    == user_id
-                ):
-                    orders.append(order)
-
-            # STP owner → show orders assigned to their STP
-            elif role == "stp":
-
-                if (
-                    str(order.get("stp_id") or "").strip()
-                    == stp_id
-                ):
-                    orders.append(order)
-
-    return jsonify(orders)
+    results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return jsonify(results)
 
 @app.route("/api/order_tracking/<order_id>")
 def order_tracking(order_id):
@@ -2876,6 +2935,14 @@ def track_order():
     results.sort(key=lambda x: x["order_id"], reverse=True)
     return jsonify(results)
 
+@app.route("/track_stp")
+def track_stp():
+
+    # Only STP operators can access this page
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    return render_template("track_stp.html")
 # =========================================================
 # SUPPLY SIDE
 # =========================================================
@@ -2883,183 +2950,35 @@ def track_order():
 @app.route('/supply')
 def supply():
 
+
     auto_reset_capacity()
 
     stps = load_stps()
     selected_id = request.args.get("stp_id")
-
     selected_stp = None
     prediction = None
     weekly_forecast = None
 
-    # ==========================================
-    # FIND SELECTED STP
-    # ==========================================
     if selected_id:
-
-        selected_id = str(selected_id).strip()
-
         for stp in stps:
-
-            if str(stp.get("stp_id", "")).strip() == selected_id:
-
+            if str(stp["stp_id"]) == str(selected_id):
                 selected_stp = stp
 
                 try:
+                    print("STP ID sent to ML:", stp["stp_id"])
 
-                    print("STP ID sent to ML:", selected_stp["stp_id"])
-
-                    prediction = predict_next_day(
-                        str(selected_stp["stp_id"])
-                    )
-
-                    weekly_forecast = predict_week(
-                        str(selected_stp["stp_id"])
-                    )
+                    prediction = predict_next_day(str(stp["stp_id"]))
+                    weekly_forecast = predict_week(str(stp["stp_id"]))
 
                     if prediction is not None:
                         prediction = round(prediction, 2)
 
                     print("Prediction:", prediction)
-
                 except Exception as e:
-
                     print("Prediction error:", e)
-
                     prediction = None
-                    weekly_forecast = None
-
-                break
-
-
-    # ==========================================
-    # LOAD ORDERS FOR THIS STP
-    # ==========================================
 
     demands = []
-
-    if selected_stp and os.path.exists(ORDERS_FILE):
-
-        selected_stp_id = str(
-            selected_stp.get("stp_id", "")
-        ).strip()
-
-        print("Loading orders for STP:", selected_stp_id)
-
-        try:
-
-            with open(
-                ORDERS_FILE,
-                "r",
-                newline="",
-                encoding="utf-8"
-            ) as f:
-
-                reader = csv.DictReader(f)
-
-                for order in reader:
-
-                    order_stp_id = str(
-                        order.get("stp_id", "")
-                    ).strip()
-
-                    print(
-                        "Checking order:",
-                        order.get("order_id"),
-                        "| Order STP:",
-                        order_stp_id,
-                        "| Selected STP:",
-                        selected_stp_id
-                    )
-
-                    # ==========================================
-                    # ONLY SHOW ORDERS FOR THIS STP
-                    # ==========================================
-
-                    if order_stp_id == selected_stp_id:
-
-                        demands.append({
-                            "request_id": order.get(
-                                "order_id",
-                                ""
-                            ),
-
-                            "site_name": order.get(
-                                "location",
-                                ""
-                            ),
-
-                            "buyer_name": order.get(
-                                "customer_name",
-                                ""
-                            ),
-
-                            "buyer_phone": order.get(
-                                "customer_phone",
-                                ""
-                            ),
-
-                            "quantity": order.get(
-                                "quantity_kld",
-                                ""
-                            ),
-
-                            "quality_required": order.get(
-                                "quality",
-                                ""
-                            ),
-
-                            "status": order.get(
-                                "status",
-                                "Pending"
-                            ),
-
-                            # Keep original order data too
-                            "order_id": order.get(
-                                "order_id",
-                                ""
-                            ),
-
-                            "stp_id": order_stp_id,
-
-                            "stp_name": order.get(
-                                "stp_name",
-                                ""
-                            )
-                        })
-
-
-        except Exception as e:
-
-            print("Error loading orders:", e)
-
-
-    print(
-        f"Found {len(demands)} orders "
-        f"for STP {selected_id}"
-    )
-
-
-    # ==========================================
-    # RENDER PAGE
-    # ==========================================
-
-    return render_template(
-
-        "supply.html",
-
-        stps=stps,
-
-        selected_stp=selected_stp,
-
-        selected_id=selected_id,
-
-        demands=demands,
-
-        prediction=prediction,
-
-        weekly_forecast=weekly_forecast
-    )
 
     # =========================================================
     # STP-TO-STP TRANSFER REQUESTS
@@ -4859,6 +4778,8 @@ def upload_quality():
 
 @app.route("/handle_request", methods=["POST"])
 def handle_request():
+
+
 
     auto_reset_capacity()
 
