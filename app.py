@@ -15,6 +15,7 @@ from ml.predict_demand import predict_next_day, predict_week
 from dotenv import load_dotenv
 from supabase import create_client
 from config import Config
+from chatbot.fuzzy_matcher import find_fuzzy_intent
 
 
 def format_clean_address(address, lat, lon):
@@ -3547,6 +3548,16 @@ def chatbot():
         text = re.sub(r"\s+", " ", message.lower()).strip()
 
         # ---------------------------------------------------------
+        # FUZZY INTENT DETECTION
+        # ---------------------------------------------------------
+        fuzzy_intent, fuzzy_score = find_fuzzy_intent(text)
+
+        print(
+            f"Chatbot fuzzy intent: {fuzzy_intent} "
+            f"(confidence: {fuzzy_score})"
+        )
+
+        # ---------------------------------------------------------
         # LOCATION
         # ---------------------------------------------------------
         latitude = data.get("latitude")
@@ -3618,8 +3629,7 @@ def chatbot():
             "good afternoon",
             "good evening",
         }
-
-        if text in greetings:
+        if fuzzy_intent == "greeting" or text in greetings:            
             return jsonify({
                 "reply": (
                     "Hello! 👋 I'm your Wastewater Assistant.\n\n"
@@ -3628,12 +3638,13 @@ def chatbot():
                 )
             })
 
-        if (
-            "what can you do" in text
+            if (
+            fuzzy_intent == "help"
+            or "what can you do" in text
             or "what do you do" in text
             or text in {"help", "help me"}
         ):
-            return jsonify({
+                return jsonify({
                 "reply": (
                     "I can help with:\n\n"
                     "🏭 STP locations and availability\n"
@@ -3648,13 +3659,14 @@ def chatbot():
                 )
             })
 
-        if (
-            "my role" in text
+            if (
+            fuzzy_intent == "user_role"
+            or "my role" in text
             or "who am i" in text
             or "my account" in text
         ):
-            if role == "guest":
-                return jsonify({
+                if role == "guest":
+                    return jsonify({
                     "reply": "You are currently not logged in."
                 })
 
@@ -3691,7 +3703,7 @@ def chatbot():
             )
         )
 
-        if stp_info_query:
+        if fuzzy_intent == "stp_information" or stp_info_query:
             stps = load_stps()
 
             if not stps:
@@ -3760,7 +3772,7 @@ def chatbot():
             )
         )
 
-        if nearest_stp_query:
+        if fuzzy_intent == "nearest_stp" or nearest_stp_query:
 
             # Check whether the user mentioned a location
             location_match = re.search(
@@ -4038,77 +4050,116 @@ def chatbot():
 
             return jsonify({"reply": reply})
 
-        # ---------------------------------------------------------
+                # ---------------------------------------------------------
         # ORDER INTENTS
         # ---------------------------------------------------------
-        history_query = any(
-            phrase in text
-            for phrase in (
-                "order history",
-                "my order history",
-                "show my orders",
-                "show my order history",
-                "what orders have i placed",
-                "what orders did i place",
-                "orders have i placed",
-                "orders did i place",
-                "previous orders",
-                "all my orders",
+
+        history_query = (
+            fuzzy_intent == "order_history"
+            or any(
+                phrase in text
+                for phrase in (
+                    "order history",
+                    "my order history",
+                    "show my orders",
+                    "show my order history",
+                    "what orders have i placed",
+                    "what orders did i place",
+                    "orders have i placed",
+                    "orders did i place",
+                    "previous orders",
+                    "all my orders",
+                )
             )
         )
 
-        latest_order_query = any(
-            phrase in text
-            for phrase in (
-                "previous order",
-                "what was my previous order",
-                "last order",
-                "latest order",
-                "recent order",
-                "what did i order last",
-                "what was my last order",
-                "what is my previous order",
-                "what is my latest order",
+        latest_order_query = (
+            fuzzy_intent == "latest_order"
+            or any(
+                phrase in text
+                for phrase in (
+                    "previous order",
+                    "what was my previous order",
+                    "last order",
+                    "latest order",
+                    "recent order",
+                    "what did i order last",
+                    "what was my last order",
+                    "what is my previous order",
+                    "what is my latest order",
+                )
             )
         )
 
-        total_quantity_query = any(
-            phrase in text
-            for phrase in (
-                "total water",
-                "total quantity",
-                "total kld",
-                "how much water have i ordered",
-                "how much have i ordered",
-                "how much water did i order in total",
-                "total amount of water",
+        total_quantity_query = (
+            fuzzy_intent == "total_order_quantity"
+            or any(
+                phrase in text
+                for phrase in (
+                    "total water",
+                    "total quantity",
+                    "total kld",
+                    "how much water have i ordered",
+                    "how much have i ordered",
+                    "how much water did i order in total",
+                    "total amount of water",
+                )
             )
         )
 
-        order_count_query = any(
-            phrase in text
-            for phrase in (
-                "how many orders have i made",
-                "how many orders did i make",
-                "how many orders have i placed",
-                "number of orders i placed",
-                "how many orders do i have",
+        order_count_query = (
+            fuzzy_intent == "order_count"
+            or any(
+                phrase in text
+                for phrase in (
+                    "how many orders have i made",
+                    "how many orders did i make",
+                    "how many orders have i placed",
+                    "number of orders i placed",
+                    "how many orders do i have",
+                )
             )
         )
 
-        quantity_query = any(
-            phrase in text
-            for phrase in (
-                "how much water did i order",
-                "how much did i order",
-                "what quantity did i order",
-                "how many kld did i order",
-                "what is my order quantity",
+        quantity_query = (
+            fuzzy_intent == "order_quantity"
+            or any(
+                phrase in text
+                for phrase in (
+                    "how much water did i order",
+                    "how much did i order",
+                    "what quantity did i order",
+                    "how many kld did i order",
+                    "what is my order quantity",
+                )
+            )
+        )
+        latest_order_quantity_query = (
+            fuzzy_intent == "latest_order_quantity"
+            or (
+                any(
+                    phrase in text
+                    for phrase in (
+                        "latest order",
+                        "last order",
+                        "recent order",
+                        "most recent order",
+                    )
+                )
+                and any(
+                    phrase in text
+                    for phrase in (
+                        "how much",
+                        "quantity",
+                        "how many kld",
+                    )
+                )
             )
         )
 
         status_query = (
-            "order status" in text
+            fuzzy_intent == "order_status"
+            or "order status" in text
             or "status of my order" in text
             or "what's my order status" in text
             or "what is my order status" in text
@@ -4120,30 +4171,35 @@ def chatbot():
             or "track my order" in text
         )
 
-        tanker_query = any(
-            phrase in text
-            for phrase in (
-                "where is my tanker",
-                "tanker status",
-                "has my tanker been assigned",
-                "is my tanker assigned",
-                "tanker assigned",
+        tanker_query = (
+            fuzzy_intent == "tanker_status"
+            or any(
+                phrase in text
+                for phrase in (
+                    "where is my tanker",
+                    "tanker status",
+                    "has my tanker been assigned",
+                    "is my tanker assigned",
+                    "tanker assigned",
+                )
             )
         )
 
-        delivery_query = any(
-            phrase in text
-            for phrase in (
-                "delivery status",
-                "what is my delivery status",
-                "what's my delivery status",
-                "whats my delivery status",
-                "where is my delivery",
-                "when will my delivery arrive",
-                "when will my order arrive",
+        delivery_query = (
+            fuzzy_intent == "delivery_status"
+            or any(
+                phrase in text
+                for phrase in (
+                    "delivery status",
+                    "what is my delivery status",
+                    "what's my delivery status",
+                    "whats my delivery status",
+                    "where is my delivery",
+                    "when will my delivery arrive",
+                    "when will my order arrive",
+                )
             )
         )
-
         order_id_match = re.search(
             r"\bORD-[A-Z0-9]+\b",
             message,
@@ -4161,6 +4217,7 @@ def chatbot():
             or total_quantity_query
             or order_count_query
             or quantity_query
+            or latest_order_quantity_query
             or status_query
             or tanker_query
             or delivery_query
@@ -4330,19 +4387,24 @@ def chatbot():
                     )
                 })
 
+                       # -----------------------------------------------------
+            # LATEST ORDER QUANTITY
+            # -----------------------------------------------------
+            if latest_order_quantity_query:
+                return jsonify({
+                    "reply": (
+                        "💧 Latest Order Quantity\n\n"
+                        f"Your latest order {order_id} is for "
+                        f"{quantity} KLD of treated wastewater.\n"
+                        f"🏭 STP: {stp_name}\n"
+                        f"📌 Status: {status}"
+                    )
+                })
+
             # -----------------------------------------------------
             # LATEST / PREVIOUS ORDER DETAILS
             # -----------------------------------------------------
-            if latest_order_query or quantity_query:
-                if quantity_query and not latest_order_query:
-                    return jsonify({
-                        "reply": (
-                            f"💧 Your latest order {order_id} is for "
-                            f"{quantity} KLD of treated wastewater "
-                            f"from {stp_name}."
-                        )
-                    })
-
+            if latest_order_query:
                 return jsonify({
                     "reply": (
                         "📦 Latest Order\n\n"
@@ -4355,6 +4417,17 @@ def chatbot():
                     )
                 })
 
+            # -----------------------------------------------------
+            # ORDER QUANTITY
+            # -----------------------------------------------------
+            if quantity_query:
+                return jsonify({
+                    "reply": (
+                        f"💧 Your latest order {order_id} is for "
+                        f"{quantity} KLD of treated wastewater "
+                        f"from {stp_name}."
+                    )
+                })
             # -----------------------------------------------------
             # STATUS / TANKER / DELIVERY
             # -----------------------------------------------------
