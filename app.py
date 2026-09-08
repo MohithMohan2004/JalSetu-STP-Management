@@ -3061,28 +3061,6 @@ def supply():
         f"for STP {selected_id}"
     )
 
-
-    # ==========================================
-    # RENDER PAGE
-    # ==========================================
-
-    return render_template(
-
-        "supply.html",
-
-        stps=stps,
-
-        selected_stp=selected_stp,
-
-        selected_id=selected_id,
-
-        demands=demands,
-
-        prediction=prediction,
-
-        weekly_forecast=weekly_forecast
-    )
-
     # =========================================================
     # STP-TO-STP TRANSFER REQUESTS
     # =========================================================
