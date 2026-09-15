@@ -5231,6 +5231,125 @@ def tanker_dashboard():
         orders=orders
     )
 
+
+# =========================================================
+# TANKER LIVE GPS TRACKING (browser -> Flask -> Supabase)
+# =========================================================
+
+TANKER_LOCATIONS_TABLE = "tanker_locations"
+
+
+@app.route("/api/tanker/location", methods=["POST"])
+@login_required(role="tanker")
+def update_tanker_location():
+    """Receive a GPS ping from the tanker operator's browser (sent every
+    ~10s while a trip is active) and store the tanker's latest known
+    location in Supabase. Uses the existing session-based tanker
+    identity -- no separate auth mechanism is created."""
+
+    data = request.get_json(silent=True) or {}
+
+    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
+    user_id = str(session.get("user_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({
+            "success": False,
+            "error": "No tanker operator is linked to this account."
+        }), 400
+
+    try:
+        latitude = float(data.get("latitude"))
+        longitude = float(data.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "error": "latitude and longitude are required."
+        }), 400
+
+    def to_float_or_none(value):
+        try:
+            if value in (None, ""):
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    accuracy = to_float_or_none(data.get("accuracy"))
+    speed = to_float_or_none(data.get("speed"))
+    heading = to_float_or_none(data.get("heading"))
+
+    # Timestamp sent by the browser (ms since epoch); fall back to server time.
+    client_timestamp = to_float_or_none(data.get("timestamp"))
+
+    if client_timestamp:
+        recorded_at = (
+            datetime.utcfromtimestamp(client_timestamp / 1000).isoformat()
+            + "Z"
+        )
+    else:
+        recorded_at = datetime.utcnow().isoformat() + "Z"
+
+    payload = {
+        "tanker_operator_id": tanker_operator_id,
+        "user_id": user_id,
+        "tanker_operator_name": str(
+            session.get("tanker_operator_name") or ""
+        ),
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy": accuracy,
+        "speed": speed,
+        "heading": heading,
+        "recorded_at": recorded_at,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+    try:
+        supabase.table(TANKER_LOCATIONS_TABLE).upsert(
+            payload,
+            on_conflict="tanker_operator_id"
+        ).execute()
+    except Exception as e:
+        print("Supabase tanker location upsert error:", e)
+        return jsonify({
+            "success": False,
+            "error": "Unable to save location right now."
+        }), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/tanker/location/latest")
+@login_required(role="tanker")
+def latest_tanker_location():
+    """Return the current tanker operator's own latest saved location,
+    used to redraw their marker on the tanker dashboard map."""
+
+    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({"success": True, "location": None})
+
+    try:
+        response = (
+            supabase.table(TANKER_LOCATIONS_TABLE)
+            .select("*")
+            .eq("tanker_operator_id", tanker_operator_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as e:
+        print("Supabase tanker location fetch error:", e)
+        return jsonify({"success": True, "location": None})
+
+    return jsonify({
+        "success": True,
+        "location": rows[0] if rows else None
+    })
+
+
 @app.route("/accept_pickup", methods=["POST"])
 @login_required(role="tanker")
 def accept_pickup():
