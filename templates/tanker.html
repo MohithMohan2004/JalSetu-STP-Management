@@ -435,15 +435,24 @@
         ===================================================== */
 
         .stats-grid {
-
             display: grid;
-
-            grid-template-columns:
-                repeat(4, 1fr);
-
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 16px;
-
             margin-bottom: 18px;
+            width: 100%;
+        }
+
+        .stat-card {
+            min-width: 0;
+            min-height: 92px;
+            background: white;
+            border: 1px solid #edf0f5;
+            border-radius: 12px;
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 3px 12px rgba(25,40,70,.04);
         }
 
 
@@ -546,22 +555,46 @@
             color: #65738a;
         }
 
-
         /* =====================================================
-           MAIN GRID
+        MAIN GRID
         ===================================================== */
 
         .main-grid {
-
             display: grid;
-
-            grid-template-columns:
-                minmax(330px, .9fr)
-                minmax(500px, 1.8fr);
-
+            grid-template-columns: minmax(320px, 0.8fr) minmax(0, 2.2fr);
             gap: 18px;
+            width: 100%;
+            align-items: stretch;
+        }
 
-            align-items: start;
+        .main-grid > .card {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .orders-list {
+            height: 540px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .map-card {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .map-container {
+            width: 100%;
+            height: 540px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #e1e7ef;
+            background: #eef2f7;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
         }
 
 
@@ -1375,7 +1408,7 @@
             </a>
 
 
-            <a href="#operations">
+            <a href="{{ url_for('tanker_reports') }}">
 
                 <div class="nav-icon">
                     ▥
@@ -1481,11 +1514,14 @@
             <div class="welcome">
 
                 <h1>
-                    Welcome back, Tanker Operator 👋
+                    Welcome, {{ operator.operator_name or "Tanker Operator" }} 👋
                 </h1>
 
                 <p>
-                    Here's your overview of today's tanker operations.
+                    Operator ID: {{ operator.operator_id }}
+                    •
+                    {{ operator.operator_type|title }}
+                    Operator
                 </p>
 
             </div>
@@ -1508,11 +1544,11 @@
                 <div class="operator-profile">
 
                     <div class="profile-circle">
-                        TO
+                        {{ (operator.operator_name or "TO")[:2]|upper }}
                     </div>
 
                     <span>
-                        Tanker Operator
+                        {{ operator.operator_name or "Tanker Operator" }}
                     </span>
 
                     <span>
@@ -1568,47 +1604,27 @@
 
 
 
-                <!-- TOTAL VOLUME -->
+                <!-- TOTAL tankers -->
 
                 <div class="stat-card">
 
                     <div class="stat-icon green">
-                        💧
+                        🚚
                     </div>
-
 
                     <div class="stat-info">
 
                         <p>
-                            Available Volume
+                            Operational Tankers
                         </p>
 
                         <h2>
-
-                            {% set total_quantity =
-                                namespace(value=0)
-                            %}
-
-
-                            {% for order in orders %}
-
-                                {% set total_quantity.value =
-                                    total_quantity.value
-                                    + (order.quantity_kld|float)
-                                %}
-
-                            {% endfor %}
-
-
-                            {{ "%.0f"|format(
-                                total_quantity.value
-                            ) }}
-
-                            <small>
-                                KLD
-                            </small>
-
+                            {{ operational_tankers }}
                         </h2>
+
+                        <small>
+                            Registered fleet
+                        </small>
 
                     </div>
 
@@ -1616,24 +1632,27 @@
 
 
 
-                <!-- ROUTE PLANNING -->
+                <!-- available tankers -->
 
                 <div class="stat-card">
 
                     <div class="stat-icon purple">
-                        📍
+                        🚛
                     </div>
-
 
                     <div class="stat-info">
 
                         <p>
-                            Route Planning
+                            Available Tankers
                         </p>
 
-                        <h2 style="font-size:16px;">
-                            Active
+                        <h2>
+                            {{ available_tankers }}
                         </h2>
+
+                        <small>
+                            {{ active_tankers }} currently active
+                        </small>
 
                     </div>
 
@@ -1646,9 +1665,8 @@
                 <div class="stat-card">
 
                     <div class="stat-icon orange">
-                        🚚
+                        ✓
                     </div>
-
 
                     <div class="stat-info">
 
@@ -1656,21 +1674,19 @@
                             Operator Status
                         </p>
 
-                        <h2
-                            style="
-                                font-size:16px;
-                                color:#199956;
-                            "
-                        >
-                            Online
+                        <h2 style="font-size:16px;">
+                            {{ operator.verification_status|title }}
                         </h2>
+
+                        <small>
+                            {{ operator.operator_type|title }} Operator
+                        </small>
 
                     </div>
 
                 </div>
 
-
-            </div>
+            </div> 
 
 
 
@@ -1821,8 +1837,9 @@
                                 onclick="showRoute(
                                     {{ order.stp_lat }},
                                     {{ order.stp_lon }},
-                                    '{{ order.location }}',
-                                    {{ order.distance_km }}
+                                    {{ order.delivery_lat or 0 }},
+                                    {{ order.delivery_lon or 0 }},
+                                    '{{ order.location | e }}'
                                 )"
                             >
 
@@ -1836,12 +1853,18 @@
 
                                 {% if order.request_type == "stp_transfer" %}
 
-                                    <!-- STP TRANSFER PICKUP -->
+                                <!-- ============================================= -->
+                                <!-- STP TRANSFER OFFER ACTIONS -->
+                                <!-- ============================================= -->
+
+                                <div class="tanker-request-actions">
+
+                                    <!-- ACCEPT TRANSFER -->
 
                                     <form
                                         method="POST"
                                         action="{{ url_for('accept_transfer_pickup') }}"
-                                        class="pickup-form"
+                                        style="margin:0;"
                                     >
 
                                         <input
@@ -1852,37 +1875,105 @@
 
                                         <button
                                             type="submit"
-                                            class="pickup-button"
+                                            class="
+                                                tanker-request-button
+                                                tanker-request-accept
+                                            "
                                         >
-                                            ✓ Accept Transfer Pickup
+                                            ✓ Accept
                                         </button>
 
                                     </form>
 
-                                {% else %}
 
-                                    <!-- NORMAL DEMAND ORDER PICKUP -->
+                                    <!-- REJECT TRANSFER -->
 
                                     <form
                                         method="POST"
-                                        action="{{ url_for('accept_pickup') }}"
-                                        class="pickup-form"
+                                        action="{{ url_for('reject_transfer_pickup') }}"
+                                        style="margin:0;"
                                     >
 
                                         <input
                                             type="hidden"
-                                            name="order_id"
-                                            value="{{ order.order_id }}"
+                                            name="transfer_id"
+                                            value="{{ order.transfer_id }}"
                                         >
 
                                         <button
                                             type="submit"
-                                            class="pickup-button"
+                                            class="
+                                                tanker-request-button
+                                                tanker-request-reject
+                                            "
                                         >
-                                            ✓ Accept Pickup
+                                            ✕ Reject
                                         </button>
 
                                     </form>
+
+                                </div>
+
+                                {% else %}
+
+                                    <!-- NORMAL DEMAND ORDER OFFER -->
+
+                                    <div class="tanker-request-actions">
+
+                                        <!-- ACCEPT -->
+
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for('accept_pickup') }}"
+                                            style="margin:0;"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="order_id"
+                                                value="{{ order.order_id }}"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="
+                                                    tanker-request-button
+                                                    tanker-request-accept
+                                                "
+                                            >
+                                                ✓ Accept
+                                            </button>
+
+                                        </form>
+
+
+                                        <!-- REJECT -->
+
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for('reject_pickup') }}"
+                                            style="margin:0;"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="order_id"
+                                                value="{{ order.order_id }}"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="
+                                                    tanker-request-button
+                                                    tanker-request-reject
+                                                "
+                                            >
+                                                ✕ Reject
+                                            </button>
+
+                                        </form>
+
+                                    </div>
 
                                 {% endif %}
 
@@ -2058,95 +2149,6 @@
             </div>
 
 
-
-            <!-- =================================================
-                 OPERATIONS
-            ================================================== -->
-
-            <div
-                class="card operations-card"
-                id="operations"
-            >
-
-
-                <div class="card-header">
-
-                    <h2>
-                        Tanker Operations
-                    </h2>
-
-                    <span>
-                        Current Overview
-                    </span>
-
-                </div>
-
-
-                <div class="operation-grid">
-
-
-                    <div class="operation-item">
-
-                        <p>
-                            Available Orders
-                        </p>
-
-                        <h3>
-                            {{ orders|length }}
-                        </h3>
-
-                    </div>
-
-
-                    <div class="operation-item">
-
-                        <p>
-                            Total Water Volume
-                        </p>
-
-                        <h3>
-
-                            {{ "%.0f"|format(
-                                total_quantity.value
-                            ) }}
-
-                            <span
-                                style="
-                                    font-size:10px;
-                                    color:#718096;
-                                "
-                            >
-                                KLD
-                            </span>
-
-                        </h3>
-
-                    </div>
-
-
-                    <div class="operation-item">
-
-                        <p>
-                            Route Service
-                        </p>
-
-                        <h3
-                            style="
-                                color:#199956;
-                            "
-                        >
-                            Active
-                        </h3>
-
-                    </div>
-
-
-                </div>
-
-
-            </div>
-
-
         </div>
 
 
@@ -2270,248 +2272,213 @@
 
 
     function showRoute(
-        stpLat,
-        stpLon,
-        demandLocation,
-        distanceKm
+    stpLat,
+    stpLon,
+    demandLat,
+    demandLon,
+    demandLocation
+) {
+
+    stpLat = Number(stpLat);
+    stpLon = Number(stpLon);
+
+    demandLat = Number(demandLat);
+    demandLon = Number(demandLon);
+
+
+    console.log("ROUTE DEBUG");
+    console.log("STP:", stpLat, stpLon);
+    console.log("DELIVERY:", demandLat, demandLon);
+    console.log("LOCATION:", demandLocation);
+
+
+    if (
+        !Number.isFinite(stpLat) ||
+        !Number.isFinite(stpLon) ||
+        stpLat === 0 ||
+        stpLon === 0
     ) {
 
+        alert("STP location not available");
+
+        return;
+    }
+
+
+    if (
+        !Number.isFinite(demandLat) ||
+        !Number.isFinite(demandLon) ||
+        demandLat === 0 ||
+        demandLon === 0
+    ) {
+
+        alert(
+            "Exact delivery coordinates are not available for this order."
+        );
+
+        return;
+    }
+
+
+    /* REMOVE OLD ROUTE */
+
+    if (routeLayer) {
+
+        map.removeLayer(routeLayer);
+
+        routeLayer = null;
+    }
+
+
+    if (startMarker) {
+
+        map.removeLayer(startMarker);
+
+        startMarker = null;
+    }
+
+
+    if (endMarker) {
+
+        map.removeLayer(endMarker);
+
+        endMarker = null;
+    }
+
+
+    /* STP MARKER */
+
+    startMarker = L.marker([
+        stpLat,
+        stpLon
+    ])
+    .addTo(map)
+    .bindPopup(
+        "<b>STP Location</b>"
+    );
+
+
+    /* DELIVERY MARKER */
+
+    endMarker = L.marker([
+        demandLat,
+        demandLon
+    ])
+    .addTo(map)
+    .bindPopup(
+        "<b>Delivery Location</b><br>" +
+        demandLocation
+    );
+
+
+    /* OSRM ROUTE */
+
+    const routeUrl =
+        "https://router.project-osrm.org/route/v1/driving/" +
+        stpLon + "," + stpLat +
+        ";" +
+        demandLon + "," + demandLat +
+        "?overview=full&geometries=geojson";
+
+
+    console.log(
+        "OSRM URL:",
+        routeUrl
+    );
+
+
+    fetch(routeUrl)
+
+    .then(res => res.json())
+
+    .then(routeData => {
 
         if (
-            !stpLat ||
-            !stpLon ||
-            stpLat === 0 ||
-            stpLon === 0
+            !routeData ||
+            !routeData.routes ||
+            routeData.routes.length === 0
         ) {
 
-            alert(
-                "STP location not available"
-            );
+            alert("Route not found");
 
             return;
         }
 
 
-        fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(demandLocation)}`
-        )
-
-        .then(
-            res => res.json()
-        )
-
-        .then(
-            demandData => {
+        const route =
+            routeData.routes[0];
 
 
-                if (
-                    !demandData ||
-                    demandData.length === 0
-                ) {
+        const routeDistance =
+            (
+                route.distance / 1000
+            ).toFixed(2);
 
-                    alert(
-                        "Demand location not found"
-                    );
 
-                    return;
+        const timeMin =
+            (
+                route.duration / 60
+            ).toFixed(1);
+
+
+        document.getElementById(
+            "routeDistance"
+        ).innerText =
+            routeDistance + " km";
+
+
+        document.getElementById(
+            "routeTime"
+        ).innerText =
+            timeMin + " mins";
+
+
+        document.getElementById(
+            "routeInfo"
+        ).style.display =
+            "block";
+
+
+        routeLayer = L.geoJSON(
+            route.geometry,
+            {
+                style: {
+                    color: "#2563eb",
+                    weight: 5,
+                    opacity: 0.9
                 }
-
-
-                const demLat =
-                    parseFloat(
-                        demandData[0].lat
-                    );
-
-
-                const demLon =
-                    parseFloat(
-                        demandData[0].lon
-                    );
-
-
-
-                if (routeLayer) {
-
-                    map.removeLayer(
-                        routeLayer
-                    );
-
-                    routeLayer = null;
-                }
-
-
-                if (startMarker) {
-
-                    map.removeLayer(
-                        startMarker
-                    );
-                }
-
-
-                if (endMarker) {
-
-                    map.removeLayer(
-                        endMarker
-                    );
-                }
-
-
-
-                /* STP MARKER */
-
-                startMarker =
-
-                    L.marker(
-                        [
-                            stpLat,
-                            stpLon
-                        ]
-                    )
-
-                    .addTo(map)
-
-                    .bindPopup(
-                        "<b>STP Location</b>"
-                    )
-
-                    .openPopup();
-
-
-
-                /* DEMAND MARKER */
-
-                endMarker =
-
-                    L.marker(
-                        [
-                            demLat,
-                            demLon
-                        ]
-                    )
-
-                    .addTo(map)
-
-                    .bindPopup(
-                        "<b>Demand Location</b>"
-                    );
-
-
-
-                /* OSRM ROUTE */
-
-                fetch(
-
-                    `https://router.project-osrm.org/route/v1/driving/${stpLon},${stpLat};${demLon},${demLat}?overview=full&geometries=geojson`
-
-                )
-
-                .then(
-                    res => res.json()
-                )
-
-                .then(
-                    routeData => {
-
-
-                        if (
-                            !routeData ||
-                            !routeData.routes ||
-                            routeData.routes.length === 0
-                        ) {
-
-                            alert(
-                                "Route not found"
-                            );
-
-                            return;
-                        }
-
-
-                        const route =
-                            routeData.routes[0];
-
-
-                        const routeDistance =
-                            (
-                                route.distance / 1000
-                            ).toFixed(2);
-
-
-                        const timeMin =
-                            (
-                                route.duration / 60
-                            ).toFixed(1);
-
-
-
-                        document
-                            .getElementById(
-                                "routeDistance"
-                            )
-                            .innerText =
-                            routeDistance +
-                            " km";
-
-
-                        document
-                            .getElementById(
-                                "routeTime"
-                            )
-                            .innerText =
-                            timeMin +
-                            " mins";
-
-
-                        document
-                            .getElementById(
-                                "routeInfo"
-                            )
-                            .style.display =
-                            "block";
-
-
-
-                        routeLayer =
-
-                            L.geoJSON(
-                                route.geometry,
-                                {
-
-                                    style: {
-
-                                        color:
-                                            "#2563eb",
-
-                                        weight:
-                                            5
-
-                                    }
-
-                                }
-
-                            )
-
-                            .addTo(map);
-
-
-
-                        map.fitBounds(
-                            routeLayer.getBounds(),
-                            {
-                                padding:
-                                    [50, 50]
-                            }
-                        );
-
-                    }
-
-                );
-
             }
+        ).addTo(map);
 
+
+        const bounds =
+            L.latLngBounds([
+                [stpLat, stpLon],
+                [demandLat, demandLon]
+            ]);
+
+
+        map.fitBounds(
+            bounds,
+            {
+                padding: [50, 50]
+            }
         );
 
-    }
+    })
+
+    .catch(error => {
+
+        console.error(
+            "Route error:",
+            error
+        );
+
+        alert(
+            "Unable to calculate route."
+        );
+    });
+}
 
 
 </script>
