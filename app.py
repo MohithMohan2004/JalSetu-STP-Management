@@ -3632,8 +3632,8 @@ def chatbot():
         if fuzzy_intent == "greeting" or text in greetings:            
             return jsonify({
                 "reply": (
-                    "Hello! 👋 I'm your Wastewater Assistant.\n\n"
-                    "I can help you with STPs, orders, routing, "
+                "Hello! 👋 I'm Juno, your JalSetu AI assistant.\n"                    
+                "I can help you with STPs, orders, routing, "
                     "demand, predictions and tanker information."
                 )
             })
@@ -3930,26 +3930,37 @@ def chatbot():
         # ---------------------------------------------------------
         # SMART STP RECOMMENDATION
         # ---------------------------------------------------------
-        recommendation_query = any(
-            phrase in text
-            for phrase in (
-                "which stp should i choose",
-                "which stp should i select",
-                "which stp is best",
-                "recommend an stp",
-                "recommend a stp",
-                "find an stp",
-                "suitable stp",
-                "best stp",
-                "stp for me",
-                "stp for my requirement",
-                "need an stp",
-                "which stp can provide",
-                "where can i get",
+        recommendation_query = (
+            fuzzy_intent == "stp_recommendation"
+            or any(
+                phrase in text
+                for phrase in (
+                    "which stp should i choose",
+                    "which stp should i select",
+                    "which stp is best",
+                    "recommend an stp",
+                    "recommend a stp",
+                    "find an stp",
+                    "suitable stp",
+                    "best stp",
+                    "stp for me",
+                    "stp for my requirement",
+                    "need an stp",
+                    "which stp can provide",
+                    "where can i get",
+                )
             )
         )
 
+        print(
+            "STP DEBUG:",
+            "fuzzy_intent =", fuzzy_intent,
+            "| requested_kld =", requested_kld,
+            "| recommendation_query =", recommendation_query
+        )
+
         if recommendation_query:
+
             if requested_kld is None:
                 return jsonify({
                     "reply": (
@@ -3979,10 +3990,12 @@ def chatbot():
                     available_mld = float(
                         stp.get("available_capacity_mld") or 0
                     )
+
                     available_kld = available_mld * 1000
 
                     stp_lat = float(stp.get("latitude"))
                     stp_lon = float(stp.get("longitude"))
+
                 except (TypeError, ValueError):
                     continue
 
@@ -4020,7 +4033,10 @@ def chatbot():
                     )
                 })
 
-            suitable_stps.sort(key=lambda item: item["distance"])
+            suitable_stps.sort(
+                key=lambda item: item["distance"]
+            )
+
             top_stps = suitable_stps[:3]
             best = top_stps[0]
 
@@ -4041,7 +4057,11 @@ def chatbot():
 
             if len(top_stps) > 1:
                 reply += "\nOther suitable options:\n"
-                for index, stp in enumerate(top_stps[1:], start=2):
+
+                for index, stp in enumerate(
+                    top_stps[1:],
+                    start=2
+                ):
                     reply += (
                         f"{index}. {stp['name']} — "
                         f"{stp['distance']:.2f} km away, "
@@ -4050,10 +4070,9 @@ def chatbot():
 
             return jsonify({"reply": reply})
 
-                # ---------------------------------------------------------
+        # ---------------------------------------------------------
         # ORDER INTENTS
         # ---------------------------------------------------------
-
         history_query = (
             fuzzy_intent == "order_history"
             or any(
@@ -4072,7 +4091,6 @@ def chatbot():
                 )
             )
         )
-
         latest_order_query = (
             fuzzy_intent == "latest_order"
             or any(
@@ -4090,7 +4108,6 @@ def chatbot():
                 )
             )
         )
-
         total_quantity_query = (
             fuzzy_intent == "total_order_quantity"
             or any(
@@ -4106,7 +4123,6 @@ def chatbot():
                 )
             )
         )
-
         order_count_query = (
             fuzzy_intent == "order_count"
             or any(
@@ -4120,7 +4136,6 @@ def chatbot():
                 )
             )
         )
-
         quantity_query = (
             fuzzy_intent == "order_quantity"
             or any(
@@ -4156,7 +4171,6 @@ def chatbot():
                 )
             )
         )
-
         status_query = (
             fuzzy_intent == "order_status"
             or "order status" in text
@@ -4170,7 +4184,6 @@ def chatbot():
             or "check my order" in text
             or "track my order" in text
         )
-
         tanker_query = (
             fuzzy_intent == "tanker_status"
             or any(
@@ -4184,7 +4197,6 @@ def chatbot():
                 )
             )
         )
-
         delivery_query = (
             fuzzy_intent == "delivery_status"
             or any(
@@ -4210,7 +4222,6 @@ def chatbot():
             if order_id_match
             else None
         )
-
         order_related = (
             history_query
             or latest_order_query
@@ -4223,7 +4234,6 @@ def chatbot():
             or delivery_query
             or requested_order_id is not None
         )
-
         if order_related:
             if not user_id:
                 return jsonify({
