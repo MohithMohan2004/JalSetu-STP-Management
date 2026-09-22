@@ -56,6 +56,11 @@ app.config["SESSION_COOKIE_SECURE"] = False
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Supabase table that stores each tanker operator's most recent GPS fix.
+# Expected columns: tanker_operator_id (unique), latitude, longitude,
+# accuracy, speed, heading, recorded_at, updated_at.
+TANKER_LOCATIONS_TABLE = "tanker_locations"
+
 # =========================================================
 # LOAD ROAD NETWORK FOR A* ROUTING
 # =========================================================
@@ -5365,6 +5370,197 @@ def order_tracking(order_id):
         }
     })
 
+
+@app.route("/api/order_tracking/<order_id>/tanker_location")
+def order_tanker_location(order_id):
+    """Return ONLY the live GPS location of the tanker assigned to this
+    specific order, for the customer's tracking page. Reuses the existing
+    session/auth system and Supabase client -- no new auth is created,
+    and no other tanker's location is ever exposed."""
+
+    if not os.path.exists(ORDERS_FILE):
+        return jsonify({
+            "success": False,
+            "error": "Orders file not found"
+        }), 404
+
+    order = None
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            if str(row.get("order_id", "")).strip() == str(order_id).strip():
+                order = row
+                break
+
+    if not order:
+        return jsonify({
+            "success": False,
+            "error": "Order not found"
+        }), 404
+
+    # -----------------------------------------
+    # OWNERSHIP CHECK
+    # (same rule already used to protect /invoice, plus the
+    # STP that owns this order -- needed so the STP's own
+    # "track_stp" dashboard can show real tanker GPS too)
+    # -----------------------------------------
+
+    current_user_id = session.get("user_id")
+    current_buyer_name = session.get("buyer_name") or session.get("user_name")
+    current_buyer_phone = session.get("buyer_phone") or session.get("user_phone")
+    current_role = str(session.get("role") or "").strip().lower()
+    current_stp_id = str(session.get("stp_id") or "").strip()
+
+    is_buyer_owner = (
+        current_user_id and
+        order.get("buyer_user_id", "") == current_user_id
+    ) or (
+        not order.get("buyer_user_id", "") and
+        current_buyer_name and
+        current_buyer_phone and
+        order.get("buyer_name") == current_buyer_name and
+        order.get("buyer_phone") == current_buyer_phone
+    )
+
+    is_stp_owner = (
+        current_role == "stp"
+        and current_stp_id
+        and current_stp_id == str(order.get("stp_id") or "").strip()
+    )
+
+    authorized = is_buyer_owner or is_stp_owner
+
+    if not authorized:
+        return jsonify({
+            "success": False,
+            "error": "Unauthorized"
+        }), 403
+
+    # -----------------------------------------
+    # ONLY the tanker assigned to THIS order
+    # -----------------------------------------
+
+    tanker_operator_id = str(order.get("tanker_operator_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({
+            "success": True,
+            "order_status": order.get("status", ""),
+            "tanker_assigned": False,
+            "location": None
+        })
+
+    try:
+        response = (
+            supabase.table(TANKER_LOCATIONS_TABLE)
+            .select(
+                "latitude, longitude, accuracy, speed, heading, "
+                "recorded_at, updated_at"
+            )
+            .eq("tanker_operator_id", tanker_operator_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as e:
+        print("Supabase order tanker location fetch error:", e)
+        return jsonify({
+            "success": True,
+            "order_status": order.get("status", ""),
+            "tanker_assigned": True,
+            "location": None
+        })
+
+    return jsonify({
+        "success": True,
+        "order_status": order.get("status", ""),
+        "tanker_assigned": True,
+        "location": rows[0] if rows else None
+    })
+
+
+@app.route("/api/tanker/location", methods=["POST"])
+@login_required(role="tanker")
+def save_tanker_location():
+    """Save the logged-in tanker operator's current GPS fix.
+    Called every ~10s from tanker.html while a trip is active."""
+
+    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({"success": False, "error": "Tanker identity missing"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        latitude = float(data.get("latitude"))
+        longitude = float(data.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "Invalid coordinates"}), 400
+
+    now_iso = datetime.now().isoformat()
+
+    payload = {
+        "tanker_operator_id": tanker_operator_id,
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy": data.get("accuracy"),
+        "speed": data.get("speed"),
+        "heading": data.get("heading"),
+        "recorded_at": now_iso,
+        "updated_at": now_iso
+    }
+
+    try:
+        supabase.table(TANKER_LOCATIONS_TABLE).upsert(
+            payload,
+            on_conflict="tanker_operator_id"
+        ).execute()
+    except Exception as e:
+        print("Tanker location save failed:", e)
+        return jsonify({"success": False, "error": "Unable to save location"}), 500
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/tanker/location/latest")
+@login_required(role="tanker")
+def latest_tanker_location():
+    """Return the logged-in tanker operator's own last known location,
+    used to restore the marker on page load without starting a trip."""
+
+    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({"success": False, "location": None})
+
+    try:
+        response = (
+            supabase.table(TANKER_LOCATIONS_TABLE)
+            .select("latitude, longitude, accuracy, speed, heading, recorded_at, updated_at")
+            .eq("tanker_operator_id", tanker_operator_id)
+            .limit(1)
+            .execute()
+        )
+        rows = response.data or []
+    except Exception as e:
+        print("Tanker latest location fetch failed:", e)
+        return jsonify({"success": False, "location": None})
+
+    return jsonify({
+        "success": True,
+        "location": rows[0] if rows else None
+    })
+
+
 @app.route("/api/track_order")
 def track_order():
 
@@ -8210,20 +8406,33 @@ def _accept_pickup_locked():
                     or ""
                 ).strip().lower()
 
-
                 # -------------------------------------------------
                 # ALREADY ASSIGNED
                 # -------------------------------------------------
 
                 if assigned_operator_id:
-
                     accept_error = (
                         "This order has already been assigned."
                     )
 
                     updated_rows.append(row)
-
                     continue
+
+
+                # -------------------------------------------------
+                # ASSIGN CURRENT TANKER
+                # -------------------------------------------------
+
+                row["tanker_operator_id"] = str(
+                    session.get("tanker_operator_id") or ""
+                )
+
+                row["tanker_operator_name"] = str(
+                    session.get("tanker_operator_name") or ""
+                )
+
+                updated_rows.append(row)
+                continue
 
 
                 # -------------------------------------------------
