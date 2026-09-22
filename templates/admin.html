@@ -1803,44 +1803,64 @@
                 
                 <td>
 
-                {% if operator.verification_status|lower == "pending" %}
+                <div style="
+                    display:flex;
+                    align-items:center;
+                    gap:5px;
+                ">
+
+                    {% if operator.verification_status|lower == "pending" %}
+
+                        <a
+                            href="/admin/tanker/{{ operator.operator_id }}/status/approved"
+                            style="
+                                background:#e8f8ef;
+                                color:#199956;
+                                padding:6px 10px;
+                                border-radius:6px;
+                                text-decoration:none;
+                                font-size:9px;
+                            "
+                        >
+                            Approve
+                        </a>
+
+                        <a
+                            href="/admin/tanker/{{ operator.operator_id }}/status/rejected"
+                            style="
+                                background:#ffe8e8;
+                                color:#dc4141;
+                                padding:6px 10px;
+                                border-radius:6px;
+                                text-decoration:none;
+                                font-size:9px;
+                            "
+                        >
+                            Reject
+                        </a>
+
+                    {% endif %}
+
 
                     <a
-                        href="/admin/tanker/{{ operator.operator_id }}/status/approved"
+                        href="{{ url_for(
+                            'admin_tanker_operator_details',
+                            operator_id=operator.operator_id
+                        ) }}"
                         style="
-                            background:#e8f8ef;
-                            color:#199956;
+                            background:#e9f2ff;
+                            color:#1976f3;
                             padding:6px 10px;
                             border-radius:6px;
                             text-decoration:none;
                             font-size:9px;
-                            margin-right:5px;
+                            font-weight:500;
                         "
                     >
-                        Approve
+                        View Details
                     </a>
 
-                    <a
-                        href="/admin/tanker/{{ operator.operator_id }}/status/rejected"
-                        style="
-                            background:#ffe8e8;
-                            color:#dc4141;
-                            padding:6px 10px;
-                            border-radius:6px;
-                            text-decoration:none;
-                            font-size:9px;
-                        "
-                    >
-                        Reject
-                    </a>
-
-                {% else %}
-
-                    <span style="font-size:9px;color:#9aa4b3;">
-                        No action
-                    </span>
-
-                {% endif %}
+                </div>
 
             </td>
 
@@ -1853,6 +1873,7 @@
     </div>
 
 </div>
+
 
 
             <!-- =========================

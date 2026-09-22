@@ -1,4 +1,6 @@
-operator_id,operator_name,operator_type,phone,email,area,pincode,contract_id,contract_start,contract_end,tanker_registration_no,tanker_capacity_kl,vehicle_model,water_type_supported,service_radius_km,verification_status,registration_date
-OP-BLR-0001,MANORANJAN S ,contracted,07892012246,eng23am0042@dsu.edu.in,,,123456,2026-08-20,2026-09-30,KA-50-EF-2327,10,tanker,,,approved,2026-08-31
-OP-BLR-0002,MANORANJAN S ,independent,07892012246,eng23am0042@dsu.edu.in,sahakar nagar,560097,,,,KA-50-EF-2327,8,tanker,treated,5,approved,2026-08-31
-OP-BLR-0003,Mohith Mohan,independent,9876543210,something@dsu.com,Hebbal,122490,,,,KA-01-MJ-1487,10,Tata Tank,treated,7,approved,2026-08-31
+operator_id,operator_name,operator_type,phone,email,area,pincode,latitude,longitude,operational_tankers,contract_id,contract_start,contract_end,tanker_registration_no,tanker_capacity_kl,vehicle_model,water_type_supported,service_radius_km,verification_status,registration_date
+OP-BLR-0001,Gowtham Y K,independent,8431041386,gowthamyk2004@gmail.com,harohalli,562101,12.684387217681799,77.47266769409181,6,,,,KA-01-AM-1234,16,tata tanker,treated,5,approved,2026-09-08
+OP-BLR-0002,Kaviya U,contracted,9003933065,kaviyasandiya@gmail.com,,,13.042773396814006,77.62845039367677,4,123456,2026-09-09,2026-09-30,KA-50-AO-7878,12,tanker,,,approved,2026-09-15
+OP-BLR-0003,Cathrine B,contracted,8971211229,cathrinebabu5@gmail.com,,,13.009533639813588,77.57555723190309,6,987654,2026-09-12,2026-09-30,KA-05-BH-6666,10,tata tanker,,,approved,2026-09-15
+OP-BLR-0004,MANORANJAN S S,independent,07892012246,eng23am0042@dsu.edu.in,majestic,560097,12.980868610936264,77.57759571075441,2,,,,KA-04-DD-3433,12,tata tanker,treated,7,rejected,2026-09-21
+OP-BLR-0005,MANORANJAN S,independent,7892012246,eng23am0042@dsu.edu.in,sahakar nagar,560097,13.068024264660837,77.58742332458498,5,,,,KA-04-ER-1211,10,tata tanker,treated,10,approved,2026-09-21

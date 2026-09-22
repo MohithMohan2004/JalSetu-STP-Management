@@ -1,0 +1,8 @@
+vehicle_id,operator_id,registration_number,vehicle_model,capacity_kl,vehicle_status,created_at
+VEH-8B5EE6179D,OP-BLR-0006,KA-04-DD-3433,tata tanker,12,active,2026-09-21T12:30:41
+VEH-1DA57A8EA2,OP-BLR-0006,KA-03-FF-6676,tata tanker,12,active,2026-09-21T12:30:41
+VEH-F5FACAB1A6,OP-BLR-0005,KA-04-ER-1211,tata tanker,10,active,2026-09-21T15:02:45
+VEH-4FA1673B5C,OP-BLR-0005,KA-04-TY-4343,tata tanker,8,active,2026-09-21T15:02:45
+VEH-1F2563B070,OP-BLR-0005,KA-04-HJ-5656,tata tanker,12,active,2026-09-21T15:02:45
+VEH-EE93B069E3,OP-BLR-0005,KA-04-YH-6666,tata tanker,16,active,2026-09-21T15:02:45
+VEH-82CA5F8CD5,OP-BLR-0005,KA-04-ID-9696,tata tanker,16,active,2026-09-21T15:02:45

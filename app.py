@@ -1,6 +1,10 @@
-from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import Flask, jsonify, request, render_template, redirect, url_for, send_file
 from flask import session
 from functools import wraps
+from functools import wraps
+from werkzeug.utils import secure_filename
+import threading
+import time
 import uuid
 from datetime import datetime, date, timedelta
 import json
@@ -159,6 +163,289 @@ TANKER_REGISTRATIONS_FILE = os.path.join(
     "tanker_registrations.csv"
 )
 
+# =========================================================
+# TANKER VEHICLES
+# =========================================================
+
+TANKER_VEHICLES_FILE = os.path.join(
+    DATABASE_DIR,
+    "tanker_vehicles.csv"
+)
+
+TANKER_VEHICLE_FIELDS = [
+    "vehicle_id",
+    "operator_id",
+    "registration_number",
+    "vehicle_model",
+    "capacity_kl",
+    "vehicle_status",
+    "created_at"
+]
+
+
+def ensure_tanker_vehicles_file():
+
+    if (
+        not os.path.exists(TANKER_VEHICLES_FILE)
+        or os.path.getsize(TANKER_VEHICLES_FILE) == 0
+    ):
+
+        with open(
+            TANKER_VEHICLES_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=TANKER_VEHICLE_FIELDS
+            )
+
+            writer.writeheader()
+
+# =========================================================
+# TANKER VEHICLE DOCUMENTS
+# =========================================================
+
+TANKER_VEHICLE_DOCUMENTS_FILE = os.path.join(
+    DATABASE_DIR,
+    "tanker_vehicle_documents.csv"
+)
+
+TANKER_DOCUMENT_UPLOAD_FOLDER = os.path.join(
+    BASE_DIR,
+    "uploads",
+    "tanker_documents"
+)
+
+os.makedirs(
+    TANKER_DOCUMENT_UPLOAD_FOLDER,
+    exist_ok=True
+)
+
+
+TANKER_VEHICLE_DOCUMENT_FIELDS = [
+    "document_id",
+    "operator_id",
+    "vehicle_id",
+    "registration_number",
+    "document_type",
+    "original_filename",
+    "stored_filename",
+    "file_path",
+    "uploaded_at",
+    "verification_status",
+    "admin_remark",
+    "verified_at"
+]
+
+
+ALLOWED_TANKER_DOCUMENT_TYPES = {
+    "rc",
+    "insurance",
+    "puc",
+    "permit"
+}
+
+
+def ensure_tanker_vehicle_documents_file():
+
+    if (
+        not os.path.exists(
+            TANKER_VEHICLE_DOCUMENTS_FILE
+        )
+        or os.path.getsize(
+            TANKER_VEHICLE_DOCUMENTS_FILE
+        ) == 0
+    ):
+
+        with open(
+            TANKER_VEHICLE_DOCUMENTS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=TANKER_VEHICLE_DOCUMENT_FIELDS
+            )
+
+            writer.writeheader()
+
+def get_operator_vehicle(
+    operator_id,
+    vehicle_id
+):
+
+    operator_id = str(
+        operator_id or ""
+    ).strip()
+
+    vehicle_id = str(
+        vehicle_id or ""
+    ).strip()
+
+
+    if not operator_id or not vehicle_id:
+        return None
+
+
+    ensure_tanker_vehicles_file()
+
+
+    with open(
+        TANKER_VEHICLES_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            row_operator_id = str(
+                row.get("operator_id") or ""
+            ).strip()
+
+            row_vehicle_id = str(
+                row.get("vehicle_id") or ""
+            ).strip()
+
+
+            if (
+                row_operator_id == operator_id
+                and
+                row_vehicle_id == vehicle_id
+            ):
+                return row
+
+
+    return None
+
+# =========================================================
+# CSV CONCURRENCY LOCKS
+# =========================================================
+
+# RLock is used instead of Lock because one order operation
+# may call another helper that also needs the same lock.
+orders_lock = threading.RLock()
+# Protect STP-to-STP transfer offer/assignment operations
+transfers_lock = threading.RLock()
+
+# =========================================================
+# REQUEST / TANKER OFFER TIMEOUT SETTINGS
+# =========================================================
+
+# A demand order or STP-to-STP transfer has
+# a maximum total lifetime of 30 minutes.
+REQUEST_TIMEOUT_MINUTES = 30
+
+# Each individual tanker operator gets a maximum
+# of 10 minutes to Accept or Reject an offer.
+TANKER_OFFER_TIMEOUT_MINUTES = 5
+
+# =========================================================
+# TANKER REGISTRATION SCHEMA
+# =========================================================
+
+TANKER_REGISTRATION_FIELDS = [
+    "operator_id",
+    "operator_name",
+    "operator_type",
+    "phone",
+    "email",
+    "area",
+    "pincode",
+
+    "latitude",
+    "longitude",
+    "operational_tankers",
+
+    "contract_id",
+    "contract_start",
+    "contract_end",
+
+    "tanker_registration_no",
+    "tanker_capacity_kl",
+    "vehicle_model",
+
+    "water_type_supported",
+    "service_radius_km",
+
+    "verification_status",
+    "registration_date"
+]
+
+
+def ensure_tanker_registrations_schema():
+    """
+    Safely upgrade tanker_registrations.csv
+    without deleting existing operator records.
+    """
+
+    if (
+        not os.path.exists(TANKER_REGISTRATIONS_FILE)
+        or os.path.getsize(TANKER_REGISTRATIONS_FILE) == 0
+    ):
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=TANKER_REGISTRATION_FIELDS
+            )
+
+            writer.writeheader()
+
+        return
+
+
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        existing_fields = reader.fieldnames or []
+
+        rows = list(reader)
+
+
+    if existing_fields == TANKER_REGISTRATION_FIELDS:
+        return
+
+
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=TANKER_REGISTRATION_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in TANKER_REGISTRATION_FIELDS
+            })
+
 STP_REGISTRATIONS_FILE = os.path.join(
     DATABASE_DIR,
     "stp_registrations.csv"
@@ -207,6 +494,8 @@ ORDER_FIELDS = [
     "water_type",
     "distance_km",
     "location",
+    "delivery_latitude",
+    "delivery_longitude",
     "buyer_user_id",
     "buyer_name",
     "buyer_phone",
@@ -214,8 +503,27 @@ ORDER_FIELDS = [
     "created_at",
     "payment_status",
     "accepted_at",
+    "pickup_at",
+    "delivered_at",
     "capacity_release_at",
-    "capacity_released"
+    "capacity_released",
+
+    # ==========================================
+    # TANKER OFFER / ASSIGNMENT
+    # ==========================================
+
+    "offered_operator_id",
+    "offer_status",
+    "offer_sent_at",
+    "offer_expires_at",
+    "attempted_operator_ids",
+
+    "assigned_operator_id",
+    "assigned_operator_name",
+    "operator_distance_km",
+    "assigned_at",
+
+    "tankers_required"
 ]
 
 STP_TRANSFER_FIELDS = [
@@ -233,7 +541,24 @@ STP_TRANSFER_FIELDS = [
     "accepted_at",
     "rejected_at",
     "tanker_status",
-    "delivered_at"
+    "delivered_at",
+
+    # ==========================================
+    # TANKER OFFER / ASSIGNMENT
+    # ==========================================
+
+    "offered_operator_id",
+    "offer_status",
+    "offer_sent_at",
+    "offer_expires_at",
+    "attempted_operator_ids",
+
+    "assigned_operator_id",
+    "assigned_operator_name",
+    "operator_distance_km",
+    "assigned_at",
+
+    "tankers_required"
 ]
 
 def ensure_stp_transfers_file():
@@ -337,6 +662,9 @@ def ensure_orders_schema():
 
 ensure_orders_schema()
 ensure_stp_transfers_file()
+ensure_tanker_registrations_schema()
+ensure_tanker_vehicles_file()
+ensure_tanker_vehicle_documents_file()
 
 # =========================================================
 # HELPER FUNCTIONS
@@ -359,7 +687,7 @@ def load_stp_pricing():
     ) as file:
 
         return list(csv.DictReader(file))
-    
+
 def save_stps(stps):
 
     with open(STP_FILE, "r", encoding="utf-8") as f:
@@ -445,7 +773,2164 @@ def haversine(lat1, lon1, lat2, lon2):
          math.cos(math.radians(lat2)) *
          math.sin(dlon/2)**2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c    
+    return R * c 
+
+# =========================================================
+# TANKER ASSIGNMENT / ELIGIBILITY HELPERS
+# =========================================================
+
+def safe_float(value, default=0.0):
+    try:
+        if value in (None, ""):
+            return default
+
+        return float(value)
+
+    except (TypeError, ValueError):
+        return default
+
+
+def safe_int(value, default=0):
+    try:
+        if value in (None, ""):
+            return default
+
+        return int(float(value))
+
+    except (TypeError, ValueError):
+        return default
+    
+def normalize_water_type(value):
+
+    value = str(
+        value or ""
+    ).strip().lower()
+
+    aliases = {
+        "treated": "treated",
+        "treated water": "treated",
+        "treated wastewater": "treated",
+        "treated waste water": "treated",
+
+        "untreated": "untreated",
+        "untreated water": "untreated",
+        "untreated wastewater": "untreated",
+        "untreated waste water": "untreated",
+    }
+
+    return aliases.get(
+        value,
+        value
+    )
+
+def calculate_offer_expiry(
+    request_created_at,
+    offer_sent_at
+):
+    """
+    Calculate the expiry time for a tanker offer.
+
+    Rules:
+    - Entire request lasts maximum 30 minutes.
+    - Individual tanker offer lasts maximum 10 minutes.
+    - Tanker offer can never extend beyond the
+      overall request deadline.
+    """
+
+    if not isinstance(
+        offer_sent_at,
+        datetime
+    ):
+        return None
+
+    try:
+        request_created_at = datetime.fromisoformat(
+            str(request_created_at).strip()
+        )
+    except (TypeError, ValueError):
+        return None
+
+    request_deadline = (
+        request_created_at
+        + timedelta(
+            minutes=REQUEST_TIMEOUT_MINUTES
+        )
+    )
+
+    tanker_offer_deadline = (
+        offer_sent_at
+        + timedelta(
+            minutes=TANKER_OFFER_TIMEOUT_MINUTES
+        )
+    )
+
+    return min(
+        request_deadline,
+        tanker_offer_deadline
+    )
+
+def has_datetime_expired(value):
+    """
+    Return True when an ISO datetime has passed.
+    Missing or invalid values return False.
+    """
+
+    value = str(
+        value or ""
+    ).strip()
+
+    if not value:
+        return False
+
+    try:
+        expires_at = datetime.fromisoformat(
+            value
+        )
+    except (TypeError, ValueError):
+        return False
+
+    return datetime.now() >= expires_at
+
+
+def get_request_deadline(request_created_at):
+    """
+    Return the overall 30-minute request deadline.
+    Used by both demand orders and STP transfers.
+    """
+
+    value = str(
+        request_created_at or ""
+    ).strip()
+
+    if not value:
+        return None
+
+    try:
+        created_at = datetime.fromisoformat(
+            value
+        )
+    except (TypeError, ValueError):
+        return None
+
+    return (
+        created_at
+        + timedelta(
+            minutes=REQUEST_TIMEOUT_MINUTES
+        )
+    )
+
+
+def has_request_expired(request_created_at):
+    """
+    Return True once the complete 30-minute
+    request lifetime has passed.
+    """
+
+    deadline = get_request_deadline(
+        request_created_at
+    )
+
+    if deadline is None:
+        return False
+
+    return datetime.now() >= deadline
+
+# =========================================================
+# LOAD REGISTERED TANKER OPERATORS
+# =========================================================
+
+def load_tanker_operators():
+
+    if (
+        not os.path.exists(TANKER_REGISTRATIONS_FILE)
+        or os.path.getsize(TANKER_REGISTRATIONS_FILE) == 0
+    ):
+        return []
+
+    operators = []
+
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            # Ignore completely broken / empty CSV lines
+            operator_id = (
+                row.get("operator_id") or ""
+            ).strip()
+
+            if not operator_id:
+                continue
+
+            operators.append(row)
+
+    return operators
+
+def get_tanker_operator_by_id(operator_id):
+    """
+    Return the registered tanker operator matching operator_id.
+    """
+
+    operator_id = str(operator_id or "").strip()
+
+    if not operator_id:
+        return None
+
+    operators = load_tanker_operators()
+
+    for operator in operators:
+
+        registered_id = str(
+            operator.get("operator_id") or ""
+        ).strip()
+
+        if registered_id.lower() == operator_id.lower():
+            return operator
+
+    return None
+
+
+# =========================================================
+# COUNT TANKERS CURRENTLY BUSY
+# =========================================================
+
+def get_active_tanker_count(operator_id):
+
+    operator_id = str(
+        operator_id or ""
+    ).strip()
+
+    if not operator_id:
+        return 0
+
+
+    active_tankers = 0
+
+
+    # -----------------------------------------------------
+    # NORMAL DEMAND ORDERS
+    # -----------------------------------------------------
+
+    if (
+        os.path.exists(ORDERS_FILE)
+        and os.path.getsize(ORDERS_FILE) > 0
+    ):
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                assigned_operator_id = (
+                    row.get("assigned_operator_id")
+                    or ""
+                ).strip()
+
+
+                if assigned_operator_id != operator_id:
+                    continue
+
+
+                status = (
+                    row.get("status")
+                    or ""
+                ).strip().lower()
+
+
+                # These jobs no longer occupy tanker fleet.
+                terminal_statuses = {
+                    "delivered",
+                    "completed",
+                    "cancelled",
+                    "canceled",
+                    "rejected"
+                }
+
+
+                if status in terminal_statuses:
+                    continue
+
+
+                tankers_required = safe_int(
+                    row.get("tankers_required"),
+                    1
+                )
+
+
+                if tankers_required <= 0:
+                    tankers_required = 1
+
+
+                active_tankers += tankers_required
+
+
+    # -----------------------------------------------------
+    # STP-TO-STP TRANSFERS
+    # -----------------------------------------------------
+
+    if (
+        os.path.exists(STP_TRANSFERS_FILE)
+        and os.path.getsize(STP_TRANSFERS_FILE) > 0
+    ):
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                assigned_operator_id = (
+                    row.get("assigned_operator_id")
+                    or ""
+                ).strip()
+
+
+                if assigned_operator_id != operator_id:
+                    continue
+
+
+                status = (
+                    row.get("status")
+                    or ""
+                ).strip().lower()
+
+
+                tanker_status = (
+                    row.get("tanker_status")
+                    or ""
+                ).strip().lower()
+
+
+                terminal_statuses = {
+                    "delivered",
+                    "completed",
+                    "cancelled",
+                    "canceled",
+                    "rejected"
+                }
+
+
+                if (
+                    status in terminal_statuses
+                    or tanker_status in terminal_statuses
+                ):
+                    continue
+
+
+                tankers_required = safe_int(
+                    row.get("tankers_required"),
+                    1
+                )
+
+
+                if tankers_required <= 0:
+                    tankers_required = 1
+
+
+                active_tankers += tankers_required
+
+
+    return active_tankers
+
+
+# =========================================================
+# AVAILABLE FLEET FOR AN OPERATOR
+# =========================================================
+
+def get_operator_available_tankers(operator):
+
+    operational_tankers = safe_int(
+        operator.get("operational_tankers"),
+        0
+    )
+
+
+    active_tankers = get_active_tanker_count(
+        operator.get("operator_id")
+    )
+
+
+    available_tankers = (
+        operational_tankers
+        - active_tankers
+    )
+
+
+    return max(
+        available_tankers,
+        0
+    )
+
+
+# =========================================================
+# FIND ELIGIBLE TANKER OPERATORS
+# =========================================================
+
+def find_eligible_tanker_operators(
+    pickup_latitude,
+    pickup_longitude,
+    quantity_kld,
+    water_type="",
+    operator_type="independent",
+    excluded_operator_ids=None
+):
+
+    excluded_operator_ids = set(
+        excluded_operator_ids or []
+    )
+
+
+    pickup_latitude = safe_float(
+        pickup_latitude,
+        None
+    )
+
+    pickup_longitude = safe_float(
+        pickup_longitude,
+        None
+    )
+
+    quantity_kld = safe_float(
+        quantity_kld,
+        0
+    )
+
+
+    if (
+        pickup_latitude is None
+        or pickup_longitude is None
+        or quantity_kld <= 0
+    ):
+        return []
+
+
+    requested_water_type = normalize_water_type(
+    water_type
+    )
+
+
+    requested_operator_type = str(
+        operator_type or ""
+    ).strip().lower()
+
+
+    eligible = []
+
+
+    operators = load_tanker_operators()
+
+
+    for operator in operators:
+
+        operator_id = (
+            operator.get("operator_id")
+            or ""
+        ).strip()
+
+
+        if not operator_id:
+            continue
+
+
+        # -------------------------------------------------
+        # DO NOT OFFER SAME JOB TO SAME OPERATOR AGAIN
+        # -------------------------------------------------
+
+        if operator_id in excluded_operator_ids:
+            continue
+
+
+        # -------------------------------------------------
+        # MUST BE APPROVED
+        # -------------------------------------------------
+
+        verification_status = (
+            operator.get("verification_status")
+            or ""
+        ).strip().lower()
+
+
+        if verification_status != "approved":
+            continue
+
+
+        # -------------------------------------------------
+        # CORRECT OPERATOR TYPE
+        # -------------------------------------------------
+
+        current_operator_type = (
+            operator.get("operator_type")
+            or ""
+        ).strip().lower()
+
+
+        if current_operator_type != requested_operator_type:
+            continue
+
+
+        # -------------------------------------------------
+        # MUST HAVE VALID LOCATION
+        # -------------------------------------------------
+
+        operator_latitude = safe_float(
+            operator.get("latitude"),
+            None
+        )
+
+        operator_longitude = safe_float(
+            operator.get("longitude"),
+            None
+        )
+
+
+        if (
+            operator_latitude is None
+            or operator_longitude is None
+        ):
+            continue
+
+
+        # -------------------------------------------------
+        # MUST HAVE VALID TANKER CAPACITY
+        # -------------------------------------------------
+
+        tanker_capacity = safe_float(
+            operator.get("tanker_capacity_kl"),
+            0
+        )
+
+
+        if tanker_capacity <= 0:
+            continue
+
+
+        # -------------------------------------------------
+        # CALCULATE NUMBER OF TANKERS REQUIRED
+        # -------------------------------------------------
+
+        tankers_required = math.ceil(
+            quantity_kld / tanker_capacity
+        )
+
+
+        if tankers_required <= 0:
+            continue
+
+
+        # -------------------------------------------------
+        # CHECK CURRENT FLEET AVAILABILITY
+        # -------------------------------------------------
+
+        available_tankers = (
+            get_operator_available_tankers(
+                operator
+            )
+        )
+
+
+        if available_tankers < tankers_required:
+            continue
+
+
+        # -------------------------------------------------
+        # OPERATOR → PICKUP STP DISTANCE
+        # -------------------------------------------------
+
+        distance_km = haversine(
+            operator_latitude,
+            operator_longitude,
+            pickup_latitude,
+            pickup_longitude
+        )
+
+
+        # -------------------------------------------------
+        # EXTRA RULES ONLY FOR INDEPENDENT OPERATORS
+        # -------------------------------------------------
+
+        if requested_operator_type == "independent":
+
+            supported_water_type = normalize_water_type(
+            operator.get(
+                "water_type_supported"
+            )
+        )
+
+
+            if (
+                requested_water_type
+                and supported_water_type
+                and supported_water_type
+                != requested_water_type
+            ):
+                continue
+
+
+            service_radius = safe_float(
+                operator.get(
+                    "service_radius_km"
+                ),
+                0
+            )
+
+
+            if service_radius <= 0:
+                continue
+
+
+            if distance_km > service_radius:
+                continue
+
+
+        # -------------------------------------------------
+        # CONTRACTED OPERATORS
+        # -------------------------------------------------
+        #
+        # Do NOT check:
+        #
+        # water_type_supported
+        # service_radius_km
+        #
+        # Contracted operators intentionally leave those
+        # fields blank.
+        # -------------------------------------------------
+
+
+        eligible.append({
+
+            "operator_id":
+                operator_id,
+
+            "operator_name":
+                (
+                    operator.get(
+                        "operator_name"
+                    )
+                    or ""
+                ).strip(),
+
+            "operator_type":
+                current_operator_type,
+
+            "distance_km":
+                round(
+                    distance_km,
+                    2
+                ),
+
+            "tanker_capacity_kl":
+                tanker_capacity,
+
+            "operational_tankers":
+                safe_int(
+                    operator.get(
+                        "operational_tankers"
+                    ),
+                    0
+                ),
+
+            "available_tankers":
+                available_tankers,
+
+            "tankers_required":
+                tankers_required,
+
+            "latitude":
+                operator_latitude,
+
+            "longitude":
+                operator_longitude
+
+        })
+
+
+    # Nearest operator first
+    eligible.sort(
+        key=lambda operator:
+            operator["distance_km"]
+    )
+
+
+    return eligible
+
+# =========================================================
+# TANKER OFFER HELPERS
+# =========================================================
+
+def get_stp_by_id(stp_id):
+
+    stp_id = str(
+        stp_id or ""
+    ).strip()
+
+    if not stp_id:
+        return None
+
+    stps = load_stps()
+
+    for stp in stps:
+
+        if (
+            str(
+                stp.get("stp_id")
+                or ""
+            ).strip()
+            == stp_id
+        ):
+            return stp
+
+    return None
+
+
+# =========================================================
+# ATTEMPTED OPERATOR IDS
+# =========================================================
+
+def parse_attempted_operator_ids(value):
+
+    if not value:
+        return []
+
+    return [
+        operator_id.strip()
+
+        for operator_id
+        in str(value).split(",")
+
+        if operator_id.strip()
+    ]
+
+
+def save_attempted_operator_ids(operator_ids):
+
+    cleaned = []
+
+    for operator_id in operator_ids:
+
+        operator_id = str(
+            operator_id or ""
+        ).strip()
+
+        if (
+            operator_id
+            and operator_id not in cleaned
+        ):
+            cleaned.append(operator_id)
+
+    return ",".join(cleaned)
+
+
+# =========================================================
+# NORMAL DEMAND ORDER:
+# OFFER NEXT INDEPENDENT OPERATOR
+# =========================================================
+
+def _offer_next_operator_for_order_unlocked(order_id):
+
+    order_id = str(
+        order_id or ""
+    ).strip()
+
+    if not order_id:
+        return None
+
+
+    if (
+        not os.path.exists(ORDERS_FILE)
+        or os.path.getsize(ORDERS_FILE) == 0
+    ):
+        return None
+
+
+    rows = []
+    target_order = None
+
+
+    # -----------------------------------------------------
+    # READ ORDERS
+    # -----------------------------------------------------
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            rows.append(row)
+
+            if (
+                str(
+                    row.get("order_id")
+                    or ""
+                ).strip()
+                == order_id
+            ):
+                target_order = row
+
+
+    if target_order is None:
+        return None
+
+    
+
+
+    # -----------------------------------------------------
+    # DO NOT REASSIGN AN ALREADY ASSIGNED ORDER
+    # -----------------------------------------------------
+
+    assigned_operator_id = (
+        target_order.get(
+            "assigned_operator_id"
+        )
+        or ""
+    ).strip()
+
+
+    if assigned_operator_id:
+        return {
+            "success": False,
+            "reason": "already_assigned",
+            "operator_id": assigned_operator_id
+        }
+
+    # -----------------------------------------------------
+    # 30-MINUTE OVERALL DEMAND ORDER DEADLINE
+    # -----------------------------------------------------
+
+    if has_request_expired(
+        target_order.get("created_at")
+    ):
+
+        target_order["status"] = "Expired"
+        target_order["offered_operator_id"] = ""
+        target_order["offer_status"] = "Expired"
+        target_order["offer_sent_at"] = ""
+        target_order["offer_expires_at"] = ""
+
+        with open(
+            ORDERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=ORDER_FIELDS
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+                writer.writerow({
+                    field: row.get(field, "")
+                    for field in ORDER_FIELDS
+                })
+
+        print(
+            "DEMAND ORDER DEADLINE REACHED:",
+            order_id
+        )
+
+        return {
+            "success": False,
+            "reason": "request_expired"
+        }
+
+    
+    # -----------------------------------------------------
+    # FIND PICKUP STP
+    # -----------------------------------------------------
+
+    stp_id = (
+        target_order.get("stp_id")
+        or ""
+    ).strip()
+
+
+    pickup_stp = get_stp_by_id(
+        stp_id
+    )
+
+
+    if pickup_stp is None:
+        return {
+            "success": False,
+            "reason": "pickup_stp_not_found"
+        }
+
+
+    pickup_latitude = safe_float(
+        pickup_stp.get("latitude"),
+        None
+    )
+
+    pickup_longitude = safe_float(
+        pickup_stp.get("longitude"),
+        None
+    )
+
+
+    if (
+        pickup_latitude is None
+        or pickup_longitude is None
+    ):
+        return {
+            "success": False,
+            "reason": "pickup_location_missing"
+        }
+
+
+    # -----------------------------------------------------
+    # PREVIOUSLY ATTEMPTED OPERATORS
+    # -----------------------------------------------------
+
+    attempted_operator_ids = (
+        parse_attempted_operator_ids(
+            target_order.get(
+                "attempted_operator_ids"
+            )
+        )
+    )
+
+
+    # If there is already a current offered operator,
+    # consider that operator attempted before moving on.
+    current_offered_operator_id = (
+        target_order.get(
+            "offered_operator_id"
+        )
+        or ""
+    ).strip()
+
+
+    if (
+        current_offered_operator_id
+        and current_offered_operator_id
+        not in attempted_operator_ids
+    ):
+        attempted_operator_ids.append(
+            current_offered_operator_id
+        )
+
+
+    # -----------------------------------------------------
+    # FIND ELIGIBLE INDEPENDENT OPERATORS
+    # -----------------------------------------------------
+
+    candidates = (
+        find_eligible_tanker_operators(
+
+            pickup_latitude=
+                pickup_latitude,
+
+            pickup_longitude=
+                pickup_longitude,
+
+            quantity_kld=
+                target_order.get(
+                    "quantity_kld"
+                ),
+
+            water_type=
+                target_order.get(
+                    "water_type"
+                ),
+
+            operator_type=
+                "independent",
+
+            excluded_operator_ids=
+                attempted_operator_ids
+
+        )
+    )
+
+    print("\n================ STAGE 3 DEBUG ================")
+
+    print(
+        "ORDER:",
+        order_id
+    )
+
+    print(
+        "PICKUP STP:",
+        stp_id
+    )
+
+    print(
+        "PICKUP LOCATION:",
+        pickup_latitude,
+        pickup_longitude
+    )
+
+    print(
+        "QUANTITY:",
+        target_order.get("quantity_kld"),
+        "KLD"
+    )
+
+    print(
+        "WATER TYPE:",
+        target_order.get("water_type")
+    )
+
+    print(
+        "ELIGIBLE INDEPENDENT OPERATORS:"
+    )
+
+    for candidate in candidates:
+
+        print(
+            candidate["operator_id"],
+            "| Distance:",
+            candidate["distance_km"],
+            "km",
+            "| Available:",
+            candidate["available_tankers"],
+            "| Required:",
+            candidate["tankers_required"]
+        )
+
+    print("================================================\n")
+
+
+    # -----------------------------------------------------
+    # NO OPERATOR AVAILABLE
+    # -----------------------------------------------------
+
+    if not candidates:
+
+        target_order[
+            "offered_operator_id"
+        ] = ""
+
+        target_order[
+            "offer_status"
+        ] = "Waiting for Operator"
+
+        target_order[
+            "offer_sent_at"
+        ] = ""
+
+        target_order[
+            "offer_expires_at"
+        ] = ""
+
+        target_order[
+            "attempted_operator_ids"
+        ] = save_attempted_operator_ids(
+            attempted_operator_ids
+        )
+
+
+        with open(
+            ORDERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=ORDER_FIELDS
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+
+                writer.writerow({
+                    field:
+                        row.get(field, "")
+
+                    for field
+                    in ORDER_FIELDS
+                })
+
+
+        return {
+            "success": False,
+            "reason": "no_operator_available"
+        }
+
+
+    # -----------------------------------------------------
+    # OFFER TO NEAREST CANDIDATE
+    # -----------------------------------------------------
+
+    selected_operator = candidates[0]
+
+
+    target_order[
+        "offered_operator_id"
+    ] = selected_operator[
+        "operator_id"
+    ]
+
+
+    target_order[
+        "offer_status"
+    ] = "Offered"
+
+
+    # -----------------------------------------------------
+    # TANKER OFFER TIMEOUT
+    # -----------------------------------------------------
+
+    offer_sent_at = datetime.now()
+
+    offer_expires_at = calculate_offer_expiry(
+        target_order.get("created_at"),
+        offer_sent_at
+    )
+
+    target_order[
+        "offer_sent_at"
+    ] = offer_sent_at.isoformat()
+
+    target_order[
+        "offer_expires_at"
+    ] = (
+        offer_expires_at.isoformat()
+        if offer_expires_at
+        else ""
+    )
+
+
+    print(
+        "DEBUG REQUEST CREATED:",
+        target_order.get("created_at")
+    )
+
+    print(
+        "DEBUG OFFER SENT:",
+        offer_sent_at
+    )
+
+    print(
+        "DEBUG OFFER EXPIRY:",
+        offer_expires_at
+    )
+
+
+    target_order[
+        "attempted_operator_ids"
+    ] = save_attempted_operator_ids(
+        attempted_operator_ids
+    )
+
+
+    target_order[
+        "operator_distance_km"
+    ] = selected_operator[
+        "distance_km"
+    ]
+
+
+    target_order[
+        "tankers_required"
+    ] = selected_operator[
+        "tankers_required"
+    ]
+
+
+    # IMPORTANT:
+    # Do NOT set assigned_operator_id here.
+    # The operator has only received an offer.
+
+
+    # -----------------------------------------------------
+    # SAVE ORDER
+    # -----------------------------------------------------
+
+    with open(
+        ORDERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=ORDER_FIELDS
+        )
+
+        writer.writeheader()
+
+
+        for row in rows:
+
+            writer.writerow({
+
+                field:
+                    row.get(field, "")
+
+                for field
+                in ORDER_FIELDS
+            })
+
+
+    print(
+        "ORDER OFFERED:",
+        order_id,
+        "→",
+        selected_operator["operator_id"],
+        "DISTANCE:",
+        selected_operator["distance_km"],
+        "KM"
+    )
+
+
+    return {
+        "success": True,
+        "operator":
+            selected_operator
+    }
+
+def offer_next_operator_for_order(order_id):
+
+    with orders_lock:
+
+        return _offer_next_operator_for_order_unlocked(
+            order_id
+        )
+    
+def process_expired_order_offers():
+    """
+    Process expired demand-order tanker offers.
+
+    Rules:
+    1. Entire demand request expires after 30 minutes.
+    2. Individual tanker offer expires after 10 minutes.
+    3. Expired tanker is added to attempted operators.
+    4. Next nearest eligible operator is offered automatically.
+    """
+
+    with orders_lock:
+
+        if (
+            not os.path.exists(ORDERS_FILE)
+            or os.path.getsize(ORDERS_FILE) == 0
+        ):
+            return
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        changed = False
+        retry_order_ids = []
+
+        for row in rows:
+
+            order_id = str(
+                row.get("order_id") or ""
+            ).strip()
+
+            if not order_id:
+                continue
+
+            # Already assigned -> timeout system
+            # must never touch this order.
+            assigned_operator_id = str(
+                row.get("assigned_operator_id") or ""
+            ).strip()
+
+            if assigned_operator_id:
+                continue
+
+            status = str(
+                row.get("status") or ""
+            ).strip().lower()
+
+            # Only STP-accepted demand orders are
+            # waiting for tanker assignment.
+            if status != "accepted":
+                continue
+
+            # =============================================
+            # 30-MINUTE OVERALL REQUEST DEADLINE
+            # =============================================
+
+            if has_request_expired(
+                row.get("created_at")
+            ):
+
+                row["status"] = "Expired"
+
+                row["offered_operator_id"] = ""
+                row["offer_status"] = "Expired"
+                row["offer_sent_at"] = ""
+                row["offer_expires_at"] = ""
+
+                changed = True
+
+                print(
+                    "DEMAND ORDER EXPIRED:",
+                    order_id
+                )
+
+                continue
+
+            # =============================================
+            # CURRENT TANKER OFFER
+            # =============================================
+
+            offered_operator_id = str(
+                row.get("offered_operator_id") or ""
+            ).strip()
+
+            offer_status = str(
+                row.get("offer_status") or ""
+            ).strip().lower()
+
+            # Nothing currently offered.
+            if (
+                not offered_operator_id
+                or offer_status != "offered"
+            ):
+                continue
+
+            # Offer is still alive.
+            if not has_datetime_expired(
+                row.get("offer_expires_at")
+            ):
+                continue
+
+            # =============================================
+            # 10-MINUTE TANKER OFFER EXPIRED
+            # =============================================
+
+            attempted_operator_ids = (
+                parse_attempted_operator_ids(
+                    row.get(
+                        "attempted_operator_ids"
+                    )
+                )
+            )
+
+            if (
+                offered_operator_id
+                not in attempted_operator_ids
+            ):
+                attempted_operator_ids.append(
+                    offered_operator_id
+                )
+
+            row[
+                "attempted_operator_ids"
+            ] = save_attempted_operator_ids(
+                attempted_operator_ids
+            )
+
+            row["offered_operator_id"] = ""
+            row["offer_status"] = "Expired"
+            row["offer_sent_at"] = ""
+            row["offer_expires_at"] = ""
+            row["operator_distance_km"] = ""
+
+            changed = True
+
+            retry_order_ids.append(
+                order_id
+            )
+
+            print(
+                "TANKER OFFER EXPIRED:",
+                order_id,
+                "OPERATOR:",
+                offered_operator_id
+            )
+
+        # Save expired state first.
+        if changed:
+
+            with open(
+                ORDERS_FILE,
+                "w",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=ORDER_FIELDS
+                )
+
+                writer.writeheader()
+
+                for row in rows:
+                    writer.writerow({
+                        field: row.get(field, "")
+                        for field in ORDER_FIELDS
+                    })
+
+        # We already hold orders_lock, which is an RLock.
+        # Therefore we can safely reuse the unlocked helper.
+        for order_id in retry_order_ids:
+
+            # Re-check overall 30-minute deadline
+            # inside the offer helper will be added next.
+            result = (
+                _offer_next_operator_for_order_unlocked(
+                    order_id
+                )
+            )
+
+            print(
+                "AUTO NEXT ORDER OFFER:",
+                order_id,
+                result
+            )
+# =========================================================
+# STP TRANSFER:
+# OFFER CONTRACTED FIRST, THEN INDEPENDENT
+# =========================================================
+
+def _offer_next_operator_for_transfer_unlocked(
+    transfer_id
+):
+
+    transfer_id = str(
+        transfer_id or ""
+    ).strip()
+
+    if not transfer_id:
+        return None
+
+
+    if (
+        not os.path.exists(
+            STP_TRANSFERS_FILE
+        )
+        or os.path.getsize(
+            STP_TRANSFERS_FILE
+        ) == 0
+    ):
+        return None
+
+
+    rows = []
+    target_transfer = None
+
+
+    # -----------------------------------------------------
+    # READ TRANSFERS
+    # -----------------------------------------------------
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            rows.append(row)
+
+            if (
+                str(
+                    row.get("transfer_id")
+                    or ""
+                ).strip()
+                == transfer_id
+            ):
+                target_transfer = row
+
+
+    if target_transfer is None:
+        return None
+    
+        # -----------------------------------------------------
+    # 30-MINUTE OVERALL STP TRANSFER DEADLINE
+    # -----------------------------------------------------
+
+    if has_request_expired(
+        target_transfer.get("requested_at")
+    ):
+
+        target_transfer["status"] = "Expired"
+        target_transfer["tanker_status"] = "Expired"
+
+        target_transfer["offered_operator_id"] = ""
+        target_transfer["offer_status"] = "Expired"
+        target_transfer["offer_sent_at"] = ""
+        target_transfer["offer_expires_at"] = ""
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=STP_TRANSFER_FIELDS
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+                writer.writerow({
+                    field: row.get(field, "")
+                    for field in STP_TRANSFER_FIELDS
+                })
+
+        print(
+            "STP TRANSFER DEADLINE REACHED:",
+            transfer_id
+        )
+
+        return {
+            "success": False,
+            "reason": "request_expired"
+        }
+
+
+    # -----------------------------------------------------
+    # DO NOT REASSIGN
+    # -----------------------------------------------------
+
+    assigned_operator_id = (
+        target_transfer.get(
+            "assigned_operator_id"
+        )
+        or ""
+    ).strip()
+
+
+    if assigned_operator_id:
+        return {
+            "success": False,
+            "reason": "already_assigned",
+            "operator_id":
+                assigned_operator_id
+        }
+
+
+    # -----------------------------------------------------
+    # SOURCE STP IS PICKUP LOCATION
+    # -----------------------------------------------------
+
+    source_stp_id = (
+        target_transfer.get(
+            "source_stp_id"
+        )
+        or ""
+    ).strip()
+
+
+    pickup_stp = get_stp_by_id(
+        source_stp_id
+    )
+
+
+    if pickup_stp is None:
+        return {
+            "success": False,
+            "reason": "source_stp_not_found"
+        }
+
+
+    pickup_latitude = safe_float(
+        pickup_stp.get("latitude"),
+        None
+    )
+
+    pickup_longitude = safe_float(
+        pickup_stp.get("longitude"),
+        None
+    )
+
+
+    if (
+        pickup_latitude is None
+        or pickup_longitude is None
+    ):
+        return {
+            "success": False,
+            "reason": "pickup_location_missing"
+        }
+
+
+    # -----------------------------------------------------
+    # ATTEMPTED OPERATORS
+    # -----------------------------------------------------
+
+    attempted_operator_ids = (
+        parse_attempted_operator_ids(
+            target_transfer.get(
+                "attempted_operator_ids"
+            )
+        )
+    )
+
+
+    current_offered_operator_id = (
+        target_transfer.get(
+            "offered_operator_id"
+        )
+        or ""
+    ).strip()
+
+
+    if (
+        current_offered_operator_id
+        and current_offered_operator_id
+        not in attempted_operator_ids
+    ):
+        attempted_operator_ids.append(
+            current_offered_operator_id
+        )
+
+
+    # -----------------------------------------------------
+    # CONTRACTED OPERATORS FIRST
+    # -----------------------------------------------------
+
+    candidates = (
+        find_eligible_tanker_operators(
+
+            pickup_latitude=
+                pickup_latitude,
+
+            pickup_longitude=
+                pickup_longitude,
+
+            quantity_kld=
+                target_transfer.get(
+                    "quantity_kld"
+                ),
+
+            water_type=
+                target_transfer.get(
+                    "water_type"
+                ),
+
+            operator_type=
+                "contracted",
+
+            excluded_operator_ids=
+                attempted_operator_ids
+
+        )
+    )
+
+
+    selected_pool = "contracted"
+
+
+    # -----------------------------------------------------
+    # CONTRACTED EXHAUSTED → INDEPENDENT FALLBACK
+    # -----------------------------------------------------
+
+    if not candidates:
+
+        candidates = (
+            find_eligible_tanker_operators(
+
+                pickup_latitude=
+                    pickup_latitude,
+
+                pickup_longitude=
+                    pickup_longitude,
+
+                quantity_kld=
+                    target_transfer.get(
+                        "quantity_kld"
+                    ),
+
+                water_type=
+                    target_transfer.get(
+                        "water_type"
+                    ),
+
+                operator_type=
+                    "independent",
+
+                excluded_operator_ids=
+                    attempted_operator_ids
+
+            )
+        )
+
+        selected_pool = "independent"
+
+
+    # -----------------------------------------------------
+    # NO OPERATOR AVAILABLE
+    # -----------------------------------------------------
+
+    if not candidates:
+
+        target_transfer[
+            "offered_operator_id"
+        ] = ""
+
+        target_transfer[
+            "offer_status"
+        ] = "Waiting for Operator"
+
+        target_transfer[
+            "offer_sent_at"
+        ] = ""
+
+        target_transfer[
+            "offer_expires_at"
+        ] = ""
+
+        target_transfer[
+            "attempted_operator_ids"
+        ] = save_attempted_operator_ids(
+            attempted_operator_ids
+        )
+
+        target_transfer[
+            "tanker_status"
+        ] = "Waiting for Operator"
+
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=
+                    STP_TRANSFER_FIELDS
+            )
+
+            writer.writeheader()
+
+
+            for row in rows:
+
+                writer.writerow({
+
+                    field:
+                        row.get(field, "")
+
+                    for field
+                    in STP_TRANSFER_FIELDS
+                })
+
+
+        return {
+            "success": False,
+            "reason":
+                "no_operator_available"
+        }
+
+
+    # -----------------------------------------------------
+    # SELECT NEAREST
+    # -----------------------------------------------------
+
+    selected_operator = candidates[0]
+
+
+    target_transfer[
+        "offered_operator_id"
+    ] = selected_operator[
+        "operator_id"
+    ]
+
+
+    target_transfer[
+        "offer_status"
+    ] = "Offered"
+
+
+    offer_sent_at = datetime.now()
+
+    offer_expires_at = calculate_offer_expiry(
+        target_transfer.get("requested_at"),
+        offer_sent_at
+    )
+
+    target_transfer[
+        "offer_sent_at"
+    ] = offer_sent_at.isoformat()
+
+    target_transfer[
+        "offer_expires_at"
+    ] = (
+        offer_expires_at.isoformat()
+        if offer_expires_at
+        else ""
+    )
+
+
+    target_transfer[
+        "attempted_operator_ids"
+    ] = save_attempted_operator_ids(
+        attempted_operator_ids
+    )
+
+
+    target_transfer[
+        "operator_distance_km"
+    ] = selected_operator[
+        "distance_km"
+    ]
+
+
+    target_transfer[
+        "tankers_required"
+    ] = selected_operator[
+        "tankers_required"
+    ]
+
+
+    target_transfer[
+        "tanker_status"
+    ] = "Offer Sent"
+
+
+    # IMPORTANT:
+    # assigned_operator_id stays empty here.
+
+
+    # -----------------------------------------------------
+    # SAVE
+    # -----------------------------------------------------
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=
+                STP_TRANSFER_FIELDS
+        )
+
+        writer.writeheader()
+
+
+        for row in rows:
+
+            writer.writerow({
+
+                field:
+                    row.get(field, "")
+
+                for field
+                in STP_TRANSFER_FIELDS
+            })
+
+
+    print(
+        "TRANSFER OFFERED:",
+        transfer_id,
+        "→",
+        selected_operator[
+            "operator_id"
+        ],
+        "(",
+        selected_pool,
+        ")",
+        "DISTANCE:",
+        selected_operator[
+            "distance_km"
+        ],
+        "KM"
+    )
+
+
+    return {
+        "success": True,
+
+        "operator":
+            selected_operator,
+
+        "pool":
+            selected_pool
+    }
+
+def offer_next_operator_for_transfer(transfer_id):
+
+    with transfers_lock:
+
+        return _offer_next_operator_for_transfer_unlocked(
+            transfer_id
+        )   
+    
+def process_expired_transfer_offers():
+    """
+    Process expired STP-to-STP tanker offers.
+
+    - Transfer lifetime: 30 minutes.
+    - Tanker offer lifetime: maximum 10 minutes.
+    - Expired operator becomes attempted.
+    - Existing contracted -> independent selection
+      logic chooses the next operator.
+    """
+
+    with transfers_lock:
+
+        if (
+            not os.path.exists(STP_TRANSFERS_FILE)
+            or os.path.getsize(STP_TRANSFERS_FILE) == 0
+        ):
+            return
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        changed = False
+        retry_transfer_ids = []
+
+        for row in rows:
+
+            transfer_id = str(
+                row.get("transfer_id") or ""
+            ).strip()
+
+            if not transfer_id:
+                continue
+
+            assigned_operator_id = str(
+                row.get("assigned_operator_id") or ""
+            ).strip()
+
+            # Permanent assignment already exists.
+            if assigned_operator_id:
+                continue
+
+            status = str(
+                row.get("status") or ""
+            ).strip().lower()
+
+            # Tanker assignment begins only after
+            # the STP transfer is accepted.
+            if status != "accepted":
+                continue
+
+            # =============================================
+            # 30-MINUTE OVERALL TRANSFER DEADLINE
+            # =============================================
+
+            if has_request_expired(
+                row.get("requested_at")
+            ):
+
+                row["status"] = "Expired"
+                row["tanker_status"] = "Expired"
+
+                row["offered_operator_id"] = ""
+                row["offer_status"] = "Expired"
+                row["offer_sent_at"] = ""
+                row["offer_expires_at"] = ""
+
+                changed = True
+
+                print(
+                    "STP TRANSFER EXPIRED:",
+                    transfer_id
+                )
+
+                continue
+
+            # =============================================
+            # CURRENT TANKER OFFER
+            # =============================================
+
+            offered_operator_id = str(
+                row.get("offered_operator_id") or ""
+            ).strip()
+
+            offer_status = str(
+                row.get("offer_status") or ""
+            ).strip().lower()
+
+            if (
+                not offered_operator_id
+                or offer_status != "offered"
+            ):
+                continue
+
+            if not has_datetime_expired(
+                row.get("offer_expires_at")
+            ):
+                continue
+
+            # =============================================
+            # TANKER OFFER EXPIRED
+            # =============================================
+
+            attempted_operator_ids = (
+                parse_attempted_operator_ids(
+                    row.get(
+                        "attempted_operator_ids"
+                    )
+                )
+            )
+
+            if (
+                offered_operator_id
+                not in attempted_operator_ids
+            ):
+                attempted_operator_ids.append(
+                    offered_operator_id
+                )
+
+            row[
+                "attempted_operator_ids"
+            ] = save_attempted_operator_ids(
+                attempted_operator_ids
+            )
+
+            row["offered_operator_id"] = ""
+            row["offer_status"] = "Expired"
+            row["offer_sent_at"] = ""
+            row["offer_expires_at"] = ""
+            row["operator_distance_km"] = ""
+
+            row["tanker_status"] = (
+                "Waiting for Operator"
+            )
+
+            changed = True
+
+            retry_transfer_ids.append(
+                transfer_id
+            )
+
+            print(
+                "TRANSFER TANKER OFFER EXPIRED:",
+                transfer_id,
+                "OPERATOR:",
+                offered_operator_id
+            )
+
+        if changed:
+
+            with open(
+                STP_TRANSFERS_FILE,
+                "w",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=STP_TRANSFER_FIELDS
+                )
+
+                writer.writeheader()
+
+                for row in rows:
+                    writer.writerow({
+                        field: row.get(field, "")
+                        for field
+                        in STP_TRANSFER_FIELDS
+                    })
+
+        # Reuse the existing contracted-first,
+        # independent-fallback selection logic.
+        for transfer_id in retry_transfer_ids:
+
+            result = (
+                _offer_next_operator_for_transfer_unlocked(
+                    transfer_id
+                )
+            )
+
+            print(
+                "AUTO NEXT TRANSFER OFFER:",
+                transfer_id,
+                result
+            )
+
+# =========================================================
+# BACKGROUND TIMEOUT PROCESSOR
+# =========================================================
+
+def timeout_worker():
+    """
+    Periodically process expired tanker offers.
+
+    Demand orders:
+    - 30 minute overall deadline
+    - 10 minute maximum per tanker offer
+
+    STP transfers:
+    - 30 minute overall deadline
+    - 10 minute maximum per tanker offer
+    """
+
+    print("Tanker timeout worker started.")
+
+    while True:
+
+        try:
+            process_expired_order_offers()
+
+        except Exception as e:
+            print(
+                "ORDER TIMEOUT PROCESSOR ERROR:",
+                e
+            )
+
+        try:
+            process_expired_transfer_offers()
+
+        except Exception as e:
+            print(
+                "TRANSFER TIMEOUT PROCESSOR ERROR:",
+                e
+            )
+
+        # Check frequently enough that a 10-minute
+        # offer is moved on promptly after expiry.
+        time.sleep(15)
 # =========================================================
 # A* DISTANCE FUNCTION
 # =========================================================
@@ -633,9 +3118,25 @@ def login():
                 session["buyer_phone"] = session["user_phone"]
 
                 return redirect(url_for("demand"))
-
+  
             if session["role"] == "stp":
-                return redirect(url_for("supply"))
+
+                stp_id = str(session.get("stp_id") or "").strip()
+
+                if not stp_id:
+                    session.clear()
+
+                    return render_template(
+                        "login.html",
+                        login_error="No STP is assigned to this account."
+                    )
+
+                return redirect(
+                    url_for(
+                        "supply",
+                        stp_id=stp_id
+                    )
+                )
 
             if session["role"] == "tanker":
 
@@ -643,6 +3144,9 @@ def login():
                     session["user_name"]
                 )
 
+                return redirect(
+                    url_for("tanker_dashboard")
+                ) 
                 return redirect(
                     url_for("tanker_dashboard")
                 )
@@ -670,7 +3174,6 @@ def login():
             )
 
     return render_template("login.html")
-
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -740,7 +3243,8 @@ def signup():
                     signup_error="Please enter your Tanker Operator ID."
                 )
 
-            tanker_exists = False
+            matched_tanker = None
+
             if os.path.exists(TANKER_REGISTRATIONS_FILE):
                 try:
                     with open(
@@ -750,17 +3254,23 @@ def signup():
                         encoding="utf-8"
                     ) as f:
                         reader = csv.DictReader(f)
-                        tanker_exists = any(
-                            str(row.get("operator_id") or "").strip().lower() == tanker_operator_id.lower()
-                            for row in reader
-                        )
-                except Exception as e:
-                    print("Tanker operator ID validation failed:", e)
 
-            if not tanker_exists:
+                        for row in reader:
+                            registered_operator_id = str(
+                                row.get("operator_id") or ""
+                            ).strip()
+
+                            if registered_operator_id.lower() == tanker_operator_id.lower():
+                                matched_tanker = row
+                                break
+
+                except Exception as e:
+                    print("Tanker operator validation failed:", e)
+
+            if matched_tanker is None:
                 return render_template(
                     "signup.html",
-                    signup_error="Invalid Tanker Operator ID. Please enter a registered operator ID."
+                    signup_error="Invalid Tanker Operator ID."
                 )
 
         if password != confirm_password:
@@ -1225,181 +3735,953 @@ def tanker_register_contracted():
 
     if request.method == "POST":
 
-        # Operator details
-        operator_name = request.form.get("operator_name")
-        phone = request.form.get("phone")
-        email = request.form.get("email")
+        # ==========================================
+        # OPERATOR DETAILS
+        # ==========================================
 
-        # Contract details
-        contract_id = request.form.get("contract_id")
-        contract_start = request.form.get("contract_start")
-        contract_end = request.form.get("contract_end")
+        operator_name = request.form.get(
+            "operator_name",
+            ""
+        ).strip()
 
-        # Tanker details
-        registration_no = request.form.get("registration_no")
-        capacity = request.form.get("capacity")
-        vehicle_model = request.form.get("vehicle_model")
+        phone = request.form.get(
+            "phone",
+            ""
+        ).strip()
 
-        # CSV file location
-        csv_file = os.path.join(
-            app.root_path,
-            "database",
-            "tanker_registrations.csv"
+        email = request.form.get(
+            "email",
+            ""
+        ).strip()
+
+
+        # ==========================================
+        # CONTRACT DETAILS
+        # ==========================================
+
+        contract_id = request.form.get(
+            "contract_id",
+            ""
+        ).strip()
+
+        contract_start = request.form.get(
+            "contract_start",
+            ""
+        ).strip()
+
+        contract_end = request.form.get(
+            "contract_end",
+            ""
+        ).strip()
+
+
+        # ==========================================
+        # LOCATION / FLEET
+        # ==========================================
+
+        latitude = request.form.get(
+            "latitude",
+            ""
+        ).strip()
+
+        longitude = request.form.get(
+            "longitude",
+            ""
+        ).strip()
+
+        operational_tankers = request.form.get(
+            "operational_tankers",
+            ""
+        ).strip()
+
+
+        # ==========================================
+        # INDIVIDUAL VEHICLE DETAILS
+        # ==========================================
+
+        vehicle_registration_numbers = [
+            value.strip().upper()
+            for value
+            in request.form.getlist(
+                "vehicle_registration_no[]"
+            )
+        ]
+
+        vehicle_capacities = [
+            value.strip()
+            for value
+            in request.form.getlist(
+                "vehicle_capacity[]"
+            )
+        ]
+
+        vehicle_models = [
+            value.strip()
+            for value
+            in request.form.getlist(
+                "vehicle_model[]"
+            )
+        ]
+
+        # ==========================================
+        # VALIDATE FLEET
+        # ==========================================
+
+        try:
+            tanker_count = int(
+                operational_tankers
+            )
+
+        except (TypeError, ValueError):
+            tanker_count = 0
+
+
+        if tanker_count < 1 or tanker_count > 15:
+
+            return (
+                "Number of operational tankers "
+                "must be between 1 and 15.",
+                400
+            )
+
+
+        if (
+            len(vehicle_registration_numbers)
+            != tanker_count
+
+            or len(vehicle_capacities)
+            != tanker_count
+
+            or len(vehicle_models)
+            != tanker_count
+        ):
+
+            return (
+                "Please enter details for every vehicle "
+                "in your fleet.",
+                400
+            )
+
+
+        for index in range(tanker_count):
+
+            if (
+                not vehicle_registration_numbers[index]
+                or not vehicle_capacities[index]
+                or not vehicle_models[index]
+            ):
+
+                return (
+                    f"Vehicle {index + 1} has "
+                    "incomplete details.",
+                    400
+                )
+
+
+        if (
+            len(set(vehicle_registration_numbers))
+            != len(vehicle_registration_numbers)
+        ):
+
+            return (
+                "Vehicle registration numbers "
+                "must be unique.",
+                400
+            )
+
+        existing_vehicle_numbers = set()
+
+
+        if (
+            os.path.exists(TANKER_VEHICLES_FILE)
+            and
+            os.path.getsize(TANKER_VEHICLES_FILE) > 0
+        ):
+
+            with open(
+                TANKER_VEHICLES_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    registration =(
+                            row.get(
+                                "registration_number"
+                            )
+                            or ""
+                        ).strip().upper()
+
+                    if registration:
+                        existing_vehicle_numbers.add(
+                            registration
+                        )
+
+
+        duplicate_existing = (
+            set(vehicle_registration_numbers)
+            &
+            existing_vehicle_numbers
         )
 
-        # Generate operator ID
-        if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
-            existing_df = pd.read_csv(csv_file)
-            operator_number = len(existing_df) + 1
-        else:
-            operator_number = 1
 
-        operator_id = f"OP-BLR-{operator_number:04d}"
+        if duplicate_existing:
 
-        # Create registration record
+            return (
+                "The following vehicle is already "
+                "registered: "
+                +
+                ", ".join(
+                    sorted(duplicate_existing)
+                ),
+                400
+            )
+
+
+        # ==========================================
+        # ENSURE CORRECT CSV SCHEMA
+        # ==========================================
+
+        ensure_tanker_registrations_schema()
+
+
+        # ==========================================
+        # GENERATE OPERATOR ID
+        # ==========================================
+
+        existing_rows = []
+
+        if (
+            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            and os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+        ):
+
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                existing_rows = list(reader)
+
+
+        operator_number = len(existing_rows) + 1
+
+        operator_id = (
+            f"OP-BLR-{operator_number:04d}"
+        )
+
+
+        # ==========================================
+        # CREATE OPERATOR
+        # ==========================================
+
         new_operator = {
-            "operator_id": operator_id,
-            "operator_name": operator_name,
-            "operator_type": "contracted",
-            "phone": phone,
-            "email": email,
-            "area": "",
-            "pincode": "",
-            "contract_id": contract_id,
-            "contract_start": contract_start,
-            "contract_end": contract_end,
-            "tanker_registration_no": registration_no,
-            "tanker_capacity_kl": capacity,
-            "vehicle_model": vehicle_model,
-            "water_type_supported": "",
-            "service_radius_km": "",
-            "verification_status": "pending",
-            "registration_date": date.today().isoformat()
+
+            "operator_id":
+                operator_id,
+
+            "operator_name":
+                operator_name,
+
+            "operator_type":
+                "contracted",
+
+            "phone":
+                phone,
+
+            "email":
+                email,
+
+            # Contracted operators do not need
+            # independent service area/radius
+            "area":
+                "",
+
+            "pincode":
+                "",
+
+            "latitude":
+                latitude,
+
+            "longitude":
+                longitude,
+
+            "operational_tankers":
+                operational_tankers,
+
+            "contract_id":
+                contract_id,
+
+            "contract_start":
+                contract_start,
+
+            "contract_end":
+                contract_end,
+
+            # First vehicle is mirrored here temporarily
+            # for compatibility with existing JalSetu logic.
+
+            "tanker_registration_no":
+                vehicle_registration_numbers[0],
+
+            "tanker_capacity_kl":
+                vehicle_capacities[0],
+
+            "vehicle_model":
+                vehicle_models[0],
+
+            "water_type_supported":
+                "",
+
+            "service_radius_km":
+                "",
+
+            "verification_status":
+                "pending",
+
+            "registration_date":
+                date.today().isoformat()
         }
 
-        # Convert to DataFrame
-        new_df = pd.DataFrame([new_operator])
 
-        # Save to CSV
-        if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
-            new_df.to_csv(
-                csv_file,
-                mode="a",
-                header=False,
-                index=False
-            )
-        else:
-            new_df.to_csv(
-                csv_file,
-                mode="w",
-                header=True,
-                index=False
+        # ==========================================
+        # SAVE USING CANONICAL COLUMN ORDER
+        # ==========================================
+
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "a",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=TANKER_REGISTRATION_FIELDS
             )
 
-        print("NEW CONTRACTED TANKER OPERATOR REGISTERED")
+            writer.writerow({
+
+                field:
+                    new_operator.get(field, "")
+
+                for field
+                in TANKER_REGISTRATION_FIELDS
+            })
+
+        # ==========================================
+        # SAVE INDIVIDUAL VEHICLES
+        # ==========================================
+
+        ensure_tanker_vehicles_file()
+
+
+        with open(
+            TANKER_VEHICLES_FILE,
+            "a",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=TANKER_VEHICLE_FIELDS
+            )
+
+
+            for index in range(tanker_count):
+
+                vehicle_id = (
+                    f"VEH-{uuid.uuid4().hex[:10].upper()}"
+                )
+
+
+                writer.writerow({
+
+                    "vehicle_id":
+                        vehicle_id,
+
+                    "operator_id":
+                        operator_id,
+
+                    "registration_number":
+                        vehicle_registration_numbers[index],
+
+                    "vehicle_model":
+                        vehicle_models[index],
+
+                    "capacity_kl":
+                        vehicle_capacities[index],
+
+                    "vehicle_status":
+                        "active",
+
+                    "created_at":
+                        datetime.now().isoformat(
+                            timespec="seconds"
+                        )
+                })
+
+
+        print(
+            "NEW CONTRACTED TANKER OPERATOR REGISTERED"
+        )
+
         print(new_operator)
-        print("DATA SAVED TO:", csv_file)
+
+        print(
+            "DATA SAVED TO:",
+            TANKER_REGISTRATIONS_FILE
+        )
+
 
         return render_template(
             "registration_success.html",
-        operator_id=operator_id,
-        operator_type="Existing Purvankara Partner"
+            operator_id=operator_id,
+            operator_type="Existing Purvankara Partner"
+        )
+
+
+    return render_template(
+        "tanker_register_contracted.html"
+    )
+
+@app.route(
+    "/tanker/register/independent",
+    methods=["GET", "POST"]
 )
-
-    return render_template("tanker_register_contracted.html")
-
-@app.route("/tanker/register/independent", methods=["GET", "POST"])
 def tanker_register_independent():
 
     if request.method == "POST":
 
-        # Get the submitted form data
-        operator_name = request.form.get("operator_name")
-        phone = request.form.get("phone")
-        email = request.form.get("email")
+        # ==========================================
+        # BASIC OPERATOR DETAILS
+        # ==========================================
 
-        area = request.form.get("area")
-        pincode = request.form.get("pincode")
-
-        registration_no = request.form.get("registration_no")
-        capacity = request.form.get("capacity")
-        vehicle_model = request.form.get("vehicle_model")
-
-        water_type = request.form.get("water_type")
-        radius = request.form.get("radius")
-
-        # CSV file location
-        csv_file = os.path.join(
-            app.root_path,
-            "database",
-            "tanker_registrations.csv"
+        operator_name = (
+            request.form.get(
+                "operator_name",
+                ""
+            ).strip()
         )
-        print("CSV PATH:", csv_file)
-        print("CSV EXISTS:", os.path.exists(csv_file))
 
-        # Generate a new operator ID
-        if os.path.exists(csv_file):
+        phone = (
+            request.form.get(
+                "phone",
+                ""
+            ).strip()
+        )
 
-            existing_df = pd.read_csv(csv_file)
+        email = (
+            request.form.get(
+                "email",
+                ""
+            ).strip()
+        )
 
-            operator_number = len(existing_df) + 1
+        area = (
+            request.form.get(
+                "area",
+                ""
+            ).strip()
+        )
+
+        pincode = (
+            request.form.get(
+                "pincode",
+                ""
+            ).strip()
+        )
+
+        latitude = (
+            request.form.get(
+                "latitude",
+                ""
+            ).strip()
+        )
+
+        longitude = (
+            request.form.get(
+                "longitude",
+                ""
+            ).strip()
+        )
+
+        operational_tankers = (
+            request.form.get(
+                "operational_tankers",
+                ""
+            ).strip()
+        )
+
+        water_type = (
+            request.form.get(
+                "water_type",
+                ""
+            ).strip()
+        )
+
+        radius = (
+            request.form.get(
+                "radius",
+                ""
+            ).strip()
+        )
+
+
+        # ==========================================
+        # INDIVIDUAL VEHICLE DETAILS
+        # ==========================================
+
+        vehicle_registration_numbers = [
+            value.strip().upper()
+
+            for value
+            in request.form.getlist(
+                "vehicle_registration_no[]"
+            )
+        ]
+
+        vehicle_capacities = [
+            value.strip()
+
+            for value
+            in request.form.getlist(
+                "vehicle_capacity[]"
+            )
+        ]
+
+        vehicle_models = [
+            value.strip()
+
+            for value
+            in request.form.getlist(
+                "vehicle_model[]"
+            )
+        ]
+
+
+        # ==========================================
+        # VALIDATE NUMBER OF TANKERS
+        # ==========================================
+
+        try:
+
+            tanker_count = int(
+                operational_tankers
+            )
+
+        except (TypeError, ValueError):
+
+            tanker_count = 0
+
+
+        if tanker_count < 1 or tanker_count > 15:
+
+            return (
+                "Number of operational tankers "
+                "must be between 1 and 15.",
+                400
+            )
+
+
+        # ==========================================
+        # VALIDATE VEHICLE COUNT
+        # ==========================================
+
+        if (
+            len(vehicle_registration_numbers)
+            != tanker_count
+
+            or len(vehicle_capacities)
+            != tanker_count
+
+            or len(vehicle_models)
+            != tanker_count
+        ):
+
+            return (
+                "Please enter details for every vehicle "
+                "in your fleet.",
+                400
+            )
+
+
+        # ==========================================
+        # VALIDATE VEHICLE DETAILS
+        # ==========================================
+
+        for index in range(tanker_count):
+
+            if (
+                not vehicle_registration_numbers[index]
+                or not vehicle_capacities[index]
+                or not vehicle_models[index]
+            ):
+
+                return (
+                    f"Vehicle {index + 1} has "
+                    "incomplete details.",
+                    400
+                )
+
+
+        # ==========================================
+        # DUPLICATE VEHICLES INSIDE SAME FORM
+        # ==========================================
+
+        if (
+            len(set(vehicle_registration_numbers))
+            != len(vehicle_registration_numbers)
+        ):
+
+            return (
+                "Vehicle registration numbers "
+                "must be unique.",
+                400
+            )
+
+
+        # ==========================================
+        # MAKE SURE VEHICLE FILE EXISTS
+        # ==========================================
+
+        ensure_tanker_vehicles_file()
+
+
+        # ==========================================
+        # CHECK VEHICLES ALREADY REGISTERED
+        # ==========================================
+
+        existing_vehicle_numbers = set()
+
+
+        if (
+            os.path.exists(
+                TANKER_VEHICLES_FILE
+            )
+            and
+            os.path.getsize(
+                TANKER_VEHICLES_FILE
+            ) > 0
+        ):
+
+            with open(
+                TANKER_VEHICLES_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+
+                for row in reader:
+
+                    registration = (
+                        row.get(
+                            "registration_number"
+                        )
+                        or ""
+                    ).strip().upper()
+
+
+                    if registration:
+
+                        existing_vehicle_numbers.add(
+                            registration
+                        )
+
+
+        duplicate_existing = (
+            set(vehicle_registration_numbers)
+            &
+            existing_vehicle_numbers
+        )
+
+
+        if duplicate_existing:
+
+            return (
+                "The following vehicle is already "
+                "registered: "
+                +
+                ", ".join(
+                    sorted(
+                        duplicate_existing
+                    )
+                ),
+                400
+            )
+
+
+        # ==========================================
+        # MAKE SURE OPERATOR CSV USES LATEST SCHEMA
+        # ==========================================
+
+        ensure_tanker_registrations_schema()
+
+
+        # ==========================================
+        # GENERATE OPERATOR ID
+        # ==========================================
+
+        if (
+            os.path.exists(
+                TANKER_REGISTRATIONS_FILE
+            )
+            and
+            os.path.getsize(
+                TANKER_REGISTRATIONS_FILE
+            ) > 0
+        ):
+
+            existing_df = pd.read_csv(
+                TANKER_REGISTRATIONS_FILE
+            )
+
+            operator_number = (
+                len(existing_df) + 1
+            )
 
         else:
+
             operator_number = 1
 
-        operator_id = f"OP-BLR-{operator_number:04d}"
 
-        # Create the new registration
+        operator_id = (
+            f"OP-BLR-{operator_number:04d}"
+        )
+
+
+        # ==========================================
+        # CREATE OPERATOR RECORD
+        # ==========================================
+
         new_operator = {
-            "operator_id": operator_id,
-            "operator_name": operator_name,
-            "operator_type": "independent",
-            "phone": phone,
-            "email": email,
-            "area": area,
-            "pincode": pincode,
-            "contract_id": "",
-            "contract_start": "",
-            "contract_end": "",
-            "tanker_registration_no": registration_no,
-            "tanker_capacity_kl": capacity,
-            "vehicle_model": vehicle_model,
-            "water_type_supported": water_type,
-            "service_radius_km": radius,
-            "verification_status": "pending",
-            "registration_date": date.today().isoformat()
+
+            "operator_id":
+                operator_id,
+
+            "operator_name":
+                operator_name,
+
+            "operator_type":
+                "independent",
+
+            "phone":
+                phone,
+
+            "email":
+                email,
+
+            "area":
+                area,
+
+            "pincode":
+                pincode,
+
+            "latitude":
+                latitude,
+
+            "longitude":
+                longitude,
+
+            "operational_tankers":
+                operational_tankers,
+
+            "contract_id":
+                "",
+
+            "contract_start":
+                "",
+
+            "contract_end":
+                "",
+
+
+            # ======================================
+            # FIRST VEHICLE MIRRORED FOR
+            # BACKWARD COMPATIBILITY
+            # ======================================
+
+            "tanker_registration_no":
+                vehicle_registration_numbers[0],
+
+            "tanker_capacity_kl":
+                vehicle_capacities[0],
+
+            "vehicle_model":
+                vehicle_models[0],
+
+
+            # ======================================
+            # INDEPENDENT OPERATOR PREFERENCES
+            # ======================================
+
+            "water_type_supported":
+                water_type,
+
+            "service_radius_km":
+                radius,
+
+            "verification_status":
+                "pending",
+
+            "registration_date":
+                date.today().isoformat()
         }
 
-        # Add the registration to the CSV
-        new_df = pd.DataFrame([new_operator])
 
-        if os.path.exists(csv_file) and os.path.getsize(csv_file) > 0:
-                new_df.to_csv(
-                    csv_file,
-                    mode="a",
-                    header=False,
-                    index=False
+        # ==========================================
+        # SAVE OPERATOR REGISTRATION
+        # ==========================================
+
+        with open(
+            TANKER_REGISTRATIONS_FILE,
+            "a",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=
+                    TANKER_REGISTRATION_FIELDS
+            )
+
+
+            writer.writerow({
+
+                field:
+                    new_operator.get(
+                        field,
+                        ""
+                    )
+
+                for field
+                in TANKER_REGISTRATION_FIELDS
+            })
+
+
+        print(
+            "DATA SAVED TO:",
+            TANKER_REGISTRATIONS_FILE
+        )
+
+
+        # ==========================================
+        # SAVE INDIVIDUAL VEHICLES
+        # ==========================================
+
+        ensure_tanker_vehicles_file()
+
+
+        with open(
+            TANKER_VEHICLES_FILE,
+            "a",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=
+                    TANKER_VEHICLE_FIELDS
+            )
+
+
+            for index in range(
+                tanker_count
+            ):
+
+                vehicle_id = (
+                    "VEH-"
+                    +
+                    uuid.uuid4()
+                    .hex[:10]
+                    .upper()
                 )
-        else:
-                new_df.to_csv(
-                    csv_file,
-                    mode="w",
-                    header=True,
-                    index=False
-                )
 
-        print("DATA SAVED TO:", csv_file)
 
-        print("NEW TANKER OPERATOR REGISTERED")
-        print(new_operator)
+                writer.writerow({
+
+                    "vehicle_id":
+                        vehicle_id,
+
+                    "operator_id":
+                        operator_id,
+
+                    "registration_number":
+                        vehicle_registration_numbers[
+                            index
+                        ],
+
+                    "vehicle_model":
+                        vehicle_models[
+                            index
+                        ],
+
+                    "capacity_kl":
+                        vehicle_capacities[
+                            index
+                        ],
+
+                    "vehicle_status":
+                        "active",
+
+                    "created_at":
+                        datetime.now().isoformat(
+                            timespec="seconds"
+                        )
+                })
+
+
+        # ==========================================
+        # SUCCESS
+        # ==========================================
+
+        print(
+            "NEW TANKER OPERATOR REGISTERED"
+        )
+
+        print(
+            "OPERATOR ID:",
+            operator_id
+        )
+
+        print(
+            "VEHICLES REGISTERED:",
+            tanker_count
+        )
+
+        print(
+            new_operator
+        )
+
 
         return render_template(
             "registration_success.html",
-        operator_id=operator_id,
-        operator_type="Independent Operator"
-)
+            operator_id=operator_id,
+            operator_type="Independent Operator"
+        )
 
-    return render_template("tanker_register_independent.html")
+
+    # ==============================================
+    # GET REQUEST
+    # ==============================================
+
+    return render_template(
+        "tanker_register_independent.html"
+    )
 
 
 @app.route("/admin")
@@ -1450,6 +4732,105 @@ def admin_dashboard():
             reader = csv.DictReader(f)
             tanker_operators = list(reader)
 
+        # =========================
+    # LOAD TANKER VEHICLES
+    # =========================
+
+    tanker_vehicles = []
+
+    ensure_tanker_vehicles_file()
+
+    if (
+        os.path.exists(TANKER_VEHICLES_FILE)
+        and os.path.getsize(TANKER_VEHICLES_FILE) > 0
+    ):
+
+        with open(
+            TANKER_VEHICLES_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            tanker_vehicles = list(reader)
+
+
+    # =========================
+    # LOAD VEHICLE DOCUMENTS
+    # =========================
+
+    tanker_vehicle_documents = []
+
+    ensure_tanker_vehicle_documents_file()
+
+    if (
+        os.path.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
+        and
+        os.path.getsize(
+            TANKER_VEHICLE_DOCUMENTS_FILE
+        ) > 0
+    ):
+
+        with open(
+            TANKER_VEHICLE_DOCUMENTS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            tanker_vehicle_documents = list(
+                reader
+            )
+
+
+    # =========================
+    # GROUP VEHICLES BY OPERATOR
+    # =========================
+
+    vehicles_by_operator = {}
+
+    for vehicle in tanker_vehicles:
+
+        vehicle_operator_id = str(
+            vehicle.get("operator_id") or ""
+        ).strip()
+
+        if not vehicle_operator_id:
+            continue
+
+        vehicles_by_operator.setdefault(
+            vehicle_operator_id,
+            []
+        ).append(vehicle)
+
+
+    # =========================
+    # GROUP DOCUMENTS BY VEHICLE
+    # =========================
+
+    documents_by_vehicle = {}
+
+    for document in tanker_vehicle_documents:
+
+        vehicle_id = str(
+            document.get("vehicle_id") or ""
+        ).strip()
+
+        document_type = str(
+            document.get("document_type") or ""
+        ).strip().lower()
+
+        if not vehicle_id or not document_type:
+            continue
+
+        documents_by_vehicle.setdefault(
+            vehicle_id,
+            {}
+        )[document_type] = document
+
 
     total_tanker_operators = len(
         tanker_operators
@@ -1459,29 +4840,24 @@ def admin_dashboard():
     pending_tanker_operators = sum(
         1
         for operator in tanker_operators
-        if operator.get(
-            "verification_status",
-            ""
+        if (
+            operator.get("verification_status") or ""
         ).strip().lower() == "pending"
     )
-
 
     approved_tanker_operators = sum(
         1
         for operator in tanker_operators
-        if operator.get(
-            "verification_status",
-            ""
+        if (
+            operator.get("verification_status") or ""
         ).strip().lower() == "approved"
     )
-
 
     rejected_tanker_operators = sum(
         1
         for operator in tanker_operators
-        if operator.get(
-            "verification_status",
-            ""
+        if (
+            operator.get("verification_status") or ""
         ).strip().lower() == "rejected"
     )
 
@@ -1531,9 +4907,173 @@ def admin_dashboard():
             rejected_tanker_operators,
 
         stp_registrations=
-            stp_registrations
+            stp_registrations,
+
+        vehicles_by_operator=vehicles_by_operator,
+        documents_by_vehicle=documents_by_vehicle,
     )
 
+@app.route(
+    "/admin/tanker/operator/<operator_id>"
+)
+@login_required(role="admin")
+def admin_tanker_operator_details(operator_id):
+
+    # ==========================================
+    # LOAD OPERATOR
+    # ==========================================
+
+    operator = get_tanker_operator_by_id(
+        operator_id
+    )
+
+    if operator is None:
+        return "Tanker operator not found.", 404
+
+
+    # ==========================================
+    # LOAD THIS OPERATOR'S VEHICLES
+    # ==========================================
+
+    vehicles = []
+
+    ensure_tanker_vehicles_file()
+
+    with open(
+        TANKER_VEHICLES_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            row_operator_id = str(
+                row.get("operator_id") or ""
+            ).strip()
+
+            if row_operator_id == str(
+                operator_id
+            ).strip():
+
+                vehicles.append(row)
+
+
+    # ==========================================
+    # LOAD THIS OPERATOR'S DOCUMENTS
+    # ==========================================
+
+    documents_by_vehicle = {}
+
+    ensure_tanker_vehicle_documents_file()
+
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            row_operator_id = str(
+                row.get("operator_id") or ""
+            ).strip()
+
+            if row_operator_id != str(
+                operator_id
+            ).strip():
+                continue
+
+
+            vehicle_id = str(
+                row.get("vehicle_id") or ""
+            ).strip()
+
+            document_type = str(
+                row.get("document_type") or ""
+            ).strip().lower()
+
+
+            if not vehicle_id or not document_type:
+                continue
+
+
+            documents_by_vehicle.setdefault(
+                vehicle_id,
+                {}
+            )[document_type] = row
+
+
+    # ==========================================
+    # DOCUMENT COUNTS
+    # ==========================================
+
+    total_required_documents = (
+        len(vehicles) * 4
+    )
+
+    uploaded_documents = 0
+    verified_documents = 0
+    pending_documents = 0
+    rejected_documents = 0
+
+
+    for vehicle_documents in (
+        documents_by_vehicle.values()
+    ):
+
+        for document in (
+            vehicle_documents.values()
+        ):
+
+            uploaded_documents += 1
+
+            status = str(
+                document.get(
+                    "verification_status"
+                ) or ""
+            ).strip().lower()
+
+
+            if status == "verified":
+                verified_documents += 1
+
+            elif status == "rejected":
+                rejected_documents += 1
+
+            else:
+                pending_documents += 1
+
+
+    return render_template(
+        "admin_tanker_operator_details.html",
+
+        operator=operator,
+        vehicles=vehicles,
+
+        documents_by_vehicle=
+            documents_by_vehicle,
+
+        total_required_documents=
+            total_required_documents,
+
+        uploaded_documents=
+            uploaded_documents,
+
+        verified_documents=
+            verified_documents,
+
+        pending_documents=
+            pending_documents,
+
+        rejected_documents=
+            rejected_documents
+    )
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
 @login_required(role="admin")
@@ -1600,51 +5140,312 @@ def update_tanker_status(operator_id, status):
 
     return redirect("/admin")
 
-@app.route("/api/stp_orders")
-def api_stp_orders():
-    # Return only orders assigned to the STP operator's selected STP.
-    if session.get("role") != "stp":
-        return jsonify({"error": "Unauthorized"}), 403
+@app.route(
+    "/admin/tanker/document/<document_id>/view"
+)
+@login_required(role="admin")
+def admin_view_tanker_document(document_id):
 
-    requested_stp_id = (request.args.get("stp_id") or "").strip()
+    ensure_tanker_vehicle_documents_file()
 
-    results = []
+    document = None
 
-    if not os.path.exists(ORDERS_FILE):
-        return jsonify(results)
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         reader = csv.DictReader(f)
 
         for row in reader:
-            row_stp_id = (row.get("stp_id") or "").strip()
 
-            if requested_stp_id and row_stp_id != requested_stp_id:
-                continue
+            if (
+                str(
+                    row.get("document_id") or ""
+                ).strip()
+                == str(document_id).strip()
+            ):
 
-            results.append({
-                "order_id": row.get("order_id", ""),
-                "stp_id": row.get("stp_id", ""),
-                "stp_name": row.get("stp_name", ""),
-                "quantity_kld": row.get("quantity_kld", ""),
-                "quality": row.get("quality", ""),
-                "water_type": row.get("water_type", ""),
-                "distance_km": row.get("distance_km", ""),
-                "location": row.get("location", ""),
-                "buyer_name": row.get("buyer_name", ""),
-                "buyer_phone": row.get("buyer_phone", ""),
-                "status": row.get("status", ""),
-                "created_at": row.get("created_at", ""),
-                "payment_status": row.get("payment_status", ""),
-                "accepted_at": row.get("accepted_at", ""),
-                "stp_latitude": row.get("stp_latitude", ""),
-                "stp_longitude": row.get("stp_longitude", ""),
-                "delivery_latitude": row.get("delivery_latitude", ""),
-                "delivery_longitude": row.get("delivery_longitude", "")
+                document = row
+                break
+
+
+    if document is None:
+        return (
+            "Document not found.",
+            404
+        )
+
+
+    stored_filename = str(
+        document.get("stored_filename") or ""
+    ).strip()
+
+
+    if not stored_filename:
+        return (
+            "Document file not found.",
+            404
+        )
+
+
+    # Never trust the CSV file_path directly.
+    # Rebuild the path inside our upload directory.
+
+    safe_name = os.path.basename(
+        stored_filename
+    )
+
+    document_path = os.path.join(
+        TANKER_DOCUMENT_UPLOAD_FOLDER,
+        safe_name
+    )
+
+
+    if not os.path.isfile(document_path):
+        return (
+            "Document file not found.",
+            404
+        )
+
+
+    return send_file(
+        document_path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=
+            document.get(
+                "original_filename"
+            )
+            or "vehicle_document.pdf"
+    )
+
+@app.route(
+    "/admin/tanker/document/<document_id>/review",
+    methods=["POST"]
+)
+@login_required(role="admin")
+def admin_review_tanker_document(
+    document_id
+):
+
+    action = str(
+        request.form.get("action") or ""
+    ).strip().lower()
+
+    admin_remark = str(
+        request.form.get("admin_remark") or ""
+    ).strip()
+
+
+    if action not in {
+        "verified",
+        "rejected"
+    }:
+        return (
+            "Invalid review action.",
+            400
+        )
+
+
+    # Require a reason when rejecting.
+
+    if (
+        action == "rejected"
+        and not admin_remark
+    ):
+        return (
+            "Please provide a reason for rejection.",
+            400
+        )
+
+
+    ensure_tanker_vehicle_documents_file()
+
+
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+
+    document_found = False
+
+
+    for row in rows:
+
+        current_document_id = str(
+            row.get("document_id") or ""
+        ).strip()
+
+
+        if (
+            current_document_id
+            != str(document_id).strip()
+        ):
+            continue
+
+
+        row["verification_status"] = action
+
+        row["admin_remark"] = (
+            admin_remark
+        )
+
+        row["verified_at"] = (
+            datetime.now().isoformat(
+                timespec="seconds"
+            )
+        )
+
+        document_found = True
+
+        break
+
+
+    if not document_found:
+        return (
+            "Document not found.",
+            404
+        )
+
+
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=
+                TANKER_VEHICLE_DOCUMENT_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in rows:
+
+            writer.writerow({
+
+                field:
+                    row.get(field, "")
+
+                for field
+                in TANKER_VEHICLE_DOCUMENT_FIELDS
             })
 
-    results.sort(key=lambda x: x.get("created_at") or "", reverse=True)
-    return jsonify(results)
+
+    operator_id = str(
+        row.get("operator_id") or ""
+    ).strip()
+
+
+    return redirect(
+        url_for(
+            "admin_tanker_operator_details",
+            operator_id=operator_id
+        )
+    )
+
+@app.route("/stp_dashboard")
+def stp_dashboard():
+
+    # Only STP operators can access this
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    # Get the STP assigned to the logged-in operator
+    stp_id = str(
+        session.get("stp_id") or ""
+    ).strip()
+
+    if not stp_id:
+        return redirect(url_for("login"))
+
+    # Redirect to THAT operator's STP dashboard
+    return redirect(
+        url_for(
+            "supply",
+            stp_id=stp_id
+        )
+    )
+
+@app.route("/api/stp_orders")
+def api_stp_orders():
+
+    # Only STP operators can access this API
+    if session.get("role") != "stp":
+        return jsonify([]), 403
+
+    # Get STP ID of the logged-in operator
+    stp_id = str(session.get("stp_id") or "").strip()
+
+    if not stp_id:
+        return jsonify([])
+
+    orders = []
+
+    # Read orders belonging to this STP
+    if os.path.exists(ORDERS_FILE):
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for order in reader:
+
+                order_stp_id = str(
+                    order.get("stp_id") or ""
+                ).strip()
+
+                # Only include orders for the logged-in STP
+                if order_stp_id == stp_id:
+                    orders.append(order)
+
+
+    # ==========================================
+    # SORT BY CREATED DATE AND TIME
+    # NEWEST ORDER FIRST
+    # ==========================================
+
+    def parse_order_date(order):
+
+        created_at = str(
+            order.get("created_at") or ""
+        ).strip()
+
+        # Orders without a date go to the bottom
+        if not created_at:
+            return datetime.min
+
+        try:
+            return datetime.fromisoformat(created_at)
+
+        except (ValueError, TypeError):
+            return datetime.min
+
+
+    # Newest orders appear first
+    orders.sort(
+        key=parse_order_date,
+        reverse=True
+    )
+    return jsonify(orders)
 
 
 @app.route("/api/stp_order_tracking/<order_id>")
@@ -2176,6 +5977,11 @@ def api_search_place():
 def create_order():
     data = request.json or {}
 
+    demand_location = session.get("last_demand_location") or {}
+
+    delivery_latitude = data.get("delivery_latitude")
+    delivery_longitude = data.get("delivery_longitude")
+
     required = ["stp_id", "stp_name", "quantity_kld", "quality", "water_type", "distance_km", "location"]
     missing = [key for key in required if key not in data]
     if missing:
@@ -2192,6 +5998,8 @@ def create_order():
         "water_type": data["water_type"],
         "distance_km": data["distance_km"],
         "location": data["location"],
+        "delivery_latitude": delivery_latitude or "",
+        "delivery_longitude": delivery_longitude or "",
         "buyer_user_id": session.get("user_id") or "",
         "buyer_name": session.get("buyer_name") or session.get("user_name") or "Unknown",
         "buyer_phone": session.get("buyer_phone") or session.get("user_phone") or "N/A",
@@ -2765,47 +6573,22 @@ def order_tracking(order_id):
         }), 404
 
     # -----------------------------------------
-    # GEOCODE DELIVERY LOCATION
+    # USE SAVED DELIVERY COORDINATES
     # -----------------------------------------
 
-    location = str(order.get("location", "")).strip()
+    location = str(
+        order.get("location", "")
+    ).strip()
 
-    delivery_lat = None
-    delivery_lon = None
+    delivery_lat = safe_float(
+        order.get("delivery_latitude"),
+        None
+    )
 
-    if location:
-
-        try:
-            geo_url = (
-                "https://nominatim.openstreetmap.org/search"
-                "?format=json"
-                "&limit=1"
-                "&countrycodes=in"
-                "&q="
-                + requests.utils.quote(
-                    location + ", Bangalore"
-                )
-            )
-
-            response = requests.get(
-                geo_url,
-                headers={
-                    "User-Agent": "wastewater-app"
-                },
-                timeout=10
-            )
-
-            geo_data = response.json()
-
-            if geo_data:
-                delivery_lat = float(geo_data[0]["lat"])
-                delivery_lon = float(geo_data[0]["lon"])
-
-        except Exception as e:
-            print(
-                "Tracking geocoding error:",
-                e
-            )
+    delivery_lon = safe_float(
+        order.get("delivery_longitude"),
+        None
+    )
 
     # -----------------------------------------
     # RETURN COMPLETE TRACKING DATA
@@ -2866,6 +6649,14 @@ def track_order():
     results.sort(key=lambda x: x["order_id"], reverse=True)
     return jsonify(results)
 
+@app.route("/track_stp")
+def track_stp():
+
+    # Only STP operators can access this page
+    if session.get("role") != "stp":
+        return redirect(url_for("login"))
+
+    return render_template("track_stp.html")
 # =========================================================
 # SUPPLY SIDE
 # =========================================================
@@ -2874,35 +6665,183 @@ def track_order():
 @login_required(role="stp")
 def supply():
 
-
     auto_reset_capacity()
 
     stps = load_stps()
     selected_id = request.args.get("stp_id")
+
     selected_stp = None
     prediction = None
     weekly_forecast = None
 
+    # ==========================================
+    # FIND SELECTED STP
+    # ==========================================
     if selected_id:
+
+        selected_id = str(selected_id).strip()
+
         for stp in stps:
-            if str(stp["stp_id"]) == str(selected_id):
+
+            if str(stp.get("stp_id", "")).strip() == selected_id:
+
                 selected_stp = stp
 
                 try:
-                    print("STP ID sent to ML:", stp["stp_id"])
 
-                    prediction = predict_next_day(str(stp["stp_id"]))
-                    weekly_forecast = predict_week(str(stp["stp_id"]))
+                    print("STP ID sent to ML:", selected_stp["stp_id"])
+
+                    prediction = predict_next_day(
+                        str(selected_stp["stp_id"])
+                    )
+
+                    weekly_forecast = predict_week(
+                        str(selected_stp["stp_id"])
+                    )
 
                     if prediction is not None:
                         prediction = round(prediction, 2)
 
                     print("Prediction:", prediction)
+
                 except Exception as e:
+
                     print("Prediction error:", e)
+
                     prediction = None
+                    weekly_forecast = None
+
+                break
+
+
+    # ==========================================
+    # LOAD ORDERS FOR THIS STP
+    # ==========================================
 
     demands = []
+
+    if selected_stp and os.path.exists(ORDERS_FILE):
+
+        selected_stp_id = str(
+            selected_stp.get("stp_id", "")
+        ).strip()
+
+        print("Loading orders for STP:", selected_stp_id)
+
+        try:
+
+            with open(
+                ORDERS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for order in reader:
+
+                    order_stp_id = str(
+                        order.get("stp_id", "")
+                    ).strip()
+
+                    print(
+                        "Checking order:",
+                        order.get("order_id"),
+                        "| Order STP:",
+                        order_stp_id,
+                        "| Selected STP:",
+                        selected_stp_id
+                    )
+
+                    # ==========================================
+                    # ONLY SHOW ORDERS FOR THIS STP
+                    # ==========================================
+
+                    if order_stp_id == selected_stp_id:
+
+                        demands.append({
+                            "request_id": order.get(
+                                "order_id",
+                                ""
+                            ),
+
+                            "site_name": order.get(
+                                "location",
+                                ""
+                            ),
+
+                            "buyer_name": order.get(
+                                "customer_name",
+                                ""
+                            ),
+
+                            "buyer_phone": order.get(
+                                "customer_phone",
+                                ""
+                            ),
+
+                            "quantity": order.get(
+                                "quantity_kld",
+                                ""
+                            ),
+
+                            "quality_required": order.get(
+                                "quality",
+                                ""
+                            ),
+
+                            "status": order.get(
+                                "status",
+                                "Pending"
+                            ),
+
+                            # Keep original order data too
+                            "order_id": order.get(
+                                "order_id",
+                                ""
+                            ),
+
+                            "stp_id": order_stp_id,
+
+                            "stp_name": order.get(
+                                "stp_name",
+                                ""
+                            )
+                        })
+
+
+        except Exception as e:
+
+            print("Error loading orders:", e)
+
+
+    print(
+        f"Found {len(demands)} orders "
+        f"for STP {selected_id}"
+    )
+
+
+    # ==========================================
+    # RENDER PAGE
+    # ==========================================
+
+    return render_template(
+
+        "supply.html",
+
+        stps=stps,
+
+        selected_stp=selected_stp,
+
+        selected_id=selected_id,
+
+        demands=demands,
+
+        prediction=prediction,
+
+        weekly_forecast=weekly_forecast
+    )
 
     # =========================================================
     # STP-TO-STP TRANSFER REQUESTS
@@ -3528,7 +7467,7 @@ def handle_transfer_request():
         return "Transfer request not found", 404
 
     # =========================================================
-    # SAVE UPDATED CSV
+    # SAVE UPDATED TRANSFER
     # =========================================================
 
     with open(
@@ -3544,8 +7483,38 @@ def handle_transfer_request():
         )
 
         writer.writeheader()
-        writer.writerows(updated_rows)
 
+        for row in updated_rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in STP_TRANSFER_FIELDS
+            })
+
+
+    # =========================================================
+    # START TANKER OFFER CYCLE
+    # =========================================================
+
+    if action == "accept":
+
+        offer_result = (
+            offer_next_operator_for_transfer(
+                transfer_id
+            )
+        )
+
+        print(
+            "TRANSFER OFFER RESULT:",
+            offer_result
+        )
+
+
+    return redirect(
+        request.referrer
+        or url_for("supply")
+    )
+        
 import os
 # =========================================================
 # WASTEWATER CHATBOT API
@@ -5006,8 +8975,6 @@ def upload_quality():
 @login_required(role="stp")
 def handle_request():
 
-
-
     auto_reset_capacity()
 
 
@@ -5126,14 +9093,56 @@ def handle_request():
     if stp_id_redirect is None:
         return "Order not found", 404
 
-    # Keep every existing order column and the new capacity timeline fields.
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
-        writer.writeheader()
-        for row in updated_rows:
-            writer.writerow({field: row.get(field, "") for field in ORDER_FIELDS})
+    # =========================================================
+    # SAVE UPDATED ORDER
+    # =========================================================
 
-    return redirect(url_for("supply", stp_id=stp_id_redirect))
+    with open(
+        ORDERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=ORDER_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in updated_rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in ORDER_FIELDS
+            })
+
+
+    # =========================================================
+    # START TANKER OFFER CYCLE
+    # =========================================================
+
+    if action == "accept":
+
+        offer_result = (
+            offer_next_operator_for_order(
+                order_id
+            )
+        )
+
+        print(
+            "NORMAL ORDER OFFER RESULT:",
+            offer_result
+        )
+
+
+    return redirect(
+        url_for(
+            "supply",
+            stp_id=stp_id_redirect
+        )
+    )
 
 @app.route("/update_order_status", methods=["POST"])
 @login_required(role="stp")
@@ -5225,21 +9234,229 @@ def update_order_status():
 @app.route("/trip_history")
 @login_required(role="tanker")
 def trip_history():
+
     auto_reset_capacity()
+
+    # =========================================================
+    # CURRENT LOGGED-IN TANKER OPERATOR
+    # =========================================================
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        session.clear()
+        return redirect(url_for("login"))
+
+    operator = get_tanker_operator_by_id(
+        current_operator_id
+    )
+
+    if operator is None:
+        session.clear()
+
+        return render_template(
+            "login.html",
+            login_error=(
+                "Your tanker operator registration "
+                "could not be found."
+            )
+        )
 
     trip_history = []
 
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    # =========================================================
+    # NORMAL DEMAND TRIPS
+    # =========================================================
+
+    if (
+        os.path.exists(ORDERS_FILE)
+        and os.path.getsize(ORDERS_FILE) > 0
+    ):
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
             reader = csv.DictReader(f)
 
             for row in reader:
-                status = (row.get("status") or "").strip()
 
-                if status in {"Accepted", "Out for Delivery", "Delivered"}:
-                    trip_history.append(row)
+                assigned_operator_id = str(
+                    row.get("assigned_operator_id") or ""
+                ).strip()
 
-    return render_template("trip_history.html", trip_history=trip_history)
+                # Only this operator's assigned trips
+                if assigned_operator_id != current_operator_id:
+                    continue
+
+                status = str(
+                    row.get("status") or ""
+                ).strip()
+
+                # Only actual assigned / historical trips
+                if status not in {
+                    "Accepted",
+                    "Out for Delivery",
+                    "Delivered"
+                }:
+                    continue
+
+                # ---------------------------------------------
+                # Normalize fields for trip_history.html
+                # ---------------------------------------------
+
+                row["request_type"] = "demand"
+
+                row["trip_id"] = row.get("order_id", "")
+
+                row["trip_type"] = "Demand Order"
+
+                row["pickup_name"] = (
+                    row.get("stp_name")
+                    or row.get("stp_id")
+                    or "STP"
+                )
+
+                row["destination_name"] = (
+                    row.get("location")
+                    or "Delivery Location"
+                )
+
+                row["trip_status"] = status
+
+                row["trip_created_at"] = (
+                    row.get("assigned_at")
+                    or row.get("accepted_at")
+                    or row.get("created_at")
+                    or ""
+                )
+
+                row["trip_distance_km"] = (
+                    row.get("distance_km")
+                    or ""
+                )
+
+                trip_history.append(row)
+
+    # =========================================================
+    # STP → STP TRANSFER TRIPS
+    # =========================================================
+
+    if (
+        os.path.exists(STP_TRANSFERS_FILE)
+        and os.path.getsize(STP_TRANSFERS_FILE) > 0
+    ):
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                assigned_operator_id = str(
+                    row.get("assigned_operator_id") or ""
+                ).strip()
+
+                # Only this operator's assigned transfers
+                if assigned_operator_id != current_operator_id:
+                    continue
+
+                status = str(
+                    row.get("status") or ""
+                ).strip()
+
+                tanker_status = str(
+                    row.get("tanker_status") or ""
+                ).strip()
+
+                # ---------------------------------------------
+                # Determine display status
+                # ---------------------------------------------
+
+                if (
+                    status.lower() == "delivered"
+                    or tanker_status.lower() == "delivered"
+                    or row.get("delivered_at")
+                ):
+                    trip_status = "Delivered"
+
+                elif (
+                    status.lower() == "out for delivery"
+                    or tanker_status.lower() == "out for delivery"
+                ):
+                    trip_status = "Out for Delivery"
+
+                else:
+                    trip_status = "Accepted"
+
+                # ---------------------------------------------
+                # Normalize fields for trip_history.html
+                # ---------------------------------------------
+
+                row["request_type"] = "stp_transfer"
+
+                row["trip_id"] = (
+                    row.get("transfer_id")
+                    or ""
+                )
+
+                row["trip_type"] = "STP Transfer"
+
+                row["pickup_name"] = (
+                    row.get("source_stp_name")
+                    or row.get("source_stp_id")
+                    or "Source STP"
+                )
+
+                row["destination_name"] = (
+                    row.get("destination_stp_name")
+                    or row.get("destination_stp_id")
+                    or "Destination STP"
+                )
+
+                row["trip_status"] = trip_status
+
+                row["trip_created_at"] = (
+                    row.get("assigned_at")
+                    or row.get("accepted_at")
+                    or row.get("requested_at")
+                    or ""
+                )
+
+                row["trip_distance_km"] = (
+                    row.get("distance_km")
+                    or ""
+                )
+
+                trip_history.append(row)
+
+    # =========================================================
+    # NEWEST TRIPS FIRST
+    # =========================================================
+
+    trip_history.sort(
+        key=lambda trip: str(
+            trip.get("trip_created_at") or ""
+        ),
+        reverse=True
+    )
+
+    return render_template(
+        "trip_history.html",
+        trip_history=trip_history,
+        operator=operator,
+        current_operator_id=current_operator_id
+    )
   
 TANKER_CAPACITY_KLD = 12
 AVAILABLE_TANKERS = 5
@@ -5250,6 +9467,52 @@ AVAILABLE_TANKERS = 5
 def tanker_dashboard():
 
     auto_reset_capacity()
+
+    # =========================================================
+    # CURRENT LOGGED-IN TANKER OPERATOR
+    # =========================================================
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        session.clear()
+        return redirect(url_for("login"))
+
+    operator = get_tanker_operator_by_id(
+        current_operator_id
+    )
+
+    if operator is None:
+        session.clear()
+
+        return render_template(
+            "login.html",
+            login_error="Your tanker operator registration could not be found."
+        )
+
+    # =========================================================
+    # OPERATOR-SPECIFIC DASHBOARD DATA
+    # =========================================================
+
+    operational_tankers = safe_int(
+        operator.get("operational_tankers"),
+        0
+    )
+
+    active_tankers = get_active_tanker_count(
+        current_operator_id
+    )
+
+    available_tankers = max(
+        operational_tankers - active_tankers,
+        0
+    )
+
+    operator_type = str(
+        operator.get("operator_type") or ""
+    ).strip().lower()
 
     orders = []
 
@@ -5270,32 +9533,74 @@ def tanker_dashboard():
 
             for row in reader:
 
-                if row.get("status") == "Accepted":
+                status = str(
+                    row.get("status") or ""
+                ).strip()
 
-                    stps = load_stps()
+                offered_operator_id = str(
+                    row.get("offered_operator_id") or ""
+                ).strip()
 
-                    stp_lat = None
-                    stp_lon = None
+                assigned_operator_id = str(
+                    row.get("assigned_operator_id") or ""
+                ).strip()
 
-                    for stp in stps:
+                # ---------------------------------------------------------
+                # ONLY SHOW THIS ORDER TO THE CORRECT OPERATOR
+                # ---------------------------------------------------------
 
-                        if (
-                            str(stp["stp_id"])
-                            == str(row["stp_id"])
-                        ):
+                is_current_offer = (
+                    status == "Accepted"
+                    and offered_operator_id == current_operator_id
+                )
 
-                            stp_lat = stp.get("latitude")
-                            stp_lon = stp.get("longitude")
+                is_current_assignment = (
+                    status in {"Accepted", "Out for Delivery"}
+                    and assigned_operator_id == current_operator_id
+                )
 
-                            break
+                if not (
+                    is_current_offer
+                    or is_current_assignment
+                ):
+                    continue
 
-                    row["stp_lat"] = stp_lat
-                    row["stp_lon"] = stp_lon
+                stps = load_stps()
 
-                    # Mark this as a normal demand order
-                    row["request_type"] = "demand"
+                stp_lat = None
+                stp_lon = None
 
-                    orders.append(row)
+                for stp in stps:
+
+                    if (
+                        str(stp["stp_id"])
+                        == str(row["stp_id"])
+                    ):
+
+                        stp_lat = stp.get("latitude")
+                        stp_lon = stp.get("longitude")
+
+                        break
+
+                row["stp_lat"] = stp_lat
+                row["stp_lon"] = stp_lon
+                try:
+                    row["delivery_lat"] = float(
+                        row.get("delivery_latitude") or 0
+                    )
+
+                    row["delivery_lon"] = float(
+                        row.get("delivery_longitude") or 0
+                    )
+
+                except (TypeError, ValueError):
+
+                    row["delivery_lat"] = 0
+                    row["delivery_lon"] = 0
+
+                row["request_type"] = "demand"
+
+                orders.append(row)
 
 
     # =========================================================
@@ -5315,28 +9620,76 @@ def tanker_dashboard():
 
             for row in reader:
 
+                offered_operator_id = str(
+                    row.get("offered_operator_id") or ""
+                ).strip()
+
+                assigned_operator_id = str(
+                    row.get("assigned_operator_id") or ""
+                ).strip()
+
+                status = str(
+                    row.get("status") or ""
+                ).strip()
+
+                is_current_offer = (
+                    status == "Accepted"
+                    and offered_operator_id == current_operator_id
+                )
+
+                is_current_assignment = (
+                    status in {"Accepted", "Out for Delivery"}
+                    and assigned_operator_id == current_operator_id
+                )
+
+                if not (
+                    is_current_offer
+                    or is_current_assignment
+                ):
+                    continue
+
                 if (
                     row.get("status", "").strip()
                     in {"Accepted", "Out for Delivery"}
                     and
                     row.get("tanker_status", "").strip()
-                    in {"Pending Assignment", "Out for Delivery"}
+                    in {
+                        "Pending Assignment",
+                        "Offer Sent",
+                        "Out for Delivery"
+                    }
                 ):
 
                     stps = load_stps()
 
                     source_stp = None
+                    destination_stp = None
+
+                    source_stp_id = str(
+                        row.get("source_stp_id") or ""
+                    ).strip()
+
+                    destination_stp_id = str(
+                        row.get("destination_stp_id") or ""
+                    ).strip()
+
 
                     for stp in stps:
 
-                        if (
-                            str(stp["stp_id"])
-                            == str(row["source_stp_id"])
-                        ):
+                        stp_id = str(
+                            stp.get("stp_id") or ""
+                        ).strip()
 
+                        if stp_id == source_stp_id:
                             source_stp = stp
-                            break
 
+                        if stp_id == destination_stp_id:
+                            destination_stp = stp
+
+
+                    # =========================================================
+                    # PICKUP / SOURCE STP COORDINATES
+                    # =========================================================
 
                     if source_stp:
 
@@ -5354,6 +9707,26 @@ def tanker_dashboard():
                         row["stp_lon"] = None
 
 
+                    # =========================================================
+                    # DELIVERY / DESTINATION STP COORDINATES
+                    # =========================================================
+
+                    if destination_stp:
+
+                        row["delivery_lat"] = destination_stp.get(
+                            "latitude"
+                        )
+
+                        row["delivery_lon"] = destination_stp.get(
+                            "longitude"
+                        )
+
+                    else:
+
+                        row["delivery_lat"] = None
+                        row["delivery_lon"] = None
+
+
                     # Tell tanker.html what this is
                     row["request_type"] = "stp_transfer"
 
@@ -5369,66 +9742,1430 @@ def tanker_dashboard():
 
     return render_template(
         "tanker.html",
-        orders=orders
+
+        orders=orders,
+
+        operator=operator,
+
+        operator_id=current_operator_id,
+
+        operator_type=operator_type,
+
+        operational_tankers=operational_tankers,
+
+        active_tankers=active_tankers,
+
+        available_tankers=available_tankers
     )
+
+@app.route("/tanker/reports")
+@login_required(role="tanker")
+def tanker_reports():
+
+    current_operator_id = str(
+@app.route("/tanker/reports")
+@login_required(role="tanker")
+def tanker_reports():
+
+    # ==========================================
+    # CURRENT LOGGED-IN OPERATOR
+    # ==========================================
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        return redirect(url_for("login"))
+
+
+    operator = get_tanker_operator_by_id(
+        current_operator_id
+    )
+
+    if operator is None:
+        return redirect(
+            url_for("tanker_dashboard")
+        )
+
+
+    # ==========================================
+    # FLEET STATISTICS
+    # ==========================================
+
+    operational_tankers = safe_int(
+        operator.get("operational_tankers"),
+        0
+    )
+
+    active_tankers = get_active_tanker_count(
+        current_operator_id
+    )
+
+    available_tankers = max(
+        operational_tankers
+        - active_tankers,
+        0
+    )
+
+
+    operator_type = str(
+        operator.get("operator_type") or ""
+    ).strip().lower()
+
+
+    # ==========================================
+    # LOAD ONLY THIS OPERATOR'S VEHICLES
+    # ==========================================
+
+    vehicles = []
+
+    ensure_tanker_vehicles_file()
+
+
+    if (
+        os.path.exists(TANKER_VEHICLES_FILE)
+        and
+        os.path.getsize(TANKER_VEHICLES_FILE) > 0
+    ):
+
+        with open(
+            TANKER_VEHICLES_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                vehicle_operator_id = str(
+                    row.get("operator_id") or ""
+                ).strip()
+
+                if (
+                    vehicle_operator_id
+                    != current_operator_id
+                ):
+                    continue
+
+                vehicles.append(row)
+
+    # ==========================================
+    # LOAD VEHICLE DOCUMENTS
+    # ==========================================
+
+    vehicle_documents = {}
+
+
+    ensure_tanker_vehicle_documents_file()
+
+
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            if (
+                str(
+                    row.get("operator_id") or ""
+                ).strip()
+                != current_operator_id
+            ):
+                continue
+
+
+            vehicle_id = str(
+                row.get("vehicle_id") or ""
+            ).strip()
+
+
+            document_type = str(
+                row.get("document_type") or ""
+            ).strip().lower()
+
+
+            if vehicle_id not in vehicle_documents:
+                vehicle_documents[vehicle_id] = {}
+
+
+            vehicle_documents[
+                vehicle_id
+            ][
+                document_type
+            ] = row
+
+
+    # ==========================================
+    # REPORTS PAGE
+    # ==========================================
+
+    return render_template(
+        "tanker_reports.html",
+
+        operator=operator,
+        operator_id=current_operator_id,
+        operator_type=operator_type,
+
+        operational_tankers=operational_tankers,
+        active_tankers=active_tankers,
+        available_tankers=available_tankers,
+
+        vehicles=vehicles,
+        vehicle_documents=vehicle_documents
+    )
+
+@app.route(
+    "/tanker/vehicle/<vehicle_id>/document/<document_type>/upload",
+    methods=["POST"]
+)
+@login_required(role="tanker")
+def upload_tanker_vehicle_document(
+    vehicle_id,
+    document_type
+):
+
+    # ==========================================
+    # LOGGED-IN OPERATOR
+    # ==========================================
+
+    operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not operator_id:
+        return redirect(url_for("login"))
+
+
+    # ==========================================
+    # VALID DOCUMENT TYPE
+    # ==========================================
+
+    document_type = str(
+        document_type or ""
+    ).strip().lower()
+
+
+    if (
+        document_type
+        not in ALLOWED_TANKER_DOCUMENT_TYPES
+    ):
+        return (
+            "Invalid document type.",
+            400
+        )
+
+
+    # ==========================================
+    # VEHICLE MUST BELONG TO THIS OPERATOR
+    # ==========================================
+
+    vehicle = get_operator_vehicle(
+        operator_id,
+        vehicle_id
+    )
+
+
+    if vehicle is None:
+        return (
+            "Vehicle not found or access denied.",
+            403
+        )
+
+
+    # ==========================================
+    # GET UPLOADED FILE
+    # ==========================================
+
+    uploaded_file = request.files.get(
+        "document"
+    )
+
+
+    if (
+        uploaded_file is None
+        or not uploaded_file.filename
+    ):
+        return (
+            "Please select a PDF document.",
+            400
+        )
+
+
+    # ==========================================
+    # PDF ONLY
+    # ==========================================
+
+    original_filename = secure_filename(
+        uploaded_file.filename
+    )
+
+
+    extension = os.path.splitext(
+        original_filename
+    )[1].lower()
+
+
+    if extension != ".pdf":
+        return (
+            "Only PDF documents are allowed.",
+            400
+        )
+
+
+    # ==========================================
+    # MAXIMUM FILE SIZE: 5 MB
+    # ==========================================
+
+    uploaded_file.seek(
+        0,
+        os.SEEK_END
+    )
+
+    file_size = uploaded_file.tell()
+
+    uploaded_file.seek(0)
+
+
+    if file_size > 5 * 1024 * 1024:
+        return (
+            "PDF must be 5 MB or smaller.",
+            400
+        )
+
+
+    # ==========================================
+    # UNIQUE STORED FILENAME
+    # ==========================================
+
+    document_id = (
+        "DOC-"
+        + uuid.uuid4().hex[:12].upper()
+    )
+
+
+    stored_filename = (
+        f"{operator_id}_"
+        f"{vehicle_id}_"
+        f"{document_type}_"
+        f"{uuid.uuid4().hex[:8]}.pdf"
+    )
+
+
+    stored_filename = secure_filename(
+        stored_filename
+    )
+
+
+    stored_path = os.path.join(
+        TANKER_DOCUMENT_UPLOAD_FOLDER,
+        stored_filename
+    )
+
+
+    # ==========================================
+    # SAVE PDF
+    # ==========================================
+
+    uploaded_file.save(
+        stored_path
+    )
+
+
+    # ==========================================
+    # SAVE DATABASE RECORD
+    # ==========================================
+
+    ensure_tanker_vehicle_documents_file()
+
+
+    new_document = {
+
+        "document_id":
+            document_id,
+
+        "operator_id":
+            operator_id,
+
+        "vehicle_id":
+            vehicle_id,
+
+        "registration_number":
+            vehicle.get(
+                "registration_number",
+                ""
+            ),
+
+        "document_type":
+            document_type,
+
+        "original_filename":
+            original_filename,
+
+        "stored_filename":
+            stored_filename,
+
+        "file_path":
+            stored_path,
+
+        "uploaded_at":
+            datetime.now().isoformat(
+                timespec="seconds"
+            ),
+
+        "verification_status":
+            "pending",
+
+        "admin_remark":
+            "",
+
+        "verified_at":
+            ""
+    }
+
+
+    # ==========================================
+    # REPLACE EXISTING DOCUMENT OF SAME TYPE
+    # ==========================================
+
+    existing_rows = []
+
+    if os.path.exists(
+        TANKER_VEHICLE_DOCUMENTS_FILE
+    ):
+
+        with open(
+            TANKER_VEHICLE_DOCUMENTS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                same_document = (
+                    str(
+                        row.get("operator_id") or ""
+                    ).strip()
+                    == operator_id
+                    and
+                    str(
+                        row.get("vehicle_id") or ""
+                    ).strip()
+                    == vehicle_id
+                    and
+                    str(
+                        row.get("document_type") or ""
+                    ).strip().lower()
+                    == document_type
+                )
+
+
+                if not same_document:
+                    existing_rows.append(row)
+
+
+    existing_rows.append(
+        new_document
+    )
+
+
+    with open(
+        TANKER_VEHICLE_DOCUMENTS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=
+                TANKER_VEHICLE_DOCUMENT_FIELDS
+        )
+
+        writer.writeheader()
+
+
+        for row in existing_rows:
+
+            writer.writerow({
+
+                field:
+                    row.get(field, "")
+
+                for field
+                in TANKER_VEHICLE_DOCUMENT_FIELDS
+
+            })
+
+
+    return redirect(
+        url_for("tanker_reports")
+    )
+
+@app.route("/api/tanker_notifications")
+@login_required(role="tanker")
+def tanker_notifications():
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        return jsonify({
+            "count": 0,
+            "notifications": []
+        })
+
+    notifications = []
+
+    # =========================================================
+    # NORMAL DEMAND ORDERS
+    # =========================================================
+
+    if os.path.exists(ORDERS_FILE):
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                status = str(
+                    row.get("status") or ""
+                ).strip()
+
+                offer_status = str(
+                    row.get("offer_status") or ""
+                ).strip().lower()
+
+                offered_operator_id = str(
+                    row.get("offered_operator_id") or ""
+                ).strip()
+
+                if (
+                    status == "Accepted"
+                    and offer_status == "offered"
+                    and offered_operator_id == current_operator_id
+                ):
+
+                    notifications.append({
+                        "type": "demand",
+                        "order_id": row.get("order_id"),
+                        "stp_name": row.get("stp_name"),
+                        "quantity_kld": row.get("quantity_kld")
+                    })
+
+    # =========================================================
+    # STP TRANSFER OFFERS
+    # =========================================================
+
+    if os.path.exists(STP_TRANSFERS_FILE):
+
+        with open(
+            STP_TRANSFERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+
+            for row in reader:
+
+                status = str(
+                    row.get("status") or ""
+                ).strip()
+
+                offer_status = str(
+                    row.get("offer_status") or ""
+                ).strip().lower()
+
+                offered_operator_id = str(
+                    row.get("offered_operator_id") or ""
+                ).strip()
+
+                if (
+                    status == "Accepted"
+                    and offer_status == "offered"
+                    and offered_operator_id == current_operator_id
+                ):
+
+                    notifications.append({
+                        "type": "stp_transfer",
+                        "order_id": row.get("transfer_id"),
+                        "stp_name": row.get("source_stp_name"),
+                        "quantity_kld": row.get("quantity_kld")
+                    })
+
+    return jsonify({
+        "count": len(notifications),
+        "notifications": notifications
+    })
+
+# =========================================================
+# TANKER LIVE GPS TRACKING (browser -> Flask -> Supabase)
+# =========================================================
+
+TANKER_LOCATIONS_TABLE = "tanker_locations"
+
+
+@app.route("/api/tanker/location", methods=["POST"])
+@login_required(role="tanker")
+def update_tanker_location():
+    """Receive a GPS ping from the tanker operator's browser (sent every
+    ~10s while a trip is active) and store the tanker's latest known
+    location in Supabase. Uses the existing session-based tanker
+    identity -- no separate auth mechanism is created."""
+
+    data = request.get_json(silent=True) or {}
+
+    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
+    user_id = str(session.get("user_id") or "").strip()
+
+    if not tanker_operator_id:
+        return jsonify({
+            "success": False,
+            "error": "No tanker operator is linked to this account."
+        }), 400
+
+    try:
+        latitude = float(data.get("latitude"))
+        longitude = float(data.get("longitude"))
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "error": "latitude and longitude are required."
+        }), 400
+
+    def to_float_or_none(value):
+        try:
+            if value in (None, ""):
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    accuracy = to_float_or_none(data.get("accuracy"))
+    speed = to_float_or_none(data.get("speed"))
+    heading = to_float_or_none(data.get("heading"))
+
+    # Timestamp sent by the browser (ms since epoch); fall back to server time.
+    client_timestamp = to_float_or_none(data.get("timestamp"))
+
+    if client_timestamp:
+        recorded_at = (
+            datetime.utcfromtimestamp(client_timestamp / 1000).isoformat()
+            + "Z"
+        )
+    else:
+        recorded_at = datetime.utcnow().isoformat() + "Z"
+
+    payload = {
+        "tanker_operator_id": tanker_operator_id,
+        "user_id": user_id,
+        "tanker_operator_name": str(
+            session.get("tanker_operator_name") or ""
+        ),
+        "latitude": latitude,
+        "longitude": longitude,
+        "accuracy": accuracy,
+        "speed": speed,
+        "heading": heading,
+        "recorded_at": recorded_at,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+    try:
+        supabase.table(TANKER_LOCATIONS_TABLE).upsert(
+            payload,
+            on_conflict="tanker_operator_id"
+        ).execute()
+    except Exception as e:
+        print("Supabase tanker location upsert error:", e)
+        return jsonify({
+            "success": False,
+            "error": "Unable to save location right now."
+        }), 500
+
+    return jsonify({"success": True})
 
 @app.route("/accept_pickup", methods=["POST"])
 @login_required(role="tanker")
 def accept_pickup():
 
-    order_id = request.form.get("order_id")
+    with orders_lock:
+
+        return _accept_pickup_locked()
+
+
+def _accept_pickup_locked():
+
+    order_id = str(
+        request.form.get("order_id") or ""
+    ).strip()
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
 
     if not order_id:
-        return "No Order ID received"
+        return "Order ID is required", 400
+
+    if not current_operator_id:
+        return "Tanker operator identity missing", 403
+
+
+    operator = get_tanker_operator_by_id(
+        current_operator_id
+    )
+
+    if operator is None:
+        return "Tanker operator registration not found", 403
+
 
     updated_rows = []
-    tanker_info = None
-    stp_id_redirect = None
 
-    with open(ORDERS_FILE, "r", newline="") as f:
+    target_order = None
+
+    accept_error = None
+
+
+    # =========================================================
+    # READ ORDERS
+    # =========================================================
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
 
         for row in reader:
 
-            # Strip spaces to avoid mismatch
-            if row["order_id"].strip() == order_id.strip():
-                stp_id_redirect = row["stp_id"]
+            if (
+                str(
+                    row.get("order_id") or ""
+                ).strip()
+                == order_id
+            ):
 
-                quantity = float(row["quantity_kld"])
+                target_order = row
 
-                tankers_required = math.ceil(quantity / TANKER_CAPACITY_KLD)
+                offered_operator_id = str(
+                    row.get(
+                        "offered_operator_id"
+                    )
+                    or ""
+                ).strip()
 
-                tanker_info = {
-                    "order_id": row["order_id"],
-                    "quantity": quantity,
-                    "tankers_required": tankers_required,
-                    "available_tankers": AVAILABLE_TANKERS,
-                    "sufficient": tankers_required <= AVAILABLE_TANKERS,
-                    "buyer_name": row.get("buyer_name"),
-                    "buyer_phone": row.get("buyer_phone"),
-                }
+                assigned_operator_id = str(
+                    row.get(
+                        "assigned_operator_id"
+                    )
+                    or ""
+                ).strip()
 
-                row["status"] = "Out for Delivery"
+                offer_status = str(
+                    row.get(
+                        "offer_status"
+                    )
+                    or ""
+                ).strip().lower()
+
+
+                # -------------------------------------------------
+                # ALREADY ASSIGNED
+                # -------------------------------------------------
+
+                if assigned_operator_id:
+
+                    accept_error = (
+                        "This order has already been assigned."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # -------------------------------------------------
+                # WRONG OPERATOR
+                # -------------------------------------------------
+
+                if (
+                    offered_operator_id
+                    != current_operator_id
+                ):
+
+                    accept_error = (
+                        "This offer is not assigned to your account."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # -------------------------------------------------
+                # OFFER NO LONGER ACTIVE
+                # -------------------------------------------------
+
+                if offer_status != "offered":
+
+                    accept_error = (
+                        "This offer is no longer available."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+                                # -------------------------------------------------
+                # OFFER TIME EXPIRED
+                # -------------------------------------------------
+
+                if has_datetime_expired(
+                    row.get("offer_expires_at")
+                ):
+
+                    accept_error = (
+                        "This tanker offer has expired."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # -------------------------------------------------
+                # 30-MINUTE REQUEST DEADLINE EXPIRED
+                # -------------------------------------------------
+
+                if has_request_expired(
+                    row.get("created_at")
+                ):
+
+                    accept_error = (
+                        "This demand order has expired."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # =================================================
+                # ACCEPT OFFER
+                # =================================================
+
+                row[
+                    "assigned_operator_id"
+                ] = current_operator_id
+
+                row[
+                    "assigned_operator_name"
+                ] = str(
+                    operator.get(
+                        "operator_name"
+                    )
+                    or ""
+                ).strip()
+
+                row[
+                    "assigned_at"
+                ] = datetime.now().isoformat()
+
+                row["offer_status"] = "Accepted"
+                row["status"] = "Accepted"
+
 
             updated_rows.append(row)
 
-    if tanker_info is None:
-        return f"Order {order_id} not found in CSV"
 
-    with open(ORDERS_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    # =========================================================
+    # ORDER NOT FOUND
+    # =========================================================
+
+    if target_order is None:
+
+        return (
+            f"Order {order_id} not found",
+            404
+        )
+
+
+    # =========================================================
+    # INVALID ACCEPT
+    # =========================================================
+
+    if accept_error:
+
+        return accept_error, 409
+
+
+    # =========================================================
+    # SAVE
+    # =========================================================
+
+    with open(
+        ORDERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=ORDER_FIELDS
+        )
+
         writer.writeheader()
-        writer.writerows(updated_rows)
-    
-    
-    return render_template(
-    "tanker_summary.html",
-    info=tanker_info,
-    stp_id=stp_id_redirect
-)
 
-import os
+        for row in updated_rows:
+
+            writer.writerow({
+                field:
+                    row.get(field, "")
+
+                for field
+                in ORDER_FIELDS
+            })
+
+
+    # =========================================================
+    # SUMMARY
+    # =========================================================
+
+    quantity = safe_float(
+        target_order.get(
+            "quantity_kld"
+        ),
+        0
+    )
+
+    tankers_required = safe_int(
+        target_order.get(
+            "tankers_required"
+        ),
+        1
+    )
+
+    tanker_info = {
+
+        "order_id":
+            target_order.get(
+                "order_id"
+            ),
+
+        "quantity":
+            quantity,
+
+        "tankers_required":
+            tankers_required,
+
+        "available_tankers":
+            get_operator_available_tankers(
+                operator
+            ),
+
+        "sufficient":
+            True,
+
+        "buyer_name":
+            target_order.get(
+                "buyer_name"
+            ),
+
+        "buyer_phone":
+            target_order.get(
+                "buyer_phone"
+            )
+    }
+
+
+    return render_template(
+        "tanker_summary.html",
+        info=tanker_info,
+        stp_id=target_order.get(
+            "stp_id"
+        )
+    )
+
+@app.route("/reject_pickup", methods=["POST"])
+@login_required(role="tanker")
+def reject_pickup():
+
+    with orders_lock:
+
+        return _reject_pickup_locked()
+
+
+def _reject_pickup_locked():
+
+    order_id = str(
+        request.form.get("order_id") or ""
+    ).strip()
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not order_id:
+        return "Order ID is required", 400
+
+    if not current_operator_id:
+        return "Tanker operator identity missing", 403
+
+
+    updated_rows = []
+
+    target_order = None
+
+    reject_error = None
+
+
+    # =========================================================
+    # READ ORDER
+    # =========================================================
+
+    with open(
+        ORDERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            if (
+                str(
+                    row.get("order_id") or ""
+                ).strip()
+                == order_id
+            ):
+
+                target_order = row
+
+
+                offered_operator_id = str(
+                    row.get(
+                        "offered_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+
+                assigned_operator_id = str(
+                    row.get(
+                        "assigned_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+
+                offer_status = str(
+                    row.get(
+                        "offer_status"
+                    )
+                    or ""
+                ).strip().lower()
+
+
+                # =================================================
+                # ALREADY ASSIGNED
+                # =================================================
+
+                if assigned_operator_id:
+
+                    reject_error = (
+                        "This order has already been assigned."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # =================================================
+                # WRONG OPERATOR
+                # =================================================
+
+                if (
+                    offered_operator_id
+                    != current_operator_id
+                ):
+
+                    reject_error = (
+                        "This offer does not belong to your account."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # =================================================
+                # OFFER NOT ACTIVE
+                # =================================================
+
+                if offer_status != "offered":
+
+                    reject_error = (
+                        "This offer is no longer active."
+                    )
+
+                    updated_rows.append(row)
+
+                    continue
+
+
+                # =================================================
+                # RECORD REJECTION
+                # =================================================
+
+                attempted_operator_ids = (
+                    parse_attempted_operator_ids(
+                        row.get(
+                            "attempted_operator_ids"
+                        )
+                    )
+                )
+
+
+                if (
+                    current_operator_id
+                    not in attempted_operator_ids
+                ):
+
+                    attempted_operator_ids.append(
+                        current_operator_id
+                    )
+
+
+                row[
+                    "attempted_operator_ids"
+                ] = save_attempted_operator_ids(
+                    attempted_operator_ids
+                )
+
+
+                # Clear current offer before assigning next one
+
+                row[
+                    "offered_operator_id"
+                ] = ""
+
+                row[
+                    "offer_status"
+                ] = "Rejected"
+
+                row[
+                    "offer_sent_at"
+                ] = ""
+
+                row[
+                    "offer_expires_at"
+                ] = ""
+
+                row[
+                    "operator_distance_km"
+                ] = ""
+
+
+            updated_rows.append(row)
+
+
+    # =========================================================
+    # ORDER NOT FOUND
+    # =========================================================
+
+    if target_order is None:
+
+        return (
+            f"Order {order_id} not found",
+            404
+        )
+
+
+    # =========================================================
+    # INVALID REJECTION
+    # =========================================================
+
+    if reject_error:
+
+        return reject_error, 409
+
+
+    # =========================================================
+    # SAVE REJECTION FIRST
+    # =========================================================
+
+    with open(
+        ORDERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=ORDER_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in updated_rows:
+
+            writer.writerow({
+                field:
+                    row.get(field, "")
+
+                for field
+                in ORDER_FIELDS
+            })
+
+
+    # =========================================================
+    # OFFER TO NEXT NEAREST OPERATOR
+    # =========================================================
+
+    next_offer = (
+        offer_next_operator_for_order(
+            order_id
+        )
+    )
+
+
+    print(
+        "ORDER REJECTED:",
+        order_id,
+        "BY:",
+        current_operator_id
+    )
+
+    print(
+        "NEXT OFFER RESULT:",
+        next_offer
+    )
+
+
+    return redirect(
+        url_for("tanker_dashboard")
+    )
+
+@app.route(
+    "/tanker/order/<order_id>/pickup",
+    methods=["POST"]
+)
+@login_required(role="tanker")
+def tanker_mark_order_picked_up(order_id):
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        return redirect(url_for("login"))
+
+    ensure_orders_schema()
+
+    with orders_lock:
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        found = False
+
+        for row in rows:
+
+            if str(
+                row.get("order_id") or ""
+            ).strip() != str(order_id).strip():
+                continue
+
+            found = True
+
+            assigned_operator_id = str(
+                row.get("assigned_operator_id") or ""
+            ).strip()
+
+            if assigned_operator_id != current_operator_id:
+                return (
+                    "This order is not assigned to you.",
+                    403
+                )
+
+            status = str(
+                row.get("status") or ""
+            ).strip().lower()
+
+            if status != "accepted":
+                return (
+                    "This order cannot be marked as picked up.",
+                    400
+                )
+
+            row["status"] = "Out for Delivery"
+
+            row["pickup_at"] = (
+                datetime.now().isoformat(
+                    timespec="seconds"
+                )
+            )
+
+            break
+
+        if not found:
+            return "Order not found.", 404
+
+        with open(
+            ORDERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=ORDER_FIELDS
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+
+                writer.writerow({
+                    field: row.get(field, "")
+                    for field in ORDER_FIELDS
+                })
+
+    return redirect(
+        url_for("tanker_dashboard")
+    )
+
+@app.route(
+    "/tanker/order/<order_id>/delivered",
+    methods=["POST"]
+)
+@login_required(role="tanker")
+def tanker_mark_order_delivered(order_id):
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id:
+        return redirect(url_for("login"))
+
+    ensure_orders_schema()
+
+    with orders_lock:
+
+        with open(
+            ORDERS_FILE,
+            "r",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        found = False
+
+        for row in rows:
+
+            if str(
+                row.get("order_id") or ""
+            ).strip() != str(order_id).strip():
+                continue
+
+            found = True
+
+            assigned_operator_id = str(
+                row.get("assigned_operator_id") or ""
+            ).strip()
+
+            if assigned_operator_id != current_operator_id:
+                return (
+                    "This order is not assigned to you.",
+                    403
+                )
+
+            status = str(
+                row.get("status") or ""
+            ).strip().lower()
+
+            if status != "out for delivery":
+                return (
+                    "This order cannot be marked as delivered.",
+                    400
+                )
+
+            row["status"] = "Delivered"
+
+            row["delivered_at"] = (
+                datetime.now().isoformat(
+                    timespec="seconds"
+                )
+            )
+
+            break
+
+        if not found:
+            return "Order not found.", 404
+
+        with open(
+            ORDERS_FILE,
+            "w",
+            newline="",
+            encoding="utf-8"
+        ) as f:
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=ORDER_FIELDS
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+
+                writer.writerow({
+                    field: row.get(field, "")
+                    for field in ORDER_FIELDS
+                })
+
+    return redirect(
+        url_for("tanker_dashboard")
+    )
 
 @app.route(
     "/accept_transfer_pickup",
@@ -5437,18 +11174,50 @@ import os
 @login_required(role="tanker")
 def accept_transfer_pickup():
 
-    transfer_id = (
+    with transfers_lock:
+
+        return _accept_transfer_pickup_locked()
+
+
+def _accept_transfer_pickup_locked():
+
+    transfer_id = str(
         request.form.get("transfer_id") or ""
     ).strip()
 
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
     if not transfer_id:
-        return "No Transfer ID received", 400
+        return "Transfer ID is required", 400
+
+    if not current_operator_id:
+        return "Tanker operator identity missing", 403
+
+
+    # =========================================================
+    # LOAD LOGGED-IN OPERATOR
+    # =========================================================
+
+    operator = get_tanker_operator_by_id(
+        current_operator_id
+    )
+
+    if operator is None:
+        return "Tanker operator registration not found", 403
+
 
     ensure_stp_transfers_file()
 
     updated_rows = []
-    transfer_info = None
-    transfer_found = False
+    target_transfer = None
+    accept_error = None
+
+
+    # =========================================================
+    # READ TRANSFERS
+    # =========================================================
 
     with open(
         STP_TRANSFERS_FILE,
@@ -5458,213 +11227,198 @@ def accept_transfer_pickup():
     ) as f:
 
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
 
         for row in reader:
 
             if (
-                row.get("transfer_id", "").strip()
+                str(
+                    row.get("transfer_id") or ""
+                ).strip()
                 == transfer_id
             ):
 
-                transfer_found = True
+                target_transfer = row
 
-                if (
-                    row.get("status", "").strip()
-                    != "Accepted"
-                ):
+                offered_operator_id = str(
+                    row.get(
+                        "offered_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+                assigned_operator_id = str(
+                    row.get(
+                        "assigned_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+                offer_status = str(
+                    row.get(
+                        "offer_status"
+                    )
+                    or ""
+                ).strip().lower()
+
+
+                # ---------------------------------------------
+                # ALREADY ASSIGNED
+                # ---------------------------------------------
+
+                if assigned_operator_id:
+
+                    accept_error = (
+                        "This transfer has already been assigned."
+                    )
 
                     updated_rows.append(row)
                     continue
 
-                quantity = float(
-                    row.get("quantity_kld", 0) or 0
-                )
 
-                tankers_required = math.ceil(
-                    quantity / TANKER_CAPACITY_KLD
-                )
+                # ---------------------------------------------
+                # WRONG OPERATOR
+                # ---------------------------------------------
 
-                transfer_info = {
-                    "order_id": transfer_id,
-                    "quantity": quantity,
-                    "tankers_required": tankers_required,
-                    "available_tankers": AVAILABLE_TANKERS,
-                    "sufficient":
-                        tankers_required <= AVAILABLE_TANKERS,
-                    "source_stp_name":
-                        row.get("source_stp_name"),
-                    "destination_stp_name":
-                        row.get("destination_stp_name"),
-                    "distance_km":
-                        row.get("distance_km"),
-                    "request_type":
-                        "stp_transfer"
-                }
-
-                row["status"] = "Out for Delivery"
-
-                row["tanker_status"] = "Out for Delivery"
-
-            updated_rows.append(row)
-
-    if not transfer_found:
-        return f"Transfer {transfer_id} not found", 404
-
-    if transfer_info is None:
-        return "Transfer is not available for pickup", 400
-
-    with open(
-        STP_TRANSFERS_FILE,
-        "w",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        writer = csv.DictWriter(
-            f,
-            fieldnames=fieldnames
-        )
-
-        writer.writeheader()
-        writer.writerows(updated_rows)
-
-    return render_template(
-        "tanker_summary.html",
-        info=transfer_info,
-        stp_id=None
-    )
-
-@app.route("/complete_transfer", methods=["POST"])
-@login_required(role="tanker")
-def complete_transfer():
-
-    transfer_id = (
-        request.form.get("transfer_id") or ""
-    ).strip()
-
-    if not transfer_id:
-        return "No Transfer ID received", 400
-
-    ensure_stp_transfers_file()
-
-    stps = load_stps()
-
-    updated_rows = []
-    transfer_found = False
-    completed = False
-
-    with open(
-        STP_TRANSFERS_FILE,
-        "r",
-        newline="",
-        encoding="utf-8"
-    ) as f:
-
-        reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames
-
-        for row in reader:
-
-            if (
-                row.get("transfer_id", "").strip()
-                != transfer_id
-            ):
-                updated_rows.append(row)
-                continue
-
-            transfer_found = True
-
-            # Delivery can only happen after pickup
-            if (
-                row.get("status", "").strip()
-                != "Out for Delivery"
-            ):
-                updated_rows.append(row)
-                continue
-
-            try:
-                quantity_kld = float(
-                    row.get("quantity_kld") or 0
-                )
-            except (TypeError, ValueError):
-                return "Invalid transfer quantity", 400
-
-            if quantity_kld <= 0:
-                return "Transfer quantity must be greater than zero", 400
-
-            quantity_mld = quantity_kld / 1000.0
-
-            destination_stp = None
-
-            for stp in stps:
                 if (
-                    str(stp.get("stp_id"))
-                    == str(row.get("destination_stp_id"))
+                    offered_operator_id
+                    != current_operator_id
                 ):
-                    destination_stp = stp
-                    break
 
-            if destination_stp is None:
-                return "Destination STP not found", 404
+                    accept_error = (
+                        "This transfer offer is not assigned "
+                        "to your account."
+                    )
 
-            # =================================================
-            # ADD WATER TO DESTINATION STP
-            # =================================================
+                    updated_rows.append(row)
+                    continue
 
-            total_capacity = float(
-                destination_stp.get(
-                    "total_capacity_mld", 0
-                ) or 0
-            )
 
-            available_capacity = float(
-                destination_stp.get(
-                    "available_capacity_mld", 0
-                ) or 0
-            )
+                # ---------------------------------------------
+                # OFFER NO LONGER ACTIVE
+                # ---------------------------------------------
 
-            current_load = float(
-                destination_stp.get(
-                    "current_load_mld", 0
-                ) or 0
-            )
+                if offer_status != "offered":
 
-            destination_stp["available_capacity_mld"] = min(
-                total_capacity,
-                available_capacity + quantity_mld
-            )
+                    accept_error = (
+                        "This transfer offer is no longer available."
+                    )
 
-            destination_stp["current_load_mld"] = max(
-                0.0,
-                current_load - quantity_mld
-            )
+                    updated_rows.append(row)
+                    continue
 
-            # =================================================
-            # COMPLETE TRANSFER
-            # =================================================
 
-            row["status"] = "Delivered"
-            row["tanker_status"] = "Delivered"
-            row["delivered_at"] = datetime.now().isoformat()
+                # ---------------------------------------------
+                # STP TRANSFER MUST HAVE BEEN ACCEPTED
+                # ---------------------------------------------
 
-            completed = True
+                transfer_status = str(
+                    row.get("status") or ""
+                ).strip().lower()
+
+                if transfer_status != "accepted":
+
+                    accept_error = (
+                        "This STP transfer is not available "
+                        "for tanker pickup."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+                                # ---------------------------------------------
+                # OFFER TIME EXPIRED
+                # ---------------------------------------------
+
+                if has_datetime_expired(
+                    row.get("offer_expires_at")
+                ):
+
+                    accept_error = (
+                        "This tanker transfer offer has expired."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                # ---------------------------------------------
+                # 30-MINUTE TRANSFER DEADLINE EXPIRED
+                # ---------------------------------------------
+
+                if has_request_expired(
+                    row.get("requested_at")
+                ):
+
+                    accept_error = (
+                        "This STP transfer has expired."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                # =================================================
+                # ACCEPT TRANSFER OFFER
+                # =================================================
+
+                row[
+                    "assigned_operator_id"
+                ] = current_operator_id
+
+                row[
+                    "assigned_operator_name"
+                ] = str(
+                    operator.get(
+                        "operator_name"
+                    )
+                    or ""
+                ).strip()
+
+                row[
+                    "assigned_at"
+                ] = datetime.now().isoformat()
+
+                row[
+                    "offer_status"
+                ] = "Accepted"
+
+                row[
+                    "tanker_status"
+                ] = "Out for Delivery"
+
+                row[
+                    "status"
+                ] = "Out for Delivery"
+
 
             updated_rows.append(row)
 
-    if not transfer_found:
-        return f"Transfer {transfer_id} not found", 404
 
-    if not completed:
+    # =========================================================
+    # TRANSFER NOT FOUND
+    # =========================================================
+
+    if target_transfer is None:
+
         return (
-            "Transfer is not currently out for delivery",
-            400
+            f"Transfer {transfer_id} not found",
+            404
         )
 
-    # Save destination STP capacity
-    save_stps(stps)
 
-    # Save transfer
+    # =========================================================
+    # INVALID ACCEPT
+    # =========================================================
+
+    if accept_error:
+
+        return accept_error, 409
+
+
+    # =========================================================
+    # SAVE
+    # =========================================================
+
     with open(
         STP_TRANSFERS_FILE,
         "w",
@@ -5678,12 +11432,690 @@ def complete_transfer():
         )
 
         writer.writeheader()
-        writer.writerows(updated_rows)
 
-    return redirect(url_for("tanker_dashboard"))
+        for row in updated_rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in STP_TRANSFER_FIELDS
+            })
+
+
+    # =========================================================
+    # BUILD OPERATOR-SPECIFIC SUMMARY
+    # =========================================================
+
+    quantity = safe_float(
+        target_transfer.get(
+            "quantity_kld"
+        ),
+        0
+    )
+
+    tankers_required = safe_int(
+        target_transfer.get(
+            "tankers_required"
+        ),
+        1
+    )
+
+    if tankers_required <= 0:
+        tankers_required = 1
+
+
+    transfer_info = {
+
+        "order_id":
+            target_transfer.get(
+                "transfer_id"
+            ),
+
+        "quantity":
+            quantity,
+
+        "tankers_required":
+            tankers_required,
+
+        "available_tankers":
+            get_operator_available_tankers(
+                operator
+            ),
+
+        "sufficient":
+            True,
+
+        "source_stp_name":
+            target_transfer.get(
+                "source_stp_name"
+            ),
+
+        "destination_stp_name":
+            target_transfer.get(
+                "destination_stp_name"
+            ),
+
+        "distance_km":
+            target_transfer.get(
+                "distance_km"
+            ),
+
+        "request_type":
+            "stp_transfer"
+    }
+
+
+    print(
+        "TRANSFER ACCEPTED:",
+        transfer_id,
+        "BY:",
+        current_operator_id
+    )
+
+
+    return render_template(
+        "tanker_summary.html",
+        info=transfer_info,
+        stp_id=None
+    )
+
+@app.route(
+    "/reject_transfer_pickup",
+    methods=["POST"]
+)
+@login_required(role="tanker")
+def reject_transfer_pickup():
+
+    with transfers_lock:
+
+        return _reject_transfer_pickup_locked()
+
+
+def _reject_transfer_pickup_locked():
+
+    transfer_id = str(
+        request.form.get("transfer_id") or ""
+    ).strip()
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not transfer_id:
+        return "Transfer ID is required", 400
+
+    if not current_operator_id:
+        return "Tanker operator identity missing", 403
+
+
+    ensure_stp_transfers_file()
+
+    updated_rows = []
+    target_transfer = None
+    reject_error = None
+
+
+    # =========================================================
+    # READ TRANSFER
+    # =========================================================
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            if (
+                str(
+                    row.get("transfer_id") or ""
+                ).strip()
+                == transfer_id
+            ):
+
+                target_transfer = row
+
+                offered_operator_id = str(
+                    row.get(
+                        "offered_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+                assigned_operator_id = str(
+                    row.get(
+                        "assigned_operator_id"
+                    )
+                    or ""
+                ).strip()
+
+                offer_status = str(
+                    row.get(
+                        "offer_status"
+                    )
+                    or ""
+                ).strip().lower()
+
+
+                # ---------------------------------------------
+                # ALREADY ASSIGNED
+                # ---------------------------------------------
+
+                if assigned_operator_id:
+
+                    reject_error = (
+                        "This transfer has already been assigned."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                # ---------------------------------------------
+                # WRONG OPERATOR
+                # ---------------------------------------------
+
+                if (
+                    offered_operator_id
+                    != current_operator_id
+                ):
+
+                    reject_error = (
+                        "This transfer offer does not belong "
+                        "to your account."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                # ---------------------------------------------
+                # OFFER NOT ACTIVE
+                # ---------------------------------------------
+
+                if offer_status != "offered":
+
+                    reject_error = (
+                        "This transfer offer is no longer active."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                # =================================================
+                # RECORD REJECTION
+                # =================================================
+
+                attempted_operator_ids = (
+                    parse_attempted_operator_ids(
+                        row.get(
+                            "attempted_operator_ids"
+                        )
+                    )
+                )
+
+                if (
+                    current_operator_id
+                    not in attempted_operator_ids
+                ):
+
+                    attempted_operator_ids.append(
+                        current_operator_id
+                    )
+
+
+                row[
+                    "attempted_operator_ids"
+                ] = save_attempted_operator_ids(
+                    attempted_operator_ids
+                )
+
+                row[
+                    "offered_operator_id"
+                ] = ""
+
+                row[
+                    "offer_status"
+                ] = "Rejected"
+
+                row[
+                    "offer_sent_at"
+                ] = ""
+
+                row[
+                    "offer_expires_at"
+                ] = ""
+
+                row[
+                    "operator_distance_km"
+                ] = ""
+
+                row[
+                    "tanker_status"
+                ] = "Waiting for Operator"
+
+
+            updated_rows.append(row)
+
+
+    # =========================================================
+    # TRANSFER NOT FOUND
+    # =========================================================
+
+    if target_transfer is None:
+
+        return (
+            f"Transfer {transfer_id} not found",
+            404
+        )
+
+
+    # =========================================================
+    # INVALID REJECTION
+    # =========================================================
+
+    if reject_error:
+
+        return reject_error, 409
+
+
+    # =========================================================
+    # SAVE REJECTION FIRST
+    # =========================================================
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=STP_TRANSFER_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in updated_rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in STP_TRANSFER_FIELDS
+            })
+
+
+    # =========================================================
+    # OFFER TO NEXT ELIGIBLE OPERATOR
+    # =========================================================
+
+    next_offer = (
+        offer_next_operator_for_transfer(
+            transfer_id
+        )
+    )
+
+
+    print(
+        "TRANSFER REJECTED:",
+        transfer_id,
+        "BY:",
+        current_operator_id
+    )
+
+    print(
+        "NEXT TRANSFER OFFER RESULT:",
+        next_offer
+    )
+
+
+    return redirect(
+        url_for("tanker_dashboard")
+    )
+
+@app.route("/complete_transfer", methods=["POST"])
+@login_required(role="tanker")
+def complete_transfer():
+
+    with transfers_lock:
+
+        return _complete_transfer_locked()
+
+
+def _complete_transfer_locked():
+
+    transfer_id = str(
+        request.form.get("transfer_id") or ""
+    ).strip()
+
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+
+    # =========================================================
+    # BASIC VALIDATION
+    # =========================================================
+
+    if not transfer_id:
+        return "No Transfer ID received", 400
+
+    if not current_operator_id:
+        return "Tanker operator identity missing", 403
+
+
+    ensure_stp_transfers_file()
+
+    stps = load_stps()
+
+    updated_rows = []
+
+    transfer_found = False
+    completed = False
+    completion_error = None
+
+
+    # =========================================================
+    # READ TRANSFERS
+    # =========================================================
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            row_transfer_id = str(
+                row.get("transfer_id") or ""
+            ).strip()
+
+            if row_transfer_id != transfer_id:
+
+                updated_rows.append(row)
+                continue
+
+
+            transfer_found = True
+
+
+            # =================================================
+            # VERIFY PERMANENT ASSIGNMENT
+            # =================================================
+
+            assigned_operator_id = str(
+                row.get("assigned_operator_id") or ""
+            ).strip()
+
+            if not assigned_operator_id:
+
+                completion_error = (
+                    "This transfer has not been assigned "
+                    "to a tanker operator."
+                )
+
+                updated_rows.append(row)
+                continue
+
+
+            # =================================================
+            # ONLY ASSIGNED OPERATOR MAY COMPLETE
+            # =================================================
+
+            if assigned_operator_id != current_operator_id:
+
+                completion_error = (
+                    "This transfer is not assigned "
+                    "to your account."
+                )
+
+                updated_rows.append(row)
+                continue
+
+
+            # =================================================
+            # MUST ACTUALLY BE OUT FOR DELIVERY
+            # =================================================
+
+            transfer_status = str(
+                row.get("status") or ""
+            ).strip().lower()
+
+            tanker_status = str(
+                row.get("tanker_status") or ""
+            ).strip().lower()
+
+            if (
+                transfer_status != "out for delivery"
+                or tanker_status != "out for delivery"
+            ):
+
+                completion_error = (
+                    "Transfer is not currently "
+                    "out for delivery."
+                )
+
+                updated_rows.append(row)
+                continue
+
+
+            # =================================================
+            # VALIDATE QUANTITY
+            # =================================================
+
+            quantity_kld = safe_float(
+                row.get("quantity_kld"),
+                0
+            )
+
+            if quantity_kld <= 0:
+
+                completion_error = (
+                    "Transfer quantity must be "
+                    "greater than zero."
+                )
+
+                updated_rows.append(row)
+                continue
+
+
+            quantity_mld = (
+                quantity_kld / 1000.0
+            )
+
+
+            # =================================================
+            # FIND DESTINATION STP
+            # =================================================
+
+            destination_stp_id = str(
+                row.get("destination_stp_id") or ""
+            ).strip()
+
+            destination_stp = None
+
+
+            for stp in stps:
+
+                current_stp_id = str(
+                    stp.get("stp_id") or ""
+                ).strip()
+
+                if current_stp_id == destination_stp_id:
+
+                    destination_stp = stp
+                    break
+
+
+            if destination_stp is None:
+
+                completion_error = (
+                    "Destination STP not found."
+                )
+
+                updated_rows.append(row)
+                continue
+
+
+            # =================================================
+            # UPDATE DESTINATION STP
+            # =================================================
+
+            total_capacity = safe_float(
+                destination_stp.get(
+                    "total_capacity_mld"
+                ),
+                0
+            )
+
+            available_capacity = safe_float(
+                destination_stp.get(
+                    "available_capacity_mld"
+                ),
+                0
+            )
+
+            current_load = safe_float(
+                destination_stp.get(
+                    "current_load_mld"
+                ),
+                0
+            )
+
+
+            destination_stp[
+                "available_capacity_mld"
+            ] = min(
+                total_capacity,
+                available_capacity + quantity_mld
+            )
+
+
+            destination_stp[
+                "current_load_mld"
+            ] = max(
+                0.0,
+                current_load - quantity_mld
+            )
+
+
+            # =================================================
+            # COMPLETE TRANSFER
+            # =================================================
+
+            row["status"] = "Delivered"
+
+            row["tanker_status"] = "Delivered"
+
+            row[
+                "delivered_at"
+            ] = datetime.now().isoformat()
+
+
+            completed = True
+
+            updated_rows.append(row)
+
+
+    # =========================================================
+    # TRANSFER NOT FOUND
+    # =========================================================
+
+    if not transfer_found:
+
+        return (
+            f"Transfer {transfer_id} not found",
+            404
+        )
+
+
+    # =========================================================
+    # COMPLETION REJECTED
+    # =========================================================
+
+    if completion_error:
+
+        return completion_error, 403
+
+
+    if not completed:
+
+        return (
+            "Transfer could not be completed.",
+            400
+        )
+
+
+    # =========================================================
+    # SAVE DESTINATION STP
+    # =========================================================
+
+    save_stps(stps)
+
+
+    # =========================================================
+    # SAVE TRANSFER
+    # =========================================================
+
+    with open(
+        STP_TRANSFERS_FILE,
+        "w",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        writer = csv.DictWriter(
+            f,
+            fieldnames=STP_TRANSFER_FIELDS
+        )
+
+        writer.writeheader()
+
+        for row in updated_rows:
+
+            writer.writerow({
+                field: row.get(field, "")
+                for field in STP_TRANSFER_FIELDS
+            })
+
+
+    print(
+        "TRANSFER DELIVERED:",
+        transfer_id,
+        "BY:",
+        current_operator_id
+    )
+
+
+    return redirect(
+        url_for("tanker_dashboard")
+    )
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+
+    timeout_thread = threading.Thread(
+        target=timeout_worker,
+        daemon=True,
+        name="tanker-timeout-worker"
+    )
+
+    timeout_thread.start()
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            10000
+        )
+    )
+
     app.run(
         host="0.0.0.0",
         port=port,
