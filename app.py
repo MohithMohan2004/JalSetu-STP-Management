@@ -9611,11 +9611,7 @@ def tanker_dashboard():
         available_tankers=available_tankers
     )
 
-@app.route("/tanker/reports")
-@login_required(role="tanker")
-def tanker_reports():
 
-    current_operator_id = str(
 @app.route("/tanker/reports")
 @login_required(role="tanker")
 def tanker_reports():
