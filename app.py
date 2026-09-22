@@ -5882,9 +5882,36 @@ def api_search_place():
         print("Using LIVE coordinates:", lat, lon)
 
     elif place and place != "Using Live Location":
-        geo_url = f"https://nominatim.openstreetmap.org/search?format=json&q={place}, Bangalore"
-        response = requests.get(geo_url, headers={"User-Agent":"wastewater-app"})
-        geo_data = response.json()
+        geo_url = (
+            "https://nominatim.openstreetmap.org/search"
+            "?format=json&q="
+            + requests.utils.quote(f"{place}, Bangalore")
+        )
+
+        try:
+            response = requests.get(
+                geo_url,
+                headers={"User-Agent": "wastewater-app"},
+                timeout=10
+            )
+
+            if response.status_code != 200:
+                print(
+                    "search_place geocoding HTTP error:",
+                    response.status_code,
+                    response.text[:300]
+                )
+                return jsonify({
+                    "error": "Location lookup service is unavailable right now"
+                }), 502
+
+            geo_data = response.json()
+
+        except requests.exceptions.RequestException as e:
+            print("search_place geocoding network error:", repr(e))
+            return jsonify({
+                "error": "Location lookup service is unavailable right now"
+            }), 502
 
         if not geo_data:
             return jsonify({"error":"Place not found"}), 404
@@ -7953,6 +7980,26 @@ def chatbot():
                         timeout=10
                     )
 
+                    # Surface *why* Nominatim failed, not just that it
+                    # did. A rate-limited/blocked request (429/403) comes
+                    # back as an HTTP error with a non-JSON body, which
+                    # response.json() would otherwise turn into an opaque
+                    # "Expecting value" exception below.
+                    if response.status_code != 200:
+                        print(
+                            "Chatbot geocoding HTTP error:",
+                            response.status_code,
+                            response.text[:300]
+                        )
+
+                        return jsonify({
+                            "reply": (
+                                "I'm having trouble reaching the location "
+                                "lookup service right now. Please try "
+                                "again in a moment."
+                            )
+                        })
+
                     geo_data = response.json()
 
                     if not geo_data:
@@ -7966,8 +8013,21 @@ def chatbot():
                     search_latitude = float(geo_data[0]["lat"])
                     search_longitude = float(geo_data[0]["lon"])
 
+                except requests.exceptions.RequestException as e:
+                    # DNS failure, connection refused, timeout, etc. -
+                    # the request never got a response at all.
+                    print("Chatbot geocoding network error:", repr(e))
+
+                    return jsonify({
+                        "reply": (
+                            "I'm having trouble reaching the location "
+                            "lookup service right now. Please try again "
+                            "in a moment."
+                        )
+                    })
+
                 except Exception as e:
-                    print("Chatbot geocoding error:", e)
+                    print("Chatbot geocoding error:", repr(e))
 
                     return jsonify({
                         "reply": (
