@@ -16,6 +16,20 @@ from dotenv import load_dotenv
 from supabase import create_client
 from config import Config
 from chatbot.fuzzy_matcher import find_fuzzy_intent
+from chatbot.llm.gateway import JunoLLMGateway
+
+
+# The fuzzy matcher above handles intent classification well for known
+# phrasings, but it doesn't extract entities (like a place name). Juno
+# (the Gemini-backed LLM gateway) fills that gap. Building it can fail
+# if the Gemini key isn't configured, so we build it once here and fall
+# back to None on failure rather than crashing the whole app - every
+# call site below must treat juno_llm_gateway as optional.
+try:
+    juno_llm_gateway = JunoLLMGateway()
+except Exception as exc:
+    print(f"Juno LLM gateway unavailable, continuing without it: {exc}")
+    juno_llm_gateway = None
 
 
 def format_clean_address(address, lat, lon):
@@ -37,6 +51,38 @@ def format_clean_address(address, lat, lon):
     except Exception as e:
         print("Format error:", e)
         return f"{lat}, {lon}"
+
+
+def reverse_geocode_location(lat, lon):
+    """
+    Turn a lat/lon pair into a short human-readable place name using
+    OpenStreetMap Nominatim. Falls back to the raw coordinates if the
+    lookup fails or returns nothing usable. Shared by /api/search_place
+    and the chat assistant's "what is my location" handling so both
+    describe a location the same way.
+    """
+    reverse_url = (
+        f"https://nominatim.openstreetmap.org/reverse"
+        f"?format=json&lat={lat}&lon={lon}"
+    )
+    try:
+        response = requests.get(
+            reverse_url,
+            headers={"User-Agent": "wastewater-app"},
+            timeout=5
+        )
+        data = response.json()
+    except Exception as e:
+        print("Reverse geocode failed:", e)
+        data = {}
+
+    address = data.get("address", {})
+    location_name = format_clean_address(address, lat, lon)
+
+    if not location_name or location_name.strip() == "":
+        location_name = data.get("display_name", f"{lat}, {lon}")
+
+    return location_name
 
 load_dotenv()
 
@@ -2029,28 +2075,8 @@ def api_search_place():
         lat = float(lat)
         lon = float(lon)
 
-        reverse_url = (
-            f"https://nominatim.openstreetmap.org/reverse"
-            f"?format=json&lat={lat}&lon={lon}"
-        )
-        try:
-            response = requests.get(
-                reverse_url,
-                headers={"User-Agent": "wastewater-app"},
-                timeout=5
-            )
-            data = response.json()
-        except Exception as e:
-            print("Reverse API failed:", e)
-            data = {}
-        
-        address = data.get("address", {})
-
-        location_name = format_clean_address(address, lat, lon)
-
-        # fallback (if still empty)
-        if not location_name or location_name.strip() == "":
-            location_name = data.get("display_name", f"{lat}, {lon}")
+        location_name = reverse_geocode_location(lat, lon)
+        location_source = "live"
 
         print("Using LIVE coordinates:", lat, lon)
 
@@ -2065,9 +2091,21 @@ def api_search_place():
         lat = float(geo_data[0]["lat"])
         lon = float(geo_data[0]["lon"])
         location_name = place
+        location_source = "field"
 
     else:
         return jsonify({"error": "No location provided"}), 400
+
+    # Remember this location server-side so other parts of the app - in
+    # particular the chat assistant's "what is my location" answer - can
+    # reuse whichever location the user just searched or shared here,
+    # instead of asking again or falling back to a generic reply.
+    session["last_demand_location"] = {
+        "latitude": lat,
+        "longitude": lon,
+        "name": location_name,
+        "source": location_source,
+    }
 
     # 🔥 ADD THIS BLOCK HERE (VERY IMPORTANT)
 
@@ -3558,6 +3596,45 @@ def chatbot():
         )
 
         # ---------------------------------------------------------
+        # LLM-BASED INTENT / ENTITY EXTRACTION (Juno / Gemini)
+        # ---------------------------------------------------------
+        # The fuzzy matcher is fast and reliable for known phrasings but
+        # can't pull entities like a place name out of free-form text
+        # (that used to be done with a rigid regex that only matched
+        # "nearest/closest stp to/near/in X", missing anything phrased
+        # differently). We only call the LLM when it's actually needed:
+        # the fuzzy matcher wasn't confident, or the intent is one where
+        # a location entity matters.
+        llm_result = None
+        needs_llm_help = (
+            fuzzy_intent is None
+            or fuzzy_intent in ("nearest_stp", "stp_recommendation")
+        )
+
+        if needs_llm_help and juno_llm_gateway is not None:
+            try:
+                llm_result = juno_llm_gateway.understand(message)
+                print(f"Chatbot LLM understanding: {llm_result}")
+            except Exception as exc:
+                print(f"Juno LLM understand() failed, falling back: {exc}")
+                llm_result = None
+
+        # If the fuzzy matcher couldn't classify the message at all,
+        # let the LLM's intent take over.
+        if fuzzy_intent is None and llm_result:
+            fuzzy_intent = llm_result.get("intent") or fuzzy_intent
+
+        # LLM-extracted location entity, used below wherever we need to
+        # know which place the user mentioned (currently: nearest STP).
+        llm_location = None
+        if llm_result:
+            candidate_location = llm_result.get("location")
+            if isinstance(candidate_location, str):
+                candidate_location = candidate_location.strip()
+                if candidate_location:
+                    llm_location = candidate_location
+
+        # ---------------------------------------------------------
         # LOCATION
         # ---------------------------------------------------------
         latitude = data.get("latitude")
@@ -3570,8 +3647,21 @@ def chatbot():
             latitude = None
             longitude = None
 
+        # Where the current latitude/longitude came from, and a
+        # human-readable name for it if we already have one on hand.
+        # Used by the "what is my location" handler below so it can
+        # answer without re-guessing where the coordinates came from.
+        location_name = None
+        location_source = None
+
+        if latitude is not None and longitude is not None:
+            # Sent straight from the browser by the chat widget's own
+            # live-location request.
+            location_source = "live"
+
         # If the browser did not send a location, reuse the exact location
-        # saved by the Demand search page.
+        # saved by the Demand search page (either a typed place or that
+        # page's own "use live location" button).
         if latitude is None or longitude is None:
             saved_location = session.get("last_demand_location") or {}
             try:
@@ -3579,8 +3669,66 @@ def chatbot():
                     latitude = float(saved_location["latitude"])
                 if longitude is None and saved_location.get("longitude") is not None:
                     longitude = float(saved_location["longitude"])
+                if latitude is not None and longitude is not None:
+                    location_name = saved_location.get("name")
+                    location_source = saved_location.get("source") or "demand_field"
             except (TypeError, ValueError):
                 pass
+
+        # ---------------------------------------------------------
+        # WHAT IS MY LOCATION?
+        # ---------------------------------------------------------
+        my_location_query = (
+            fuzzy_intent == "my_location"
+            or any(
+                phrase in text
+                for phrase in (
+                    "what is my location",
+                    "what's my location",
+                    "whats my location",
+                    "where am i",
+                    "my current location",
+                    "do you know my location",
+                    "tell me my location",
+                    "which location am i",
+                    "what location am i using",
+                    "show my location",
+                )
+            )
+        )
+
+        if my_location_query:
+
+            if latitude is None or longitude is None:
+                return jsonify({
+                    "reply": (
+                        "📍 I don't have your location yet.\n\n"
+                        "Allow location access so I can use your live "
+                        "location, or search a location on the Demand "
+                        "page — I'll use whichever one you provide."
+                    )
+                })
+
+            # We may only have raw coordinates (e.g. the chat widget's
+            # own live-location request never resolves a name) — turn
+            # those into a readable place name on demand.
+            if not location_name:
+                location_name = reverse_geocode_location(latitude, longitude)
+
+            source_note = {
+                "live": "your live location",
+                "field": "the location you searched on the Demand page",
+                "demand_field": "the location you searched on the Demand page",
+            }.get(location_source, "the location currently on file")
+
+            return jsonify({
+                "reply": (
+                    f"📍 Your current location is set to "
+                    f"{location_name} "
+                    f"({latitude:.5f}, {longitude:.5f}), based on "
+                    f"{source_note}."
+                )
+            })
 
         # ---------------------------------------------------------
         # CURRENT USER
@@ -3774,17 +3922,44 @@ def chatbot():
 
         if fuzzy_intent == "nearest_stp" or nearest_stp_query:
 
-            # Check whether the user mentioned a location
-            location_match = re.search(
-                r"(?:nearest|closest)\s+stp\s+(?:to|near|in)\s+(.+)$",
-                text,
-                re.IGNORECASE
-            )
+            # Figure out whether the user mentioned a location.
+            #
+            # Preferred source: Juno (the LLM gateway) already extracted
+            # a "location" entity above, if any - that handles phrasing
+            # a regex can't (typos, unusual word order, indirect
+            # references like "near my office in Koramangala").
+            #
+            # Fallback: a permissive regex, used when the LLM is
+            # unavailable/failed or simply didn't find anything. It
+            # looks for "stp" anywhere in the message followed
+            # (eventually) by a preposition + place name, so phrasings
+            # like "nearest stp for Whitefield", "STP nearest to
+            # Koramangala", or "which stp is closest to HSR layout" are
+            # all caught (the old pattern only matched
+            # "nearest/closest stp to/near/in X").
+            mentioned_location = llm_location
 
-            mentioned_location = None
+            if not mentioned_location:
+                location_match = re.search(
+                    r"stp.*?\b(?:to|for|near|around|at|in)\s+(.+)$",
+                    text,
+                    re.IGNORECASE
+                )
 
-            if location_match:
-                mentioned_location = location_match.group(1).strip()
+                if location_match:
+                    candidate = location_match.group(1).strip().rstrip("?.! ")
+
+                    # Filler words like "me"/"here" aren't real locations —
+                    # treat them the same as no location mentioned so we
+                    # fall back to the browser/session coordinates below.
+                    filler_locations = {
+                        "me", "here", "myself",
+                        "my location", "my current location",
+                        "my area", "my place",
+                    }
+
+                    if candidate and candidate.lower() not in filler_locations:
+                        mentioned_location = candidate
 
             # -----------------------------------------------------
             # USER PROVIDED A LOCATION

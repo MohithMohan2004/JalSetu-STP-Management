@@ -296,6 +296,23 @@ INTENT_EXAMPLES = {
             "plants that can provide 20 kld",
             "find an stp for 50 kld",
     ],
+
+        # -----------------------------------------------------
+        # MY LOCATION
+        # -----------------------------------------------------
+        "my_location": [
+            "what is my location",
+            "what's my location",
+            "whats my location",
+            "where am i",
+            "where am i right now",
+            "my current location",
+            "do you know my location",
+            "tell me my location",
+            "which location am i in",
+            "what location am i using",
+            "show my location",
+        ],
     }
 
 
@@ -430,6 +447,13 @@ INTENT_SIGNALS = {
             "reach",
             "receive",
         ],
+
+        "my_location": [
+            "my location",
+            "current location",
+            "where am i",
+            "which location",
+        ],
     }
 
 
@@ -500,6 +524,22 @@ def find_fuzzy_intent(
         "good evening",
     ):
         return "greeting", 100
+
+    # -----------------------------------------------------
+    # MY LOCATION
+    # -----------------------------------------------------
+
+    if any(
+        phrase in text
+        for phrase in (
+            "my location",
+            "where am i",
+            "current location",
+            "which location am i",
+            "what location am i",
+        )
+    ):
+        return "my_location", 100
 
     # -----------------------------------------------------
     # ORDER COUNT
