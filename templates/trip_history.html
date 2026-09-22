@@ -1274,114 +1274,562 @@
 
     
         /* =====================================================
-           MY TRIPS / ORDER HISTORY
+        MY TRIPS
         ===================================================== */
-        .trips-card {
-            margin-top: 18px;
+
+        .trips-page-header {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 18px;
         }
 
-        .trip-history-list {
+        .trips-page-title h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #172033;
+        }
+
+        .trips-page-title p {
+            margin: 5px 0 0;
+            color: #7b8799;
+            font-size: 10px;
+        }
+
+        .trip-count {
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: #eaf3ff;
+            color: #176bdc;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+
+        /* FILTER / SEARCH */
+
+        .trip-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 18px;
+        }
+
+        .trip-filters {
+            display: flex;
+            gap: 7px;
+            flex-wrap: wrap;
+        }
+
+        .trip-filter {
+            border: 1px solid #dce4ee;
+            background: white;
+            color: #65738a;
+
+            padding: 7px 13px;
+
+            border-radius: 7px;
+
+            font-family: 'Poppins', sans-serif;
+            font-size: 9px;
+            font-weight: 500;
+
+            cursor: pointer;
+
+            transition: .2s;
+        }
+
+        .trip-filter:hover {
+            border-color: #1976f3;
+            color: #1976f3;
+        }
+
+        .trip-filter.active {
+            background: #1976f3;
+            border-color: #1976f3;
+            color: white;
+        }
+
+
+        .trip-search {
+            position: relative;
+            width: 290px;
+            max-width: 100%;
+        }
+
+        .trip-search input {
+            width: 100%;
+
+            border: 1px solid #dce4ee;
+
+            border-radius: 8px;
+
+            padding: 9px 12px 9px 34px;
+
+            outline: none;
+
+            font-family: 'Poppins', sans-serif;
+            font-size: 9px;
+
+            background: white;
+        }
+
+        .trip-search input:focus {
+            border-color: #1976f3;
+            box-shadow: 0 0 0 3px rgba(25,118,243,.08);
+        }
+
+        .trip-search-icon {
+            position: absolute;
+
+            left: 12px;
+            top: 50%;
+
+            transform: translateY(-50%);
+
+            font-size: 12px;
+            color: #8491a4;
+        }
+
+
+        /* TRIP LIST */
+
+        .trip-list {
             display: grid;
+            gap: 14px;
+        }
+
+
+        /* TRIP CARD */
+
+        .trip-card {
+            background: white;
+
+            border: 1px solid #e5eaf1;
+
+            border-radius: 12px;
+
+            padding: 18px;
+
+            box-shadow:
+                0 3px 12px
+                rgba(25,40,70,.04);
+
+            transition: .2s ease;
+        }
+
+        .trip-card:hover {
+            border-color: #cfdaea;
+
+            box-shadow:
+                0 7px 22px
+                rgba(25,40,70,.07);
+
+            transform: translateY(-1px);
+        }
+
+
+        /* CARD HEADER */
+
+        .trip-card-header {
+            display: flex;
+
+            justify-content: space-between;
+            align-items: flex-start;
+
+            gap: 15px;
+
+            padding-bottom: 14px;
+
+            border-bottom: 1px solid #edf1f5;
+        }
+
+        .trip-id-area {
+            display: flex;
+            align-items: center;
             gap: 10px;
         }
 
-        .trip-history-item {
-            display: grid;
-            grid-template-columns: minmax(135px, 1.05fr)
-                                 minmax(120px, .9fr)
-                                 minmax(180px, 1.45fr)
-                                 minmax(120px, .8fr)
-                                 auto;
-            gap: 14px;
+        .trip-icon {
+            width: 38px;
+            height: 38px;
+
+            border-radius: 9px;
+
+            display: flex;
             align-items: center;
-            padding: 14px;
-            border: 1px solid #e7edf4;
-            border-radius: 10px;
-            background: #fbfdff;
+            justify-content: center;
+
+            background: #eaf3ff;
+
+            font-size: 17px;
+
+            flex-shrink: 0;
         }
 
-        .trip-history-item:hover {
-            background: #f7fbff;
-            border-color: #d5e2f1;
-        }
+        .trip-id-text h3 {
+            margin: 0;
 
-        .trip-history-order strong,
-        .trip-history-detail strong {
-            display: block;
-            color: #29374d;
-            font-size: 10px;
+            font-size: 12px;
             font-weight: 600;
-            overflow: hidden;
-            text-overflow: ellipsis;
+
+            color: #172033;
         }
 
-        .trip-history-order span,
-        .trip-history-detail span {
-            display: block;
-            margin-bottom: 4px;
-            color: #7b8799;
+        .trip-id-text p {
+            margin: 3px 0 0;
+
             font-size: 8px;
+
+            color: #8491a4;
         }
 
-        .trip-history-status {
-            justify-self: end;
-            padding: 6px 9px;
+
+        /* STATUS */
+
+        .trip-status {
+            padding: 6px 10px;
+
             border-radius: 999px;
+
             font-size: 8px;
             font-weight: 700;
+
             white-space: nowrap;
         }
 
         .trip-status-accepted {
             background: #fff4df;
-            color: #bd7800;
+            color: #b97700;
         }
 
         .trip-status-out {
-            background: #e8f8eb;
+            background: #e8f8ef;
             color: #16834d;
         }
 
         .trip-status-delivered {
-            background: #e7f0ff;
+            background: #e8f1ff;
             color: #176bdc;
         }
 
-        .trip-history-empty {
-            padding: 34px 15px;
-            text-align: center;
-            color: #8793a5;
-            border: 1px dashed #d8e2ef;
-            border-radius: 10px;
-            background: #fbfdff;
+
+        /* DETAILS GRID */
+
+        .trip-details-grid {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, minmax(120px, 1fr));
+
+            gap: 14px;
+
+            padding: 16px 0;
         }
 
-        .trip-history-empty strong {
+        .trip-detail {
+            min-width: 0;
+        }
+
+        .trip-detail span {
             display: block;
-            margin-bottom: 5px;
-            color: #526075;
-            font-size: 12px;
+
+            margin-bottom: 4px;
+
+            color: #8995a7;
+
+            font-size: 8px;
+
+            text-transform: uppercase;
+
+            letter-spacing: .35px;
         }
 
-        .trip-history-empty span {
+        .trip-detail strong {
+            display: block;
+
+            color: #29374d;
+
+            font-size: 10px;
+            font-weight: 500;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+
+        /* ROUTE */
+
+        .trip-route {
+            display: grid;
+
+            grid-template-columns:
+                minmax(160px, 1fr)
+                45px
+                minmax(160px, 1fr);
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 14px;
+
+            margin-bottom: 16px;
+
+            border-radius: 9px;
+
+            background: #f8fafc;
+
+            border: 1px solid #edf1f5;
+        }
+
+        .trip-route-point span {
+            display: block;
+
+            color: #8a96a8;
+
+            font-size: 8px;
+
+            margin-bottom: 3px;
+        }
+
+        .trip-route-point strong {
+            display: block;
+
+            color: #29374d;
+
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .trip-route-arrow {
+            text-align: center;
+
+            color: #1976f3;
+
+            font-size: 18px;
+        }
+
+
+        /* PROGRESS */
+
+        .trip-progress {
+            padding-top: 3px;
+        }
+
+        .trip-progress-title {
+            margin-bottom: 12px;
+
+            color: #65738a;
+
+            font-size: 8px;
+
+            font-weight: 500;
+        }
+
+        .trip-progress-track {
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            position: relative;
+        }
+
+        .trip-progress-track::before {
+            content: "";
+
+            position: absolute;
+
+            top: 9px;
+
+            left: 12.5%;
+            right: 12.5%;
+
+            height: 2px;
+
+            background: #e0e6ee;
+
+            z-index: 0;
+        }
+
+        .progress-step {
+            position: relative;
+
+            z-index: 1;
+
+            text-align: center;
+        }
+
+        .progress-dot {
+            width: 18px;
+            height: 18px;
+
+            margin: 0 auto 6px;
+
+            border-radius: 50%;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #e4e9f0;
+
+            color: white;
+
+            font-size: 8px;
+
+            border: 3px solid white;
+
+            box-shadow:
+                0 0 0 1px #d8e0ea;
+        }
+
+        .progress-step.completed .progress-dot {
+            background: #22a864;
+
+            box-shadow:
+                0 0 0 1px #22a864;
+        }
+
+        .progress-step.current .progress-dot {
+            background: #1976f3;
+
+            box-shadow:
+                0 0 0 1px #1976f3;
+        }
+
+        .progress-label {
+            color: #8491a4;
+
+            font-size: 8px;
+
+            font-weight: 500;
+        }
+
+        .progress-step.completed .progress-label {
+            color: #16834d;
+        }
+
+        .progress-step.current .progress-label {
+            color: #176bdc;
+            font-weight: 600;
+        }
+
+
+        /* EMPTY STATE */
+
+        .trip-empty {
+            padding: 60px 20px;
+
+            text-align: center;
+
+            background: white;
+
+            border: 1px dashed #d6dfeb;
+
+            border-radius: 12px;
+
+            color: #8491a4;
+        }
+
+        .trip-empty-icon {
+            font-size: 32px;
+
+            margin-bottom: 10px;
+        }
+
+        .trip-empty strong {
+            display: block;
+
+            color: #526075;
+
+            font-size: 12px;
+
+            margin-bottom: 5px;
+        }
+
+        .trip-empty span {
             font-size: 9px;
         }
 
-    
-        @media (max-width: 768px) {
-            .trip-history-item {
-                grid-template-columns: 1fr 1fr;
+
+        /* =====================================================
+        RESPONSIVE MY TRIPS
+        ===================================================== */
+
+        @media (max-width: 1000px) {
+
+            .trip-details-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
             }
 
-            .trip-history-status {
-                justify-self: start;
-            }
         }
 
-        @media (max-width: 480px) {
-            .trip-history-item {
+
+        @media (max-width: 768px) {
+
+            .trips-page-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .trip-toolbar {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .trip-search {
+                width: 100%;
+            }
+
+            .trip-route {
                 grid-template-columns: 1fr;
             }
+
+            .trip-route-arrow {
+                transform: rotate(90deg);
+            }
+
+        }
+
+
+        @media (max-width: 520px) {
+
+            .trip-card-header {
+                flex-direction: column;
+            }
+
+            .trip-details-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .trip-progress-track {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .trip-progress-track::before {
+                display: none;
+            }
+
+            .progress-step {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                text-align: left;
+            }
+
+            .progress-dot {
+                margin: 0;
+            }
+
         }
 
     </style>
@@ -1467,19 +1915,6 @@
 
                 <span>
                     My Trips
-                </span>
-
-            </a>
-
-
-            <a href="/tanker#orders">
-
-                <div class="nav-icon">
-                    ▤
-                </div>
-
-                <span>
-                    Assignments
                 </span>
 
             </a>
@@ -1649,146 +2084,680 @@
 
     <div class="container">
 
-        <div class="card trips-card" id="trips">
-            <div class="card-header">
-                <h2>My Trips</h2>
-                <span>{{ trip_history|length }} Trips</span>
-            </div>
+    <!-- =====================================================
+         PAGE HEADER
+    ====================================================== -->
 
-            <div style="font-size:9px;color:#7b8799;margin:-8px 0 16px;">
-                Your tanker trips and their current order status.
-            </div>
+    <div class="trips-page-header">
 
-            <!-- ACTIVE TRIPS -->
-            <div style="margin-bottom:22px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-                    <div style="font-size:11px;font-weight:600;color:#172033;">
-                        Active Trips
-                    </div>
-                    <div style="font-size:9px;color:#176bdc;font-weight:600;">
-                        Current Status
-                    </div>
-                </div>
+        <div class="trips-page-title">
 
-                <div class="trip-history-list">
-                    {% set active_trip_count = 0 %}
+            <h2>
+                My Trips
+            </h2>
 
-                    {% for trip in trip_history %}
-                        {% if trip.status in ['Accepted', 'Out for Delivery'] %}
-                            {% set active_trip_count = active_trip_count + 1 %}
+            <p>
+                View and track all trips assigned to your tanker operation.
+            </p>
 
-                            <div class="trip-history-item">
-                                <div class="trip-history-order">
-                                    <span>Order ID</span>
-                                    <strong>{{ trip.order_id }}</strong>
-                                </div>
+        </div>
 
-                                <div class="trip-history-detail">
-                                    <span>STP</span>
-                                    <strong>{{ trip.stp_name or "N/A" }}</strong>
-                                </div>
 
-                                <div class="trip-history-detail">
-                                    <span>Delivery</span>
-                                    <strong title="{{ trip.location or '' }}">
-                                        {{ trip.location or "N/A" }}
-                                    </strong>
-                                </div>
+        <div class="trip-count">
 
-                                <div class="trip-history-detail">
-                                    <span>Quantity / Date</span>
-                                    <strong>{{ trip.quantity_kld or "0" }} KLD</strong>
-                                    <span>{{ trip.created_at or "N/A" }}</span>
-                                </div>
+            {{ trip_history|length }} Total Trips
 
-                                <div class="trip-history-status
-                                    {% if trip.status == 'Accepted' %}
-                                        trip-status-accepted
-                                    {% elif trip.status == 'Out for Delivery' %}
-                                        trip-status-out
-                                    {% endif %}
-                                ">
-                                    {{ trip.status }}
-                                </div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if active_trip_count == 0 %}
-                        <div class="trip-history-empty">
-                            <div style="font-size:26px;margin-bottom:8px;">🚚</div>
-                            <strong>No active trips</strong>
-                            <span>Accepted or Out for Delivery orders will appear here.</span>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- DELIVERED HISTORY -->
-            <div>
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-                    <div style="font-size:11px;font-weight:600;color:#172033;">
-                        Delivered History
-                    </div>
-                    <div style="font-size:9px;color:#176bdc;font-weight:600;">
-                        {% set delivered_count = trip_history
-                            | selectattr("status", "equalto", "Delivered")
-                            | list
-                            | length %}
-                        {{ delivered_count }} Completed
-                    </div>
-                </div>
-
-                <div class="trip-history-list">
-                    {% for trip in trip_history %}
-                        {% if trip.status == 'Delivered' %}
-                            <div class="trip-history-item">
-                                <div class="trip-history-order">
-                                    <span>Order ID</span>
-                                    <strong>{{ trip.order_id }}</strong>
-                                </div>
-
-                                <div class="trip-history-detail">
-                                    <span>STP</span>
-                                    <strong>{{ trip.stp_name or "N/A" }}</strong>
-                                </div>
-
-                                <div class="trip-history-detail">
-                                    <span>Delivered To</span>
-                                    <strong title="{{ trip.location or '' }}">
-                                        {{ trip.location or "N/A" }}
-                                    </strong>
-                                </div>
-
-                                <div class="trip-history-detail">
-                                    <span>Quantity / Date</span>
-                                    <strong>{{ trip.quantity_kld or "0" }} KLD</strong>
-                                    <span>{{ trip.delivered_at or trip.created_at or "N/A" }}</span>
-                                </div>
-
-                                <div class="trip-history-status trip-status-delivered">
-                                    ✓ Delivered
-                                </div>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-
-                    {% if delivered_count == 0 %}
-                        <div class="trip-history-empty">
-                            <div style="font-size:26px;margin-bottom:8px;">✓</div>
-                            <strong>No delivered trips yet</strong>
-                            <span>Completed tanker deliveries will appear here automatically.</span>
-                        </div>
-                    {% endif %}
-                </div>
-            </div>
         </div>
 
     </div>
 
+
+    <!-- =====================================================
+         FILTERS + SEARCH
+    ====================================================== -->
+
+    <div class="trip-toolbar">
+
+        <div class="trip-filters">
+
+            <button
+                type="button"
+                class="trip-filter active"
+                data-filter="all"
+            >
+                All Trips
+            </button>
+
+
+            <button
+                type="button"
+                class="trip-filter"
+                data-filter="active"
+            >
+                Active
+            </button>
+
+
+            <button
+                type="button"
+                class="trip-filter"
+                data-filter="delivered"
+            >
+                Delivered
+            </button>
+
+        </div>
+
+
+        <div class="trip-search">
+
+            <span class="trip-search-icon">
+                🔎
+            </span>
+
+            <input
+                type="text"
+                id="tripSearch"
+                placeholder="Search trip, pickup or destination..."
+                autocomplete="off"
+            >
+
+        </div>
+
+    </div>
+
+
+    <!-- =====================================================
+         TRIPS
+    ====================================================== -->
+
+    <div
+        class="trip-list"
+        id="tripList"
+    >
+
+        {% for trip in trip_history %}
+
+            {% set status = trip.trip_status or "Accepted" %}
+
+            <div
+                class="trip-card"
+
+                data-status="{{ status|lower }}"
+
+                data-search="
+                    {{ trip.trip_id or '' }}
+                    {{ trip.trip_type or '' }}
+                    {{ trip.pickup_name or '' }}
+                    {{ trip.destination_name or '' }}
+                    {{ trip.water_type or '' }}
+                "
+            >
+
+
+                <!-- =========================================
+                     CARD HEADER
+                ========================================== -->
+
+                <div class="trip-card-header">
+
+                    <div class="trip-id-area">
+
+                        <div class="trip-icon">
+
+                            {% if trip.request_type == "stp_transfer" %}
+                                ⇄
+                            {% else %}
+                                🚚
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="trip-id-text">
+
+                            <h3>
+
+                                {% if trip.request_type == "stp_transfer" %}
+                                    Transfer
+                                {% else %}
+                                    Order
+                                {% endif %}
+
+                                #{{ trip.trip_id or "N/A" }}
+
+                            </h3>
+
+
+                            <p>
+
+                                {{ trip.trip_type or "Tanker Trip" }}
+
+                                {% if trip.trip_created_at %}
+                                    • Assigned {{ trip.trip_created_at }}
+                                {% endif %}
+
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="
+                            trip-status
+
+                            {% if status == 'Delivered' %}
+                                trip-status-delivered
+
+                            {% elif status == 'Out for Delivery' %}
+                                trip-status-out
+
+                            {% else %}
+                                trip-status-accepted
+                            {% endif %}
+                        "
+                    >
+
+                        {% if status == "Delivered" %}
+                            ✓ Delivered
+
+                        {% else %}
+                            {{ status }}
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================
+                     ROUTE
+                ========================================== -->
+
+                <div class="trip-route">
+
+                    <div class="trip-route-point">
+
+                        <span>
+                            PICKUP
+                        </span>
+
+                        <strong>
+                            {{ trip.pickup_name or "N/A" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-route-arrow">
+                        →
+                    </div>
+
+
+                    <div class="trip-route-point">
+
+                        <span>
+                            DESTINATION
+                        </span>
+
+                        <strong>
+                            {{ trip.destination_name or "N/A" }}
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =========================================
+                     TRIP DETAILS
+                ========================================== -->
+
+                <div class="trip-details-grid">
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Trip Type
+                        </span>
+
+                        <strong>
+                            {{ trip.trip_type or "N/A" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Quantity
+                        </span>
+
+                        <strong>
+                            {{ trip.quantity_kld or "0" }} KLD
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Water Type
+                        </span>
+
+                        <strong>
+                            {{ trip.water_type or trip.quality or "N/A" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Tankers Required
+                        </span>
+
+                        <strong>
+                            {{ trip.tankers_required or "1" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Assigned At
+                        </span>
+
+                        <strong>
+                            {{ trip.assigned_at or trip.trip_created_at or "N/A" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Delivered At
+                        </span>
+
+                        <strong>
+                            {{ trip.delivered_at or "—" }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="trip-detail">
+
+                        <span>
+                            Current Status
+                        </span>
+
+                        <strong>
+                            {{ status }}
+                        </strong>
+
+                    </div>
+
+
+                </div>
+
+
+                <!-- =========================================
+                     PROGRESS
+                ========================================== -->
+
+                <div class="trip-progress">
+
+                    <div class="trip-progress-title">
+                        Trip Progress
+                    </div>
+
+
+                    <div class="trip-progress-track">
+
+
+                        <!-- ASSIGNED -->
+
+                        <div class="progress-step completed">
+
+                            <div class="progress-dot">
+                                ✓
+                            </div>
+
+                            <div class="progress-label">
+                                Assigned
+                            </div>
+
+                        </div>
+
+
+                        <!-- ACCEPTED -->
+
+                        <div
+                            class="
+                                progress-step
+
+                                {% if status in [
+                                    'Accepted',
+                                    'Out for Delivery',
+                                    'Delivered'
+                                ] %}
+                                    completed
+                                {% endif %}
+                            "
+                        >
+
+                            <div class="progress-dot">
+
+                                {% if status in [
+                                    'Accepted',
+                                    'Out for Delivery',
+                                    'Delivered'
+                                ] %}
+                                    ✓
+                                {% endif %}
+
+                            </div>
+
+                            <div class="progress-label">
+                                Accepted
+                            </div>
+
+                        </div>
+
+
+                        <!-- OUT FOR DELIVERY -->
+
+                        <div
+                            class="
+                                progress-step
+
+                                {% if status == 'Delivered' %}
+                                    completed
+
+                                {% elif status == 'Out for Delivery' %}
+                                    current
+                                {% endif %}
+                            "
+                        >
+
+                            <div class="progress-dot">
+
+                                {% if status == 'Delivered' %}
+                                    ✓
+
+                                {% elif status == 'Out for Delivery' %}
+                                    •
+                                {% endif %}
+
+                            </div>
+
+                            <div class="progress-label">
+                                Out for Delivery
+                            </div>
+
+                        </div>
+
+
+                        <!-- DELIVERED -->
+
+                        <div
+                            class="
+                                progress-step
+
+                                {% if status == 'Delivered' %}
+                                    completed
+                                {% endif %}
+                            "
+                        >
+
+                            <div class="progress-dot">
+
+                                {% if status == 'Delivered' %}
+                                    ✓
+                                {% endif %}
+
+                            </div>
+
+                            <div class="progress-label">
+                                Delivered
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        {% endfor %}
+
+
+        <!-- =================================================
+             NO TRIPS AT ALL
+        ================================================== -->
+
+        {% if not trip_history %}
+
+            <div class="trip-empty">
+
+                <div class="trip-empty-icon">
+                    🚚
+                </div>
+
+                <strong>
+                    No trips yet
+                </strong>
+
+                <span>
+                    Trips assigned to your tanker operation will appear here.
+                </span>
+
+            </div>
+
+        {% endif %}
+
+    </div>
+
+
+    <!-- =====================================================
+         FILTERED EMPTY STATE
+    ====================================================== -->
+
+    <div
+        class="trip-empty"
+        id="filteredTripEmpty"
+        style="display:none;"
+    >
+
+        <div class="trip-empty-icon">
+            🔎
+        </div>
+
+        <strong>
+            No matching trips
+        </strong>
+
+        <span>
+            Try another search or trip status.
+        </span>
+
+    </div>
+
+</div>
+
 </main>
 
 
-</div></body>
+</div>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const filterButtons =
+        document.querySelectorAll(".trip-filter");
+
+    const tripCards =
+        document.querySelectorAll(".trip-card");
+
+    const searchInput =
+        document.getElementById("tripSearch");
+
+    const filteredEmpty =
+        document.getElementById("filteredTripEmpty");
+
+
+    let currentFilter = "all";
+
+
+    function updateTrips() {
+
+        const searchValue =
+            (searchInput.value || "")
+                .trim()
+                .toLowerCase();
+
+
+        let visibleCount = 0;
+
+
+        tripCards.forEach(function (card) {
+
+            const status =
+                (card.dataset.status || "")
+                    .toLowerCase();
+
+            const searchableText =
+                (card.dataset.search || "")
+                    .toLowerCase();
+
+
+            let matchesFilter = true;
+
+
+            if (currentFilter === "active") {
+
+                matchesFilter =
+                    status === "accepted"
+                    ||
+                    status === "out for delivery";
+
+            }
+
+
+            else if (currentFilter === "delivered") {
+
+                matchesFilter =
+                    status === "delivered";
+
+            }
+
+
+            const matchesSearch =
+                !searchValue
+                ||
+                searchableText.includes(searchValue);
+
+
+            const shouldShow =
+                matchesFilter
+                &&
+                matchesSearch;
+
+
+            card.style.display =
+                shouldShow
+                    ? ""
+                    : "none";
+
+
+            if (shouldShow) {
+                visibleCount++;
+            }
+
+        });
+
+
+        if (filteredEmpty) {
+
+            filteredEmpty.style.display =
+                tripCards.length > 0
+                &&
+                visibleCount === 0
+                    ? "block"
+                    : "none";
+
+        }
+
+    }
+
+
+    filterButtons.forEach(function (button) {
+
+        button.addEventListener(
+            "click",
+            function () {
+
+                filterButtons.forEach(
+                    function (item) {
+
+                        item.classList.remove(
+                            "active"
+                        );
+
+                    }
+                );
+
+
+                button.classList.add(
+                    "active"
+                );
+
+
+                currentFilter =
+                    button.dataset.filter
+                    ||
+                    "all";
+
+
+                updateTrips();
+
+            }
+        );
+
+    });
+
+
+    if (searchInput) {
+
+        searchInput.addEventListener(
+            "input",
+            updateTrips
+        );
+
+    }
+
+
+    updateTrips();
+
+});
+
+</script>
+
+</body>
 
 </html>
