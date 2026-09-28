@@ -1732,8 +1732,7 @@
                 <th>Operator Name</th>
                 <th>Phone</th>
                 <th>Area</th>
-                <th>Tanker Number</th>
-                <th>Capacity</th>
+                <th>No. of Tankers</th>
                 <th>Water Type</th>
                 <th>Status</th>
                 <th>Action</th>
@@ -1757,14 +1756,10 @@
 
                 <td>
                     {{ operator.area }}
-                </td>
+                </td>   
 
                 <td>
-                    {{ operator.tanker_registration_no }}
-                </td>
-
-                <td>
-                    {{ operator.tanker_capacity_kl }} KL
+                    {{ operator.operational_tankers }} 
                 </td>
 
                 <td>

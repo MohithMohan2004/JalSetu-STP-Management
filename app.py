@@ -162,6 +162,45 @@ def ensure_tanker_vehicles_file():
 
             writer.writeheader()
 
+def get_available_operator_vehicles(operator_id):
+
+    ensure_tanker_vehicles_file()
+
+    operator_id = str(operator_id or "").strip()
+
+    vehicles = []
+
+    with open(
+        TANKER_VEHICLES_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
+
+        reader = csv.DictReader(f)
+
+        for row in reader:
+
+            if (
+                str(row.get("operator_id") or "").strip()
+                != operator_id
+            ):
+                continue
+
+            status = str(
+                row.get("vehicle_status") or ""
+            ).strip().lower()
+
+            if status in {
+                "",
+                "available",
+                "active",
+                "operational"
+            }:
+                vehicles.append(row)
+
+    return vehicles
+
 # =========================================================
 # TANKER VEHICLE DOCUMENTS
 # =========================================================
@@ -480,7 +519,7 @@ ORDER_FIELDS = [
     "assigned_operator_name",
     "operator_distance_km",
     "assigned_at",
-
+    "assigned_vehicle_ids",
     "tankers_required"
 ]
 
@@ -949,6 +988,30 @@ def get_tanker_operator_by_id(operator_id):
         ).strip()
 
         if registered_id.lower() == operator_id.lower():
+            return operator
+
+    return None
+
+def get_tanker_operator_by_email(email):
+    """
+    Return the tanker operator registration linked
+    to the supplied email address.
+    """
+
+    email = str(email or "").strip().lower()
+
+    if not email:
+        return None
+
+    operators = load_tanker_operators()
+
+    for operator in operators:
+
+        registered_email = str(
+            operator.get("email") or ""
+        ).strip().lower()
+
+        if registered_email == email:
             return operator
 
     return None
@@ -2995,351 +3058,961 @@ def home():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 
-    if request.method == 'POST':
+    # =========================================================
+    # GET REQUEST
+    # =========================================================
 
-        login_identifier = request.form.get(
-            "login_identifier", ""
-        ).strip()
+    if request.method == 'GET':
+        return render_template("login.html")
 
-        password = request.form.get("password", "")
+    # =========================================================
+    # GET LOGIN DETAILS
+    # =========================================================
 
-        if not login_identifier or not password:
-            return render_template(
-                "login.html",
-                login_error="Please enter your email and password."
-            )
+    login_identifier = str(
+        request.form.get("login_identifier") or ""
+    ).strip().lower()
 
-        try:
-            # Supabase Auth login
-            response = supabase.auth.sign_in_with_password({
-                "email": login_identifier,
-                "password": password
-            })
+    password = str(
+        request.form.get("password") or ""
+    )
 
-            if not response.user:
-                return render_template(
-                    "login.html",
-                    login_error="Invalid email or password."
-                )
+    if not login_identifier or not password:
+        return render_template(
+            "login.html",
+            login_error="Please enter your email and password."
+        )
 
-            user = response.user
+    try:
 
-            # Get metadata saved during signup
-            metadata = user.user_metadata or {}
+        # =====================================================
+        # AUTHENTICATE USER WITH SUPABASE
+        # =====================================================
 
-            # Clear previous Flask session
+        response = supabase.auth.sign_in_with_password({
+            "email": login_identifier,
+            "password": password
+        })
+
+        if not response.user:
+
             session.clear()
-
-            session.permanent = True
-
-            # Preserve existing session structure
-            session["user_id"] = str(user.id)
-            session["first_name"] = str(
-                metadata.get("first_name", "")
-            )
-            session["last_name"] = str(
-                metadata.get("last_name", "")
-            )
-            session["username"] = str(
-                metadata.get("username", "")
-            )
-
-            session["user_name"] = (
-                f"{session['first_name']} "
-                f"{session['last_name']}"
-            ).strip()
-
-            session["user_phone"] = str(
-                metadata.get("mobile", "")
-            )
-
-            session["user_email"] = str(
-                user.email or ""
-            )
-
-            session["role"] = str(
-                metadata.get("role", "")
-            ).strip().lower()
-
-            session["stp_id"] = metadata.get(
-                "stp_id", ""
-            )
-
-            session["tanker_operator_id"] = metadata.get(
-                "tanker_operator_id", ""
-            )
-
-            # Existing role redirects
-            if session["role"] == "demand":
-
-                session["buyer_name"] = session["user_name"]
-                session["buyer_phone"] = session["user_phone"]
-
-                return redirect(url_for("demand"))
-  
-            if session["role"] == "stp":
-
-                stp_id = str(session.get("stp_id") or "").strip()
-
-                if not stp_id:
-                    session.clear()
-
-                    return render_template(
-                        "login.html",
-                        login_error="No STP is assigned to this account."
-                    )
-
-                return redirect(
-                    url_for(
-                        "supply",
-                        stp_id=stp_id
-                    )
-                )
-
-            if session["role"] == "tanker":
-
-                session["tanker_operator_name"] = (
-                    session["user_name"]
-                )
-
-                return redirect(
-                    url_for("tanker_dashboard")
-                ) 
-                return redirect(
-                    url_for("tanker_dashboard")
-                )
-
-            if session["role"] == "admin":
-                return redirect(
-                    url_for("admin_dashboard")
-                )
-
-            # Invalid/missing role
-            session.clear()
-
-            return render_template(
-                "login.html",
-                login_error="Your account has an invalid role."
-            )
-
-        except Exception as e:
-
-            print("Supabase login error:", e)
 
             return render_template(
                 "login.html",
                 login_error="Invalid email or password."
             )
 
-    return render_template("login.html")
+        user = response.user
+
+        # =====================================================
+        # READ AUTHENTICATED USER DATA
+        # =====================================================
+
+        metadata = user.user_metadata or {}
+
+        authenticated_email = str(
+            user.email or ""
+        ).strip().lower()
+
+        role = str(
+            metadata.get("role") or ""
+        ).strip().lower()
+
+        # =====================================================
+        # DEBUG
+        # =====================================================
+
+        print("")
+        print("======================================")
+        print("LOGIN SUCCESSFUL")
+        print("EMAIL:", authenticated_email)
+        print("ROLE:", role)
+        print("USER ID:", user.id)
+        print("======================================")
+        print("")
+
+        # =====================================================
+        # VALIDATE ROLE
+        # =====================================================
+
+        allowed_roles = {
+            "admin",
+            "demand",
+            "stp",
+            "tanker"
+        }
+
+        if role not in allowed_roles:
+
+            print(
+                "LOGIN FAILED - INVALID ROLE:",
+                role
+            )
+
+            session.clear()
+
+            return render_template(
+                "login.html",
+                login_error=(
+                    "Your account does not have "
+                    "a valid system role."
+                )
+            )
+
+        # =====================================================
+        # CREATE CLEAN FLASK SESSION
+        # =====================================================
+
+        session.clear()
+
+        session.permanent = True
+
+        session["user_id"] = str(
+            user.id
+        )
+
+        session["first_name"] = str(
+            metadata.get("first_name") or ""
+        ).strip()
+
+        session["last_name"] = str(
+            metadata.get("last_name") or ""
+        ).strip()
+
+        session["username"] = str(
+            metadata.get("username") or ""
+        ).strip()
+
+        session["user_name"] = (
+            f"{session['first_name']} "
+            f"{session['last_name']}"
+        ).strip()
+
+        session["user_phone"] = str(
+            metadata.get("mobile") or ""
+        ).strip()
+
+        session["user_email"] = (
+            authenticated_email
+        )
+
+        session["role"] = role
+
+        # Start role-specific values empty.
+        session["stp_id"] = ""
+
+        session["tanker_operator_id"] = ""
+
+        session["tanker_operator_name"] = ""
+
+        session["tanker_operator_email"] = ""
+
+        # =====================================================
+        # ADMIN LOGIN
+        # =====================================================
+
+        if role == "admin":
+
+            print(
+                "ADMIN LOGIN:",
+                authenticated_email
+            )
+
+            return redirect(
+                url_for("admin_dashboard")
+            )
+
+        # =====================================================
+        # DEMAND USER LOGIN
+        # =====================================================
+
+        elif role == "demand":
+
+            session["buyer_name"] = (
+                session["user_name"]
+            )
+
+            session["buyer_phone"] = (
+                session["user_phone"]
+            )
+
+            print(
+                "DEMAND LOGIN:",
+                authenticated_email
+            )
+
+            return redirect(
+                url_for("demand")
+            )
+
+        # =====================================================
+        # STP LOGIN
+        # =====================================================
+
+        elif role == "stp":
+
+            stp_id = str(
+                metadata.get("stp_id") or ""
+            ).strip()
+
+            if not stp_id:
+
+                print(
+                    "STP LOGIN FAILED - NO STP ID:",
+                    authenticated_email
+                )
+
+                session.clear()
+
+                return render_template(
+                    "login.html",
+                    login_error=(
+                        "No STP is assigned "
+                        "to this account."
+                    )
+                )
+
+            session["stp_id"] = stp_id
+
+            print(
+                "STP LOGIN:",
+                authenticated_email,
+                "->",
+                stp_id
+            )
+
+            return redirect(
+                url_for(
+                    "supply",
+                    stp_id=stp_id
+                )
+            )
+
+        # =====================================================
+        # TANKER LOGIN
+        # =====================================================
+
+        elif role == "tanker":
+
+            # -------------------------------------------------
+            # FIND TANKER REGISTRATION USING LOGIN EMAIL
+            # -------------------------------------------------
+
+            matched_operator = (
+                get_tanker_operator_by_email(
+                    authenticated_email
+                )
+            )
+
+            if matched_operator is None:
+
+                print(
+                    "TANKER LOGIN FAILED - "
+                    "EMAIL NOT IN REGISTRATION:",
+                    authenticated_email
+                )
+
+                session.clear()
+
+                return render_template(
+                    "login.html",
+                    login_error=(
+                        "No tanker operator registration "
+                        "is linked to this email address."
+                    )
+                )
+
+            # -------------------------------------------------
+            # CHECK APPROVAL STATUS
+            # -------------------------------------------------
+
+            verification_status = str(
+                matched_operator.get(
+                    "verification_status"
+                ) or ""
+            ).strip().lower()
+
+            if verification_status != "approved":
+
+                print(
+                    "TANKER LOGIN FAILED - "
+                    "NOT APPROVED:",
+                    authenticated_email,
+                    verification_status
+                )
+
+                session.clear()
+
+                return render_template(
+                    "login.html",
+                    login_error=(
+                        "Your tanker operator registration "
+                        "has not been approved."
+                    )
+                )
+
+            # -------------------------------------------------
+            # GET CURRENT OPERATOR ID
+            # -------------------------------------------------
+
+            current_operator_id = str(
+                matched_operator.get(
+                    "operator_id"
+                ) or ""
+            ).strip()
+
+            if not current_operator_id:
+
+                print(
+                    "TANKER LOGIN FAILED - "
+                    "NO OPERATOR ID:",
+                    authenticated_email
+                )
+
+                session.clear()
+
+                return render_template(
+                    "login.html",
+                    login_error=(
+                        "No valid Tanker Operator ID "
+                        "is linked to this account."
+                    )
+                )
+
+            # -------------------------------------------------
+            # STORE CURRENT OPERATOR ID
+            # -------------------------------------------------
+
+            session[
+                "tanker_operator_id"
+            ] = current_operator_id
+
+            session[
+                "tanker_operator_name"
+            ] = str(
+                matched_operator.get(
+                    "operator_name"
+                )
+                or session["user_name"]
+                or ""
+            ).strip()
+
+            session[
+                "tanker_operator_email"
+            ] = authenticated_email
+
+            # Keep name/phone synchronized with registration.
+
+            registered_name = str(
+                matched_operator.get(
+                    "operator_name"
+                ) or ""
+            ).strip()
+
+            registered_phone = str(
+                matched_operator.get(
+                    "phone"
+                ) or ""
+            ).strip()
+
+            if registered_name:
+                session["user_name"] = (
+                    registered_name
+                )
+
+            if registered_phone:
+                session["user_phone"] = (
+                    registered_phone
+                )
+
+            print(
+                "TANKER LOGIN:",
+                authenticated_email,
+                "->",
+                current_operator_id
+            )
+
+            return redirect(
+                url_for("tanker_dashboard")
+            )
+
+        # =====================================================
+        # FALLBACK
+        # =====================================================
+
+        session.clear()
+
+        return render_template(
+            "login.html",
+            login_error=(
+                "Unable to determine account type."
+            )
+        )
+
+    except Exception as e:
+
+        # =====================================================
+        # REAL ERROR OUTPUT
+        # =====================================================
+
+        print("")
+        print("======================================")
+        print("LOGIN ERROR")
+        print("EMAIL:", login_identifier)
+        print("ERROR TYPE:", type(e).__name__)
+        print("ERROR:", repr(e))
+        print("======================================")
+        print("")
+
+        session.clear()
+
+        return render_template(
+            "login.html",
+            login_error=(
+                "Invalid email or password."
+            )
+        )
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
 
-    if request.method == 'POST':
+    # =========================================================
+    # GET — SHOW SIGNUP PAGE
+    # =========================================================
 
-        first_name = request.form.get("first_name", "").strip()
-        last_name = request.form.get("last_name", "").strip()
-        mobile = request.form.get("mobile", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        username = request.form.get("username", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm_password = request.form.get("confirm_password", "")
-        role = request.form.get("role", "").strip().lower()
+    if request.method == 'GET':
 
-        # Role-specific identity fields from signup.html.
-        stp_id = request.form.get("stp_id", "").strip()
-        tanker_operator_id = request.form.get("tanker_id", "").strip()
+        stps = load_stps()
 
-        allowed_roles = {"demand", "stp", "tanker", "admin"}
+        return render_template(
+            "signup.html",
+            stps=stps
+        )
 
-        if not all([
-            first_name,
-            last_name,
-            mobile,
-            email,
-            username,
-            password,
-            confirm_password,
-            role
-        ]):
-            return render_template(
-                "signup.html",
-                signup_error="Please fill in all fields."
-            )
+    # =========================================================
+    # POST — READ FORM DATA
+    # =========================================================
 
-        if role not in allowed_roles:
-            return render_template(
-                "signup.html",
-                signup_error="Please select a valid account type."
-            )
+    first_name = str(
+        request.form.get("first_name") or ""
+    ).strip()
 
-        # STP operators must provide an existing STP ID.
-        if role == "stp":
-            if not stp_id:
-                return render_template(
-                    "signup.html",
-                    signup_error="Please enter your STP ID."
-                )
+    last_name = str(
+        request.form.get("last_name") or ""
+    ).strip()
 
-            stp_exists = any(
-                str(stp.get("stp_id") or "").strip().lower() == stp_id.lower()
-                for stp in load_stps()
-            )
+    mobile = str(
+        request.form.get("mobile") or ""
+    ).strip()
 
-            if not stp_exists:
-                return render_template(
-                    "signup.html",
-                    signup_error="Invalid STP ID. Please enter a registered STP ID."
-                )
+    email = str(
+        request.form.get("email") or ""
+    ).strip().lower()
 
-        # Tanker operators must provide an existing tanker operator ID.
-        if role == "tanker":
-            if not tanker_operator_id:
-                return render_template(
-                    "signup.html",
-                    signup_error="Please enter your Tanker Operator ID."
-                )
+    username = str(
+        request.form.get("username") or ""
+    ).strip().lower()
 
-            matched_tanker = None
-
-            if os.path.exists(TANKER_REGISTRATIONS_FILE):
-                try:
-                    with open(
-                        TANKER_REGISTRATIONS_FILE,
-                        "r",
-                        newline="",
-                        encoding="utf-8"
-                    ) as f:
-                        reader = csv.DictReader(f)
-
-                        for row in reader:
-                            registered_operator_id = str(
-                                row.get("operator_id") or ""
-                            ).strip()
-
-                            if registered_operator_id.lower() == tanker_operator_id.lower():
-                                matched_tanker = row
-                                break
-
-                except Exception as e:
-                    print("Tanker operator validation failed:", e)
-
-            if matched_tanker is None:
-                return render_template(
-                    "signup.html",
-                    signup_error="Invalid Tanker Operator ID."
-                )
-
-        if password != confirm_password:
-            return render_template(
-                "signup.html",
-                signup_error="Passwords do not match."
-            )
-
-        if len(password) < 8:
-            return render_template(
-                "signup.html",
-                signup_error=(
-                    "Password must be at least 8 characters long."
-                )
-            )
-
-        try:
-
-            # Create user in Supabase Auth
-            response = supabase.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": {
-                        "first_name": first_name,
-                        "last_name": last_name,
-                        "username": username,
-                        "mobile": mobile,
-                        "role": role,
-                        "stp_id": (
-                            stp_id if role == "stp" else ""
-                        ),
-                        "tanker_operator_id": (
-                            tanker_operator_id
-                            if role == "tanker"
-                            else ""
-                        )
-                    }
-                }
-            })
-
-            if not response.user:
-                return render_template(
-                    "signup.html",
-                    signup_error=(
-                        "Unable to create account. "
-                        "Please try again."
-                    )
-                )
-
-            return redirect(
-                url_for(
-                    "login",
-                    signup_success=(
-                        "Account created successfully. "
-                        "Please log in."
-                    )
-                )
-            )
-
-        except Exception as e:
-
-            print("Supabase signup error:", e)
-
-            error_message = str(e)
-
-            if "already registered" in error_message.lower():
-                error_message = (
-                    "That email address is already registered."
-                )
-            else:
-                error_message = (
-                    "Unable to create account. Please try again."
-                )
-
-            return render_template(
-                "signup.html",
-                signup_error=error_message
-            )
-
-    stps = load_stps()
-    return render_template(
-        "signup.html",
-        stps=stps
+    password = str(
+        request.form.get("password") or ""
     )
 
+    confirm_password = str(
+        request.form.get("confirm_password") or ""
+    )
+
+    role = str(
+        request.form.get("role") or ""
+    ).strip().lower()
+
+    # Role-specific fields
+
+    stp_id = str(
+        request.form.get("stp_id") or ""
+    ).strip()
+
+    tanker_operator_id = str(
+        request.form.get("tanker_id") or ""
+    ).strip()
+
+    # =========================================================
+    # LOAD STPS
+    # =========================================================
+    #
+    # Keep this available whenever signup.html must be
+    # rendered again after an error.
+    # =========================================================
+
+    stps = load_stps()
+
+    # =========================================================
+    # BASIC VALIDATION
+    # =========================================================
+
+    allowed_roles = {
+        "demand",
+        "stp",
+        "tanker",
+        "admin"
+    }
+
+    if not all([
+        first_name,
+        last_name,
+        mobile,
+        email,
+        username,
+        password,
+        confirm_password,
+        role
+    ]):
+
+        return render_template(
+            "signup.html",
+            stps=stps,
+            signup_error="Please fill in all fields."
+        )
+
+    if role not in allowed_roles:
+
+        return render_template(
+            "signup.html",
+            stps=stps,
+            signup_error="Please select a valid account type."
+        )
+
+    # =========================================================
+    # PASSWORD VALIDATION
+    # =========================================================
+    #
+    # IMPORTANT:
+    # This applies to ALL roles.
+    # =========================================================
+
+    if password != confirm_password:
+
+        return render_template(
+            "signup.html",
+            stps=stps,
+            signup_error="Passwords do not match."
+        )
+
+    if len(password) < 8:
+
+        return render_template(
+            "signup.html",
+            stps=stps,
+            signup_error=(
+                "Password must be at least "
+                "8 characters long."
+            )
+        )
+
+    # =========================================================
+    # STP ACCOUNT VALIDATION
+    # =========================================================
+
+    if role == "stp":
+
+        if not stp_id:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error="Please enter your STP ID."
+            )
+
+        matched_stp = None
+
+        for stp in stps:
+
+            registered_stp_id = str(
+                stp.get("stp_id") or ""
+            ).strip()
+
+            if (
+                registered_stp_id.lower()
+                == stp_id.lower()
+            ):
+
+                matched_stp = stp
+                break
+
+        if matched_stp is None:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Invalid STP ID. "
+                    "Please enter a registered STP ID."
+                )
+            )
+
+        # Use canonical STP ID from the registration data.
+
+        stp_id = str(
+            matched_stp.get("stp_id") or ""
+        ).strip()
+
+        print(
+            "STP SIGNUP VALIDATED:",
+            email,
+            "->",
+            stp_id
+        )
+
+    # =========================================================
+    # TANKER OPERATOR ACCOUNT VALIDATION
+    # =========================================================
+
+    if role == "tanker":
+
+        if not tanker_operator_id:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Please enter your "
+                    "Tanker Operator ID."
+                )
+            )
+
+        # -----------------------------------------------------
+        # FIND REGISTERED OPERATOR
+        # -----------------------------------------------------
+
+        matched_tanker = get_tanker_operator_by_id(
+            tanker_operator_id
+        )
+
+        if matched_tanker is None:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Invalid Tanker Operator ID. "
+                    "Please enter your registered "
+                    "Operator ID."
+                )
+            )
+
+        # -----------------------------------------------------
+        # MUST BE APPROVED
+        # -----------------------------------------------------
+
+        verification_status = str(
+            matched_tanker.get(
+                "verification_status"
+            ) or ""
+        ).strip().lower()
+
+        if verification_status != "approved":
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "This tanker operator registration "
+                    "has not been approved yet."
+                )
+            )
+
+        # -----------------------------------------------------
+        # PHONE MUST MATCH
+        # -----------------------------------------------------
+
+        registered_phone = str(
+            matched_tanker.get("phone") or ""
+        ).strip()
+
+        entered_phone = str(
+            mobile or ""
+        ).strip()
+
+        if registered_phone != entered_phone:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Mobile number does not match "
+                    "the registered tanker operator."
+                )
+            )
+
+        # -----------------------------------------------------
+        # EMAIL MUST MATCH
+        # -----------------------------------------------------
+
+        registered_email = str(
+            matched_tanker.get("email") or ""
+        ).strip().lower()
+
+        entered_email = str(
+            email or ""
+        ).strip().lower()
+
+        if not registered_email:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "No email address is registered "
+                    "for this Tanker Operator ID."
+                )
+            )
+
+        if registered_email != entered_email:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Email address does not match "
+                    "the registered Tanker Operator ID."
+                )
+            )
+
+        # -----------------------------------------------------
+        # CANONICAL OPERATOR ID
+        # -----------------------------------------------------
+
+        tanker_operator_id = str(
+            matched_tanker.get(
+                "operator_id"
+            ) or ""
+        ).strip()
+
+        if not tanker_operator_id:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "The tanker registration does not "
+                    "contain a valid Operator ID."
+                )
+            )
+
+        print(
+            "TANKER SIGNUP VALIDATED:",
+            email,
+            "->",
+            tanker_operator_id
+        )
+
+    # =========================================================
+    # CREATE SUPABASE ACCOUNT
+    # =========================================================
+    #
+    # IMPORTANT:
+    # This is OUTSIDE all role-specific blocks.
+    #
+    # Therefore:
+    #
+    # demand -> reaches here
+    # stp    -> validates STP then reaches here
+    # tanker -> validates operator then reaches here
+    # admin  -> reaches here
+    # =========================================================
+
+    try:
+
+        signup_metadata = {
+
+            "first_name":
+                first_name,
+
+            "last_name":
+                last_name,
+
+            "username":
+                username,
+
+            "mobile":
+                mobile,
+
+            "role":
+                role,
+
+            "stp_id":
+                (
+                    stp_id
+                    if role == "stp"
+                    else ""
+                ),
+
+            "tanker_operator_id":
+                (
+                    tanker_operator_id
+                    if role == "tanker"
+                    else ""
+                )
+        }
+
+        print("")
+        print("======================================")
+        print("CREATING SUPABASE ACCOUNT")
+        print("EMAIL:", email)
+        print("ROLE:", role)
+
+        if role == "stp":
+            print(
+                "STP ID:",
+                stp_id
+            )
+
+        if role == "tanker":
+            print(
+                "TANKER OPERATOR ID:",
+                tanker_operator_id
+            )
+
+        print("======================================")
+        print("")
+
+        response = supabase.auth.sign_up({
+            "email": email,
+            "password": password,
+            "options": {
+                "data": signup_metadata
+            }
+        })
+
+        if not response.user:
+
+            return render_template(
+                "signup.html",
+                stps=stps,
+                signup_error=(
+                    "Unable to create account. "
+                    "Please try again."
+                )
+            )
+
+        # =====================================================
+        # SUCCESS
+        # =====================================================
+
+        print("")
+        print("======================================")
+        print("ACCOUNT CREATED")
+        print("EMAIL:", email)
+        print("ROLE:", role)
+        print("USER ID:", response.user.id)
+        print("======================================")
+        print("")
+
+        return redirect(
+            url_for(
+                "login",
+                signup_success=(
+                    "Account created successfully. "
+                    "Please log in."
+                )
+            )
+        )
+
+    # =========================================================
+    # SUPABASE ERROR
+    # =========================================================
+
+    except Exception as e:
+
+        print("")
+        print("======================================")
+        print("SUPABASE SIGNUP ERROR")
+        print("EMAIL:", email)
+        print("ROLE:", role)
+        print("ERROR TYPE:", type(e).__name__)
+        print("ERROR:", repr(e))
+        print("======================================")
+        print("")
+
+        error_message = str(e)
+
+        if (
+            "already registered"
+            in error_message.lower()
+            or
+            "already been registered"
+            in error_message.lower()
+            or
+            "user already registered"
+            in error_message.lower()
+        ):
+
+            error_message = (
+                "That email address is "
+                "already registered."
+            )
+
+        else:
+
+            error_message = (
+                "Unable to create account. "
+                "Please try again."
+            )
+
+        return render_template(
+            "signup.html",
+            stps=stps,
+            signup_error=error_message
+        )
+
+# =========================================================
+# LOGOUT
+# =========================================================
 
 @app.route("/logout")
 def logout():
 
     try:
+        # Sign out the authenticated Supabase user.
         supabase.auth.sign_out()
-    except Exception as e:
-        print("Supabase logout error:", e)
 
+    except Exception as e:
+
+        # Even if Supabase sign-out fails,
+        # the local Flask session must still be cleared.
+        print(
+            "SUPABASE LOGOUT ERROR:",
+            repr(e)
+        )
+
+    # Remove all local login/session data.
     session.clear()
 
-    return redirect(url_for("login"))
+    return redirect(
+        url_for("login")
+    )
 
 
-@app.route("/delete_account", methods=["POST"])
+# =========================================================
+# DELETE ACCOUNT / LOG OUT
+# =========================================================
+
+@app.route(
+    "/delete_account",
+    methods=["POST"]
+)
 def delete_account():
 
     if not session.get("user_id"):
-        return redirect(url_for("login"))
+
+        return redirect(
+            url_for("login")
+        )
 
     try:
-        # Sign out from Supabase
+
         supabase.auth.sign_out()
 
-        # Clear Flask session
         session.clear()
 
         return redirect(
@@ -3347,16 +4020,24 @@ def delete_account():
                 "login",
                 account_deleted=(
                     "You have been logged out. "
-                    "Account deletion requires Supabase admin configuration."
+                    "Account deletion requires "
+                    "Supabase admin configuration."
                 )
             )
         )
 
     except Exception as e:
-        print("Supabase account deletion error:", e)
+
+        print(
+            "SUPABASE ACCOUNT DELETION ERROR:",
+            repr(e)
+        )
+
+        # Clear local session anyway.
+        session.clear()
 
         return redirect(
-            url_for("profile")
+            url_for("login")
         )
 
 
@@ -3693,72 +4374,106 @@ def tanker_register_contracted():
 
     if request.method == "POST":
 
-        # ==========================================
+        # =====================================================
         # OPERATOR DETAILS
-        # ==========================================
+        # =====================================================
 
-        operator_name = request.form.get(
-            "operator_name",
-            ""
+        operator_name = str(
+            request.form.get("operator_name") or ""
         ).strip()
 
-        phone = request.form.get(
-            "phone",
-            ""
+        phone = str(
+            request.form.get("phone") or ""
         ).strip()
 
-        email = request.form.get(
-            "email",
-            ""
-        ).strip()
+        email = str(
+            request.form.get("email") or ""
+        ).strip().lower()
 
-
-        # ==========================================
+        # =====================================================
         # CONTRACT DETAILS
-        # ==========================================
+        # =====================================================
 
-        contract_id = request.form.get(
-            "contract_id",
-            ""
+        contract_id = str(
+            request.form.get("contract_id") or ""
         ).strip()
 
-        contract_start = request.form.get(
-            "contract_start",
-            ""
+        contract_start = str(
+            request.form.get("contract_start") or ""
         ).strip()
 
-        contract_end = request.form.get(
-            "contract_end",
-            ""
+        contract_end = str(
+            request.form.get("contract_end") or ""
         ).strip()
 
-
-        # ==========================================
+        # =====================================================
         # LOCATION / FLEET
-        # ==========================================
+        # =====================================================
 
-        latitude = request.form.get(
-            "latitude",
-            ""
+        latitude = str(
+            request.form.get("latitude") or ""
         ).strip()
 
-        longitude = request.form.get(
-            "longitude",
-            ""
+        longitude = str(
+            request.form.get("longitude") or ""
         ).strip()
 
-        operational_tankers = request.form.get(
-            "operational_tankers",
-            ""
+        operational_tankers = str(
+            request.form.get("operational_tankers") or ""
         ).strip()
 
+        # =====================================================
+        # BASIC VALIDATION
+        # =====================================================
 
-        # ==========================================
+        if not operator_name:
+            return (
+                "Operator name is required.",
+                400
+            )
+
+        if not phone:
+            return (
+                "Phone number is required.",
+                400
+            )
+
+        if not email:
+            return (
+                "Email address is required.",
+                400
+            )
+
+        if not contract_id:
+            return (
+                "Contract ID is required.",
+                400
+            )
+
+        if not contract_start:
+            return (
+                "Contract start date is required.",
+                400
+            )
+
+        if not contract_end:
+            return (
+                "Contract end date is required.",
+                400
+            )
+
+        if not latitude or not longitude:
+            return (
+                "Please select the operator location.",
+                400
+            )
+
+        # =====================================================
         # INDIVIDUAL VEHICLE DETAILS
-        # ==========================================
+        # =====================================================
 
         vehicle_registration_numbers = [
-            value.strip().upper()
+            str(value or "").strip().upper()
             for value
             in request.form.getlist(
                 "vehicle_registration_no[]"
@@ -3766,7 +4481,7 @@ def tanker_register_contracted():
         ]
 
         vehicle_capacities = [
-            value.strip()
+            str(value or "").strip()
             for value
             in request.form.getlist(
                 "vehicle_capacity[]"
@@ -3774,16 +4489,16 @@ def tanker_register_contracted():
         ]
 
         vehicle_models = [
-            value.strip()
+            str(value or "").strip()
             for value
             in request.form.getlist(
                 "vehicle_model[]"
             )
         ]
 
-        # ==========================================
-        # VALIDATE FLEET
-        # ==========================================
+        # =====================================================
+        # VALIDATE FLEET COUNT
+        # =====================================================
 
         try:
             tanker_count = int(
@@ -3793,7 +4508,6 @@ def tanker_register_contracted():
         except (TypeError, ValueError):
             tanker_count = 0
 
-
         if tanker_count < 1 or tanker_count > 15:
 
             return (
@@ -3802,6 +4516,9 @@ def tanker_register_contracted():
                 400
             )
 
+        # =====================================================
+        # CHECK VEHICLE ARRAY LENGTHS
+        # =====================================================
 
         if (
             len(vehicle_registration_numbers)
@@ -3815,11 +4532,14 @@ def tanker_register_contracted():
         ):
 
             return (
-                "Please enter details for every vehicle "
-                "in your fleet.",
+                "Please enter details for every "
+                "vehicle in your fleet.",
                 400
             )
 
+        # =====================================================
+        # VALIDATE EACH VEHICLE
+        # =====================================================
 
         for index in range(tanker_count):
 
@@ -3835,6 +4555,28 @@ def tanker_register_contracted():
                     400
                 )
 
+            # Capacity must be numeric and positive.
+
+            try:
+
+                capacity = float(
+                    vehicle_capacities[index]
+                )
+
+                if capacity <= 0:
+                    raise ValueError
+
+            except (TypeError, ValueError):
+
+                return (
+                    f"Vehicle {index + 1} has an "
+                    "invalid tanker capacity.",
+                    400
+                )
+
+        # =====================================================
+        # DUPLICATE VEHICLES INSIDE THIS FORM
+        # =====================================================
 
         if (
             len(set(vehicle_registration_numbers))
@@ -3847,13 +4589,120 @@ def tanker_register_contracted():
                 400
             )
 
-        existing_vehicle_numbers = set()
+        # =====================================================
+        # ENSURE FILE SCHEMAS EXIST
+        # =====================================================
 
+        ensure_tanker_registrations_schema()
+
+        ensure_tanker_vehicles_file()
+
+        # =====================================================
+        # LOAD EXISTING OPERATORS
+        # =====================================================
+
+        existing_operators = []
 
         if (
-            os.path.exists(TANKER_VEHICLES_FILE)
+            os.path.exists(
+                TANKER_REGISTRATIONS_FILE
+            )
             and
-            os.path.getsize(TANKER_VEHICLES_FILE) > 0
+            os.path.getsize(
+                TANKER_REGISTRATIONS_FILE
+            ) > 0
+        ):
+
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    operator_id_value = str(
+                        row.get("operator_id") or ""
+                    ).strip()
+
+                    # Ignore completely blank rows.
+                    if not operator_id_value:
+                        continue
+
+                    clean_row = {
+
+                        field:
+                            str(
+                                row.get(field) or ""
+                            ).strip()
+
+                        for field
+                        in TANKER_REGISTRATION_FIELDS
+                    }
+
+                    existing_operators.append(
+                        clean_row
+                    )
+
+        # =====================================================
+        # DUPLICATE OPERATOR EMAIL / PHONE
+        # =====================================================
+
+        for existing_operator in existing_operators:
+
+            existing_email = str(
+                existing_operator.get(
+                    "email"
+                ) or ""
+            ).strip().lower()
+
+            existing_phone = str(
+                existing_operator.get(
+                    "phone"
+                ) or ""
+            ).strip()
+
+            if (
+                existing_email
+                and
+                existing_email == email
+            ):
+
+                return (
+                    "A tanker operator is already "
+                    "registered with this email address.",
+                    400
+                )
+
+            if (
+                existing_phone
+                and
+                existing_phone == phone
+            ):
+
+                return (
+                    "A tanker operator is already "
+                    "registered with this phone number.",
+                    400
+                )
+
+        # =====================================================
+        # LOAD EXISTING VEHICLE REGISTRATION NUMBERS
+        # =====================================================
+
+        existing_vehicle_numbers = set()
+
+        if (
+            os.path.exists(
+                TANKER_VEHICLES_FILE
+            )
+            and
+            os.path.getsize(
+                TANKER_VEHICLES_FILE
+            ) > 0
         ):
 
             with open(
@@ -3867,25 +4716,27 @@ def tanker_register_contracted():
 
                 for row in reader:
 
-                    registration =(
-                            row.get(
-                                "registration_number"
-                            )
-                            or ""
-                        ).strip().upper()
+                    registration = str(
+                        row.get(
+                            "registration_number"
+                        ) or ""
+                    ).strip().upper()
 
                     if registration:
+
                         existing_vehicle_numbers.add(
                             registration
                         )
 
+        # =====================================================
+        # CHECK VEHICLES AGAINST DATABASE
+        # =====================================================
 
         duplicate_existing = (
             set(vehicle_registration_numbers)
             &
             existing_vehicle_numbers
         )
-
 
         if duplicate_existing:
 
@@ -3894,52 +4745,72 @@ def tanker_register_contracted():
                 "registered: "
                 +
                 ", ".join(
-                    sorted(duplicate_existing)
+                    sorted(
+                        duplicate_existing
+                    )
                 ),
                 400
             )
 
+        # =====================================================
+        # GENERATE SAFE NEXT OPERATOR ID
+        # =====================================================
 
-        # ==========================================
-        # ENSURE CORRECT CSV SCHEMA
-        # ==========================================
+        existing_operator_numbers = []
 
-        ensure_tanker_registrations_schema()
+        for existing_operator in existing_operators:
 
+            existing_operator_id = str(
+                existing_operator.get(
+                    "operator_id"
+                ) or ""
+            ).strip()
 
-        # ==========================================
-        # GENERATE OPERATOR ID
-        # ==========================================
+            if not existing_operator_id:
+                continue
 
-        existing_rows = []
+            try:
 
-        if (
-            os.path.exists(TANKER_REGISTRATIONS_FILE)
-            and os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
-        ):
+                operator_number_part = int(
+                    existing_operator_id.split(
+                        "-"
+                    )[-1]
+                )
 
-            with open(
-                TANKER_REGISTRATIONS_FILE,
-                "r",
-                newline="",
-                encoding="utf-8"
-            ) as f:
+                existing_operator_numbers.append(
+                    operator_number_part
+                )
 
-                reader = csv.DictReader(f)
+            except (ValueError, IndexError):
 
-                existing_rows = list(reader)
+                print(
+                    "WARNING - INVALID OPERATOR ID:",
+                    existing_operator_id
+                )
 
+        if existing_operator_numbers:
 
-        operator_number = len(existing_rows) + 1
+            operator_number = (
+                max(existing_operator_numbers)
+                + 1
+            )
+
+        else:
+
+            operator_number = 1
 
         operator_id = (
             f"OP-BLR-{operator_number:04d}"
         )
 
+        print(
+            "GENERATED CONTRACTED OPERATOR ID:",
+            operator_id
+        )
 
-        # ==========================================
-        # CREATE OPERATOR
-        # ==========================================
+        # =====================================================
+        # CREATE NEW CONTRACTED OPERATOR
+        # =====================================================
 
         new_operator = {
 
@@ -3958,8 +4829,9 @@ def tanker_register_contracted():
             "email":
                 email,
 
-            # Contracted operators do not need
-            # independent service area/radius
+            # Contracted operators do not use
+            # independent service area/pincode.
+
             "area":
                 "",
 
@@ -3973,7 +4845,7 @@ def tanker_register_contracted():
                 longitude,
 
             "operational_tankers":
-                operational_tankers,
+                str(tanker_count),
 
             "contract_id":
                 contract_id,
@@ -3984,8 +4856,8 @@ def tanker_register_contracted():
             "contract_end":
                 contract_end,
 
-            # First vehicle is mirrored here temporarily
-            # for compatibility with existing JalSetu logic.
+            # Mirror first vehicle for compatibility
+            # with existing JalSetu code.
 
             "tanker_registration_no":
                 vehicle_registration_numbers[0],
@@ -4009,104 +4881,275 @@ def tanker_register_contracted():
                 date.today().isoformat()
         }
 
+        # =====================================================
+        # ADD OPERATOR TO IN-MEMORY DATA
+        # =====================================================
 
-        # ==========================================
-        # SAVE USING CANONICAL COLUMN ORDER
-        # ==========================================
+        existing_operators.append(
+            new_operator
+        )
 
-        with open(
-            TANKER_REGISTRATIONS_FILE,
-            "a",
-            newline="",
-            encoding="utf-8"
-        ) as f:
+        # =====================================================
+        # SAFELY REWRITE TANKER REGISTRATIONS
+        # =====================================================
+        #
+        # Do NOT append here.
+        #
+        # Rewriting with DictWriter guarantees:
+        #
+        # - correct header
+        # - correct 20-column order
+        # - every operator gets its own CSV row
+        # =====================================================
 
-            writer = csv.DictWriter(
-                f,
-                fieldnames=TANKER_REGISTRATION_FIELDS
-            )
+        try:
 
-            writer.writerow({
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "w",
+                newline="",
+                encoding="utf-8"
+            ) as f:
 
-                field:
-                    new_operator.get(field, "")
-
-                for field
-                in TANKER_REGISTRATION_FIELDS
-            })
-
-        # ==========================================
-        # SAVE INDIVIDUAL VEHICLES
-        # ==========================================
-
-        ensure_tanker_vehicles_file()
-
-
-        with open(
-            TANKER_VEHICLES_FILE,
-            "a",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-
-            writer = csv.DictWriter(
-                f,
-                fieldnames=TANKER_VEHICLE_FIELDS
-            )
-
-
-            for index in range(tanker_count):
-
-                vehicle_id = (
-                    f"VEH-{uuid.uuid4().hex[:10].upper()}"
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=
+                        TANKER_REGISTRATION_FIELDS
                 )
 
+                writer.writeheader()
 
-                writer.writerow({
+                for operator in existing_operators:
 
-                    "vehicle_id":
-                        vehicle_id,
+                    writer.writerow({
 
-                    "operator_id":
-                        operator_id,
+                        field:
+                            operator.get(
+                                field,
+                                ""
+                            )
 
-                    "registration_number":
-                        vehicle_registration_numbers[index],
+                        for field
+                        in TANKER_REGISTRATION_FIELDS
+                    })
 
-                    "vehicle_model":
-                        vehicle_models[index],
+        except Exception as e:
 
-                    "capacity_kl":
-                        vehicle_capacities[index],
+            print(
+                "ERROR SAVING CONTRACTED OPERATOR:",
+                repr(e)
+            )
 
-                    "vehicle_status":
-                        "active",
+            return (
+                "Unable to save tanker operator "
+                "registration.",
+                500
+            )
 
-                    "created_at":
-                        datetime.now().isoformat(
-                            timespec="seconds"
-                        )
-                })
+        # =====================================================
+        # SAVE INDIVIDUAL VEHICLES
+        # =====================================================
 
+        created_vehicle_ids = []
 
+        try:
+
+            with open(
+                TANKER_VEHICLES_FILE,
+                "a",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                writer = csv.DictWriter(
+                    f,
+                    fieldnames=
+                        TANKER_VEHICLE_FIELDS
+                )
+
+                for index in range(
+                    tanker_count
+                ):
+
+                    vehicle_id = (
+                        "VEH-"
+                        +
+                        uuid.uuid4()
+                        .hex[:10]
+                        .upper()
+                    )
+
+                    writer.writerow({
+
+                        "vehicle_id":
+                            vehicle_id,
+
+                        "operator_id":
+                            operator_id,
+
+                        "registration_number":
+                            vehicle_registration_numbers[
+                                index
+                            ],
+
+                        "vehicle_model":
+                            vehicle_models[
+                                index
+                            ],
+
+                        "capacity_kl":
+                            vehicle_capacities[
+                                index
+                            ],
+
+                        "vehicle_status":
+                            "active",
+
+                        "created_at":
+                            datetime.now().isoformat(
+                                timespec="seconds"
+                            )
+                    })
+
+                    created_vehicle_ids.append(
+                        vehicle_id
+                    )
+
+        except Exception as e:
+
+            print(
+                "ERROR SAVING CONTRACTED VEHICLES:",
+                repr(e)
+            )
+
+            # =================================================
+            # ROLLBACK OPERATOR
+            # =================================================
+            #
+            # Vehicle creation failed after the operator
+            # was written. Remove the new operator again so
+            # we don't leave a half-created registration.
+            # =================================================
+
+            existing_operators = [
+
+                operator
+
+                for operator
+                in existing_operators
+
+                if str(
+                    operator.get(
+                        "operator_id"
+                    ) or ""
+                ).strip()
+                != operator_id
+            ]
+
+            try:
+
+                with open(
+                    TANKER_REGISTRATIONS_FILE,
+                    "w",
+                    newline="",
+                    encoding="utf-8"
+                ) as f:
+
+                    writer = csv.DictWriter(
+                        f,
+                        fieldnames=
+                            TANKER_REGISTRATION_FIELDS
+                    )
+
+                    writer.writeheader()
+
+                    for operator in existing_operators:
+
+                        writer.writerow({
+
+                            field:
+                                operator.get(
+                                    field,
+                                    ""
+                                )
+
+                            for field
+                            in TANKER_REGISTRATION_FIELDS
+                        })
+
+            except Exception as rollback_error:
+
+                print(
+                    "ROLLBACK ERROR:",
+                    repr(
+                        rollback_error
+                    )
+                )
+
+            return (
+                "Unable to save tanker vehicles. "
+                "Operator registration was cancelled.",
+                500
+            )
+
+        # =====================================================
+        # SUCCESS LOG
+        # =====================================================
+
+        print("")
+        print(
+            "=========================================="
+        )
         print(
             "NEW CONTRACTED TANKER OPERATOR REGISTERED"
         )
-
-        print(new_operator)
-
         print(
-            "DATA SAVED TO:",
-            TANKER_REGISTRATIONS_FILE
+            "OPERATOR ID:",
+            operator_id
         )
+        print(
+            "OPERATOR:",
+            operator_name
+        )
+        print(
+            "EMAIL:",
+            email
+        )
+        print(
+            "CONTRACT ID:",
+            contract_id
+        )
+        print(
+            "VEHICLES REGISTERED:",
+            tanker_count
+        )
+        print(
+            "VEHICLE IDS:",
+            created_vehicle_ids
+        )
+        print(
+            "STATUS: pending"
+        )
+        print(
+            "=========================================="
+        )
+        print("")
 
+        # =====================================================
+        # SUCCESS PAGE
+        # =====================================================
 
         return render_template(
             "registration_success.html",
             operator_id=operator_id,
-            operator_type="Existing Purvankara Partner"
+            operator_type=(
+                "Existing Purvankara Partner"
+            )
         )
 
+    # =========================================================
+    # GET REQUEST
+    # =========================================================
 
     return render_template(
         "tanker_register_contracted.html"
@@ -4387,27 +5430,113 @@ def tanker_register_independent():
 
         ensure_tanker_registrations_schema()
 
-
         # ==========================================
-        # GENERATE OPERATOR ID
+        # CHECK DUPLICATE OPERATOR
         # ==========================================
 
         if (
-            os.path.exists(
-                TANKER_REGISTRATIONS_FILE
-            )
+            os.path.exists(TANKER_REGISTRATIONS_FILE)
             and
-            os.path.getsize(
-                TANKER_REGISTRATIONS_FILE
-            ) > 0
+            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
         ):
 
-            existing_df = pd.read_csv(
-                TANKER_REGISTRATIONS_FILE
-            )
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    existing_email = str(
+                        row.get("email") or ""
+                    ).strip().lower()
+
+                    existing_phone = str(
+                        row.get("phone") or ""
+                    ).strip()
+
+                    if (
+                        existing_email
+                        and
+                        existing_email == email.lower()
+                    ):
+
+                        return (
+                            "A tanker operator is already "
+                            "registered with this email address.",
+                            400
+                        )
+
+                    if (
+                        existing_phone
+                        and
+                        existing_phone == phone
+                    ):
+
+                        return (
+                            "A tanker operator is already "
+                            "registered with this phone number.",
+                            400
+                        )
+
+
+        # ==========================================
+        # GENERATE SAFE NEXT OPERATOR ID
+        # ==========================================
+
+        existing_operator_numbers = []
+
+
+        if (
+            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            and
+            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+        ):
+
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    existing_operator_id = str(
+                        row.get("operator_id") or ""
+                    ).strip()
+
+                    if not existing_operator_id:
+                        continue
+
+                    try:
+
+                        operator_number_part = int(
+                            existing_operator_id.split("-")[-1]
+                        )
+
+                        existing_operator_numbers.append(
+                            operator_number_part
+                        )
+
+                    except (ValueError, IndexError):
+
+                        print(
+                            "WARNING: Invalid operator ID:",
+                            existing_operator_id
+                        )
+
+
+        if existing_operator_numbers:
 
             operator_number = (
-                len(existing_df) + 1
+                max(existing_operator_numbers) + 1
             )
 
         else:
@@ -4417,6 +5546,12 @@ def tanker_register_independent():
 
         operator_id = (
             f"OP-BLR-{operator_number:04d}"
+        )
+
+
+        print(
+            "GENERATED OPERATOR ID:",
+            operator_id
         )
 
 
@@ -4500,12 +5635,67 @@ def tanker_register_independent():
 
 
         # ==========================================
-        # SAVE OPERATOR REGISTRATION
+        # SAVE OPERATOR REGISTRATION SAFELY
         # ==========================================
+
+        existing_operators = []
+
+
+        # ------------------------------------------
+        # LOAD EXISTING OPERATORS
+        # ------------------------------------------
+
+        if (
+            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            and
+            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+        ):
+
+            with open(
+                TANKER_REGISTRATIONS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    clean_row = {
+
+                        field:
+                            str(
+                                row.get(field) or ""
+                            ).strip()
+
+                        for field
+                        in TANKER_REGISTRATION_FIELDS
+                    }
+
+                    if clean_row.get("operator_id"):
+
+                        existing_operators.append(
+                            clean_row
+                        )
+
+
+        # ------------------------------------------
+        # ADD NEW OPERATOR
+        # ------------------------------------------
+
+        existing_operators.append(
+            new_operator
+        )
+
+
+        # ------------------------------------------
+        # REWRITE COMPLETE CSV SAFELY
+        # ------------------------------------------
 
         with open(
             TANKER_REGISTRATIONS_FILE,
-            "a",
+            "w",
             newline="",
             encoding="utf-8"
         ) as f:
@@ -4516,22 +5706,27 @@ def tanker_register_independent():
                     TANKER_REGISTRATION_FIELDS
             )
 
+            # Always write correct header
+            writer.writeheader()
 
-            writer.writerow({
 
-                field:
-                    new_operator.get(
-                        field,
-                        ""
-                    )
+            for operator in existing_operators:
 
-                for field
-                in TANKER_REGISTRATION_FIELDS
-            })
+                writer.writerow({
+
+                    field:
+                        operator.get(
+                            field,
+                            ""
+                        )
+
+                    for field
+                    in TANKER_REGISTRATION_FIELDS
+                })
 
 
         print(
-            "DATA SAVED TO:",
+            "OPERATOR DATA SAVED SAFELY TO:",
             TANKER_REGISTRATIONS_FILE
         )
 
@@ -6824,66 +8019,98 @@ def supply():
 
     auto_reset_capacity()
 
+    # =========================================================
+    # LOAD STPs
+    # =========================================================
+
     stps = load_stps()
-    selected_id = request.args.get("stp_id")
+
+    selected_id = (
+        request.args.get("stp_id") or ""
+    ).strip()
 
     selected_stp = None
     prediction = None
     weekly_forecast = None
 
-    # ==========================================
+    # =========================================================
     # FIND SELECTED STP
-    # ==========================================
-    if selected_id:
+    # =========================================================
 
-        selected_id = str(selected_id).strip()
+    if selected_id:
 
         for stp in stps:
 
-            if str(stp.get("stp_id", "")).strip() == selected_id:
+            stp_id = str(
+                stp.get("stp_id") or ""
+            ).strip()
+
+            if stp_id == selected_id:
 
                 selected_stp = stp
-
-                try:
-
-                    print("STP ID sent to ML:", selected_stp["stp_id"])
-
-                    prediction = predict_next_day(
-                        str(selected_stp["stp_id"])
-                    )
-
-                    weekly_forecast = predict_week(
-                        str(selected_stp["stp_id"])
-                    )
-
-                    if prediction is not None:
-                        prediction = round(prediction, 2)
-
-                    print("Prediction:", prediction)
-
-                except Exception as e:
-
-                    print("Prediction error:", e)
-
-                    prediction = None
-                    weekly_forecast = None
-
                 break
 
+    # =========================================================
+    # ML PREDICTION
+    # =========================================================
 
-    # ==========================================
-    # LOAD ORDERS FOR THIS STP
-    # ==========================================
+    if selected_stp:
+
+        try:
+
+            current_stp_id = str(
+                selected_stp.get("stp_id") or ""
+            ).strip()
+
+            print(
+                "STP ID sent to ML:",
+                current_stp_id
+            )
+
+            prediction = predict_next_day(
+                current_stp_id
+            )
+
+            weekly_forecast = predict_week(
+                current_stp_id
+            )
+
+            if prediction is not None:
+                prediction = round(
+                    prediction,
+                    2
+                )
+
+        except Exception as e:
+
+            print(
+                "Prediction error:",
+                e
+            )
+
+            prediction = None
+            weekly_forecast = None
+
+    # =========================================================
+    # LOAD DEMAND WATER REQUESTS
+    # =========================================================
 
     demands = []
 
-    if selected_stp and os.path.exists(ORDERS_FILE):
+    if (
+        selected_stp
+        and os.path.exists(ORDERS_FILE)
+        and os.path.getsize(ORDERS_FILE) > 0
+    ):
 
         selected_stp_id = str(
-            selected_stp.get("stp_id", "")
+            selected_stp.get("stp_id") or ""
         ).strip()
 
-        print("Loading orders for STP:", selected_stp_id)
+        print(
+            "Loading demand orders for STP:",
+            selected_stp_id
+        )
 
         try:
 
@@ -6899,92 +8126,194 @@ def supply():
                 for order in reader:
 
                     order_stp_id = str(
-                        order.get("stp_id", "")
+                        order.get("stp_id") or ""
                     ).strip()
 
-                    print(
-                        "Checking order:",
-                        order.get("order_id"),
-                        "| Order STP:",
-                        order_stp_id,
-                        "| Selected STP:",
-                        selected_stp_id
-                    )
+                    # -----------------------------------------
+                    # ONLY ORDERS BELONGING TO THIS STP
+                    # -----------------------------------------
 
-                    # ==========================================
-                    # ONLY SHOW ORDERS FOR THIS STP
-                    # ==========================================
+                    if order_stp_id != selected_stp_id:
+                        continue
 
-                    if order_stp_id == selected_stp_id:
+                    status = str(
+                        order.get("status")
+                        or "Pending"
+                    ).strip()
 
-                        demands.append({
-                            "request_id": order.get(
-                                "order_id",
-                                ""
-                            ),
+                    demand = {
 
-                            "site_name": order.get(
-                                "location",
-                                ""
-                            ),
+                        "request_id": str(
+                            order.get("order_id")
+                            or ""
+                        ).strip(),
 
-                            "buyer_name": order.get(
-                                "customer_name",
-                                ""
-                            ),
+                        "order_id": str(
+                            order.get("order_id")
+                            or ""
+                        ).strip(),
 
-                            "buyer_phone": order.get(
-                                "customer_phone",
-                                ""
-                            ),
+                        "site_name": str(
+                            order.get("location")
+                            or ""
+                        ).strip(),
 
-                            "quantity": order.get(
-                                "quantity_kld",
-                                ""
-                            ),
+                        # FIXED:
+                        # orders.csv uses buyer_name
+                        "buyer_name": str(
+                            order.get("buyer_name")
+                            or ""
+                        ).strip(),
 
-                            "quality_required": order.get(
-                                "quality",
-                                ""
-                            ),
+                        # FIXED:
+                        # orders.csv uses buyer_phone
+                        "buyer_phone": str(
+                            order.get("buyer_phone")
+                            or ""
+                        ).strip(),
 
-                            "status": order.get(
-                                "status",
-                                "Pending"
-                            ),
+                        "quantity": str(
+                            order.get("quantity_kld")
+                            or ""
+                        ).strip(),
 
-                            # Keep original order data too
-                            "order_id": order.get(
-                                "order_id",
-                                ""
-                            ),
+                        "quality_required": str(
+                            order.get("quality")
+                            or ""
+                        ).strip(),
 
-                            "stp_id": order_stp_id,
+                        "water_type": str(
+                            order.get("water_type")
+                            or ""
+                        ).strip(),
 
-                            "stp_name": order.get(
-                                "stp_name",
-                                ""
+                        "distance_km": str(
+                            order.get("distance_km")
+                            or ""
+                        ).strip(),
+
+                        "status": status,
+
+                        "created_at": str(
+                            order.get("created_at")
+                            or ""
+                        ).strip(),
+
+                        "stp_id": order_stp_id,
+
+                        "stp_name": str(
+                            order.get("stp_name")
+                            or ""
+                        ).strip(),
+
+                        "delivery_latitude": str(
+                            order.get(
+                                "delivery_latitude"
                             )
-                        })
+                            or ""
+                        ).strip(),
 
+                        "delivery_longitude": str(
+                            order.get(
+                                "delivery_longitude"
+                            )
+                            or ""
+                        ).strip()
+                    }
+
+                    demands.append(demand)
 
         except Exception as e:
 
-            print("Error loading orders:", e)
+            print(
+                "Error loading demand orders:",
+                e
+            )
 
+    # Newest demand requests first
+    demands.reverse()
+
+    # =========================================================
+    # LOAD STP-TO-STP WATER TRANSFER REQUESTS
+    # =========================================================
+
+    transfer_requests = []
+
+    if (
+        selected_stp
+        and os.path.exists(STP_TRANSFERS_FILE)
+        and os.path.getsize(STP_TRANSFERS_FILE) > 0
+    ):
+
+        selected_stp_id = str(
+            selected_stp.get("stp_id")
+            or ""
+        ).strip()
+
+        try:
+
+            with open(
+                STP_TRANSFERS_FILE,
+                "r",
+                newline="",
+                encoding="utf-8"
+            ) as f:
+
+                reader = csv.DictReader(f)
+
+                for row in reader:
+
+                    source_stp_id = str(
+                        row.get("source_stp_id")
+                        or ""
+                    ).strip()
+
+                    # -----------------------------------------
+                    # THIS STP IS THE SOURCE.
+                    # Another STP is requesting water from it.
+                    # -----------------------------------------
+
+                    if source_stp_id != selected_stp_id:
+                        continue
+
+                    transfer_requests.append(
+                        row
+                    )
+
+        except Exception as e:
+
+            print(
+                "Error loading STP transfers:",
+                e
+            )
+
+    # Newest transfer requests first
+    transfer_requests.reverse()
+
+    # =========================================================
+    # DEBUG
+    # =========================================================
 
     print(
-        f"Found {len(demands)} orders "
-        f"for STP {selected_id}"
+        "Selected STP:",
+        selected_id
     )
 
+    print(
+        "Demand requests found:",
+        len(demands)
+    )
 
-    # ==========================================
-    # RENDER PAGE
-    # ==========================================
+    print(
+        "STP transfer requests found:",
+        len(transfer_requests)
+    )
+
+    # =========================================================
+    # RENDER DASHBOARD
+    # =========================================================
 
     return render_template(
-
         "supply.html",
 
         stps=stps,
@@ -6995,87 +8324,11 @@ def supply():
 
         demands=demands,
 
+        transfer_requests=transfer_requests,
+
         prediction=prediction,
 
         weekly_forecast=weekly_forecast
-    )
-
-    # =========================================================
-    # STP-TO-STP TRANSFER REQUESTS
-    # =========================================================
-
-    transfer_requests = []
-
-    if selected_stp and os.path.exists(STP_TRANSFERS_FILE):
-
-        with open(
-            STP_TRANSFERS_FILE,
-            "r",
-            newline="",
-            encoding="utf-8"
-        ) as f:
-
-            reader = csv.DictReader(f)
-
-            for row in reader:
-
-                # This STP is the SOURCE,
-                # meaning another STP is requesting water from it.
-                if (
-                    row.get("source_stp_id", "").strip()
-                    == str(selected_stp["stp_id"]).strip()
-                ):
-
-                    transfer_requests.append(row)
-
-
-    # Newest requests first
-    transfer_requests.reverse()
-
-    if selected_stp and os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                
-                print("ROW STP:", row.get("stp_id"))
-                print("SELECTED STP:", selected_stp["stp_id"])
-
-                if row.get("stp_id", "").strip() == str(selected_stp["stp_id"]).strip():
-                    
-                    print("MATCHED:", row)
-
-                    # ✅ SAFE CLEANING (handles None keys)
-                    clean_row = {}
-
-                    for k, v in row.items():
-                        if k is None:
-                            continue
-                        clean_row[k.strip()] = v
-
-                    row = clean_row
-                    
-                    print("ROW DATA:", row)
-                    mapped_row = {
-                        "request_id": row.get("order_id"),
-                        "site_name": row.get("location"),
-                        "quantity": row.get("quantity_kld"),
-                        "quality_required": row.get("quality"),
-                        "buyer_name": row.get("buyer_name"),        # ✅ ADD THIS
-                        "buyer_phone": row.get("buyer_phone"),      # ✅ ADD THIS
-                        "status": (row.get("status") or "").strip(),
-                        "created_at": row.get("created_at")
-                    }
-
-                    demands.append(mapped_row)
-
-    return render_template(
-    "supply.html",
-    stps=stps,
-    selected_stp=selected_stp,
-    demands=demands,
-    transfer_requests=transfer_requests,
-    prediction=prediction,
-    weekly_forecast=weekly_forecast
     )
 
 # =========================================================
@@ -9346,6 +10599,20 @@ def tanker_dashboard():
         )
 
     # =========================================================
+    # REGISTERED OPERATOR LOCATION
+    # =========================================================
+
+    operator_latitude = safe_float(
+        operator.get("latitude"),
+        0
+    )
+
+    operator_longitude = safe_float(
+        operator.get("longitude"),
+        0
+    )
+
+    # =========================================================
     # OPERATOR-SPECIFIC DASHBOARD DATA
     # =========================================================
 
@@ -9437,6 +10704,7 @@ def tanker_dashboard():
 
                 row["stp_lat"] = stp_lat
                 row["stp_lon"] = stp_lon
+
                 try:
                     row["delivery_lat"] = float(
                         row.get("delivery_latitude") or 0
@@ -9454,7 +10722,6 @@ def tanker_dashboard():
                 row["request_type"] = "demand"
 
                 orders.append(row)
-
 
     # =========================================================
     # STP → STP TRANSFER REQUESTS
@@ -9526,7 +10793,6 @@ def tanker_dashboard():
                         row.get("destination_stp_id") or ""
                     ).strip()
 
-
                     for stp in stps:
 
                         stp_id = str(
@@ -9538,7 +10804,6 @@ def tanker_dashboard():
 
                         if stp_id == destination_stp_id:
                             destination_stp = stp
-
 
                     # =========================================================
                     # PICKUP / SOURCE STP COORDINATES
@@ -9559,7 +10824,6 @@ def tanker_dashboard():
                         row["stp_lat"] = None
                         row["stp_lon"] = None
 
-
                     # =========================================================
                     # DELIVERY / DESTINATION STP COORDINATES
                     # =========================================================
@@ -9579,7 +10843,6 @@ def tanker_dashboard():
                         row["delivery_lat"] = None
                         row["delivery_lon"] = None
 
-
                     # Tell tanker.html what this is
                     row["request_type"] = "stp_transfer"
 
@@ -9592,6 +10855,9 @@ def tanker_dashboard():
 
                     orders.append(row)
 
+    # =========================================================
+    # RENDER TANKER DASHBOARD
+    # =========================================================
 
     return render_template(
         "tanker.html",
@@ -9608,7 +10874,11 @@ def tanker_dashboard():
 
         active_tankers=active_tankers,
 
-        available_tankers=available_tankers
+        available_tankers=available_tankers,
+
+        operator_latitude=operator_latitude,
+
+        operator_longitude=operator_longitude
     )
 
 
@@ -10166,93 +11436,6 @@ def tanker_notifications():
         "notifications": notifications
     })
 
-# =========================================================
-# TANKER LIVE GPS TRACKING (browser -> Flask -> Supabase)
-# =========================================================
-
-TANKER_LOCATIONS_TABLE = "tanker_locations"
-
-
-@app.route("/api/tanker/location", methods=["POST"])
-@login_required(role="tanker")
-def update_tanker_location():
-    """Receive a GPS ping from the tanker operator's browser (sent every
-    ~10s while a trip is active) and store the tanker's latest known
-    location in Supabase. Uses the existing session-based tanker
-    identity -- no separate auth mechanism is created."""
-
-    data = request.get_json(silent=True) or {}
-
-    tanker_operator_id = str(session.get("tanker_operator_id") or "").strip()
-    user_id = str(session.get("user_id") or "").strip()
-
-    if not tanker_operator_id:
-        return jsonify({
-            "success": False,
-            "error": "No tanker operator is linked to this account."
-        }), 400
-
-    try:
-        latitude = float(data.get("latitude"))
-        longitude = float(data.get("longitude"))
-    except (TypeError, ValueError):
-        return jsonify({
-            "success": False,
-            "error": "latitude and longitude are required."
-        }), 400
-
-    def to_float_or_none(value):
-        try:
-            if value in (None, ""):
-                return None
-            return float(value)
-        except (TypeError, ValueError):
-            return None
-
-    accuracy = to_float_or_none(data.get("accuracy"))
-    speed = to_float_or_none(data.get("speed"))
-    heading = to_float_or_none(data.get("heading"))
-
-    # Timestamp sent by the browser (ms since epoch); fall back to server time.
-    client_timestamp = to_float_or_none(data.get("timestamp"))
-
-    if client_timestamp:
-        recorded_at = (
-            datetime.utcfromtimestamp(client_timestamp / 1000).isoformat()
-            + "Z"
-        )
-    else:
-        recorded_at = datetime.utcnow().isoformat() + "Z"
-
-    payload = {
-        "tanker_operator_id": tanker_operator_id,
-        "user_id": user_id,
-        "tanker_operator_name": str(
-            session.get("tanker_operator_name") or ""
-        ),
-        "latitude": latitude,
-        "longitude": longitude,
-        "accuracy": accuracy,
-        "speed": speed,
-        "heading": heading,
-        "recorded_at": recorded_at,
-        "updated_at": datetime.utcnow().isoformat() + "Z",
-    }
-
-    try:
-        supabase.table(TANKER_LOCATIONS_TABLE).upsert(
-            payload,
-            on_conflict="tanker_operator_id"
-        ).execute()
-    except Exception as e:
-        print("Supabase tanker location upsert error:", e)
-        return jsonify({
-            "success": False,
-            "error": "Unable to save location right now."
-        }), 500
-
-    return jsonify({"success": True})
-
 @app.route("/accept_pickup", methods=["POST"])
 @login_required(role="tanker")
 def accept_pickup():
@@ -10353,22 +11536,6 @@ def _accept_pickup_locked():
 
 
                 # -------------------------------------------------
-                # ASSIGN CURRENT TANKER
-                # -------------------------------------------------
-
-                row["tanker_operator_id"] = str(
-                    session.get("tanker_operator_id") or ""
-                )
-
-                row["tanker_operator_name"] = str(
-                    session.get("tanker_operator_name") or ""
-                )
-
-                updated_rows.append(row)
-                continue
-
-
-                # -------------------------------------------------
                 # WRONG OPERATOR
                 # -------------------------------------------------
 
@@ -10432,6 +11599,39 @@ def _accept_pickup_locked():
                     updated_rows.append(row)
 
                     continue
+
+                tankers_required = safe_int(
+                row.get("tankers_required"),
+                    1
+                )
+
+                available_vehicles = get_available_operator_vehicles(
+                    current_operator_id
+                )
+
+                if len(available_vehicles) < tankers_required:
+
+                    accept_error = (
+                        "Not enough registered tanker vehicles "
+                        "are available for this order."
+                    )
+
+                    updated_rows.append(row)
+                    continue
+
+
+                assigned_vehicles = available_vehicles[
+                    :tankers_required
+                ]
+
+                assigned_vehicle_ids = [
+                    str(vehicle.get("vehicle_id") or "").strip()
+                    for vehicle in assigned_vehicles
+                ]
+
+                row["assigned_vehicle_ids"] = ",".join(
+                    assigned_vehicle_ids
+                )
 
 
                 # =================================================
@@ -10530,37 +11730,130 @@ def _accept_pickup_locked():
         1
     )
 
+    # =========================================================
+    # PREPARE ASSIGNED VEHICLES FOR SUMMARY
+    # =========================================================
+
+    assigned_vehicle_details = []
+
+    for vehicle in assigned_vehicles:
+
+        assigned_vehicle_details.append({
+
+            "vehicle_id": str(
+                vehicle.get("vehicle_id") or ""
+            ).strip(),
+
+            "registration_number": str(
+                vehicle.get("registration_number")
+                or vehicle.get("tanker_registration_no")
+                or vehicle.get("vehicle_number")
+                or ""
+            ).strip(),
+
+            "vehicle_model": str(
+                vehicle.get("vehicle_model")
+                or vehicle.get("model")
+                or ""
+            ).strip(),
+
+            "capacity_kl": (
+                vehicle.get("capacity_kl")
+                or vehicle.get("tanker_capacity_kl")
+                or vehicle.get("capacity")
+                or ""
+            )
+        })
+
+
+    # =========================================================
+    # BUILD SUMMARY DATA
+    # =========================================================
+
     tanker_info = {
 
-        "order_id":
-            target_order.get(
-                "order_id"
-            ),
+        "order_id": target_order.get("order_id"),
 
-        "quantity":
-            quantity,
+        "quantity": quantity,
 
-        "tankers_required":
-            tankers_required,
+        "tankers_required": tankers_required,
 
-        "available_tankers":
-            get_operator_available_tankers(
-                operator
-            ),
+        # Actual physical tanker vehicles assigned
+        "assigned_vehicles": assigned_vehicle_details,
 
-        "sufficient":
-            True,
+        "assigned_tankers": len(
+            assigned_vehicle_details
+        ),
 
-        "buyer_name":
-            target_order.get(
-                "buyer_name"
-            ),
+        # Number that were available when order was accepted
+        "available_tankers": len(
+            available_vehicles
+        ),
 
-        "buyer_phone":
-            target_order.get(
-                "buyer_phone"
-            )
+        "sufficient": (
+            len(assigned_vehicle_details)
+            >= tankers_required
+        ),
+
+        "buyer_name": (
+            target_order.get("buyer_name")
+            or "—"
+        ),
+
+        "buyer_phone": (
+            target_order.get("buyer_phone")
+            or "—"
+        )
     }
+
+
+    # =========================================================
+    # DEBUG ASSIGNED VEHICLES
+    # =========================================================
+
+    print()
+    print(
+        "========== TANKER ASSIGNMENT =========="
+    )
+
+    print(
+        "ORDER:",
+        tanker_info["order_id"]
+    )
+
+    print(
+        "TANKERS REQUIRED:",
+        tanker_info["tankers_required"]
+    )
+
+    print(
+        "AVAILABLE:",
+        tanker_info["available_tankers"]
+    )
+
+    print(
+        "ASSIGNED:",
+        tanker_info["assigned_tankers"]
+    )
+
+    for vehicle in assigned_vehicle_details:
+
+        print(
+            "VEHICLE:",
+            vehicle["vehicle_id"],
+            "| REG:",
+            vehicle["registration_number"],
+            "| MODEL:",
+            vehicle["vehicle_model"],
+            "| CAPACITY:",
+            vehicle["capacity_kl"],
+            "KL"
+        )
+
+    print(
+        "======================================="
+    )
+    print()
 
 
     return render_template(

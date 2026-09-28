@@ -2571,18 +2571,70 @@
 
 <script>
 
+    /* =========================================================
+       REGISTERED TANKER OPERATOR LOCATION
+    ========================================================= */
+
+    const operatorLatitude =
+        Number({{ operator_latitude | default(0) | tojson }});
+
+    const operatorLongitude =
+        Number({{ operator_longitude | default(0) | tojson }});
+
+    const hasRegisteredLocation =
+        Number.isFinite(operatorLatitude) &&
+        Number.isFinite(operatorLongitude) &&
+        operatorLatitude !== 0 &&
+        operatorLongitude !== 0;
+
 
     /* =========================================================
        MAP INITIALIZATION
     ========================================================= */
 
+    const initialLatitude =
+        hasRegisteredLocation
+            ? operatorLatitude
+            : 12.9716;
+
+    const initialLongitude =
+        hasRegisteredLocation
+            ? operatorLongitude
+            : 77.5946;
+
 
     var map =
         L.map('map')
         .setView(
-            [12.9716, 77.5946],
-            11
+            [
+                initialLatitude,
+                initialLongitude
+            ],
+            hasRegisteredLocation ? 15 : 11
         );
+
+
+    /* =========================================================
+       REGISTERED OPERATOR MARKER
+    ========================================================= */
+
+    var registeredOperatorMarker = null;
+
+    if (hasRegisteredLocation) {
+
+        registeredOperatorMarker = L.marker([
+            operatorLatitude,
+            operatorLongitude
+        ])
+        .addTo(map)
+        .bindPopup(
+            "<b>📍 Registered Operator Location</b><br>" +
+            "{{ operator.operator_name | e }}<br>" +
+            "{{ operator.operator_id | e }}"
+        );
+
+        registeredOperatorMarker.openPopup();
+    }
 
 
     setTimeout(
@@ -2642,8 +2694,11 @@
                 L.DomEvent.stopPropagation(event);
 
                 map.flyTo(
-                    [12.9716, 77.5946],
-                    11,
+                    [
+                        initialLatitude,
+                        initialLongitude
+                    ],
+                    hasRegisteredLocation ? 15 : 11,
                     {
                         animate: true,
                         duration: 0.8
