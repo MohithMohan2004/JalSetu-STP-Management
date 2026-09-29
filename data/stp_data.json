@@ -35,8 +35,8 @@
             "longitude": 77.61982521377139,
             "technology": "300 KLD SBR",
             "total_capacity_mld": 0.3,
-            "current_load_mld": 0.06600000000000002,
-            "available_capacity_mld": 0.29,
+            "current_load_mld": 0.07600000000000001,
+            "available_capacity_mld": 0.27999999999999997,
             "treatment_cost_per_kl": 6.0,
             "quality_grade": "Gold",
             "last_reset_date": "2026-08-18",
@@ -119,8 +119,8 @@
             "longitude": 77.6358331667833,
             "technology": "780 KLD MBR",
             "total_capacity_mld": 0.78,
-            "current_load_mld": 0.7070000000000001,
-            "available_capacity_mld": 0.58,
+            "current_load_mld": 0.713,
+            "available_capacity_mld": 0.574,
             "treatment_cost_per_kl": 9.5,
             "quality_grade": "Platinum",
             "last_reset_date": "2026-08-18",
@@ -147,8 +147,8 @@
             "longitude": 77.61969157012948,
             "technology": "175 KLD SBR",
             "total_capacity_mld": 0.175,
-            "current_load_mld": 0.229,
-            "available_capacity_mld": 0.06,
+            "current_load_mld": 0.249,
+            "available_capacity_mld": 0.039999999999999994,
             "treatment_cost_per_kl": 6.0,
             "quality_grade": "Gold",
             "last_reset_date": "2026-08-18",
@@ -181,6 +181,20 @@
             "quality_grade": "Silver",
             "last_reset_date": "2026-08-18",
             "last_reset_at": "2026-08-18T11:40:38.418442"
+        },
+        {
+            "stp_id": "PSTP014",
+            "stp_name": "provident",
+            "latitude": 12.97632806,
+            "longitude": 77.61935289,
+            "technology": "450 mbr",
+            "total_capacity_mld": 0.45,
+            "current_load_mld": 0.449,
+            "available_capacity_mld": 0.001,
+            "treatment_cost_per_kl": 60.0,
+            "quality_grade": "General",
+            "last_reset_date": "2026-09-21",
+            "last_reset_at": "2026-09-21T16:22:46.439590"
         }
     ]
 }

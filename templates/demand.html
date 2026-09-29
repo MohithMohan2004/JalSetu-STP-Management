@@ -680,6 +680,75 @@ body {
 }
 
 
+
+/* =========================================================
+   DELIVERY LOCATION PICKER
+========================================================= */
+
+.delivery-location-picker {
+    margin-top: 14px;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e4eaf2;
+    border-radius: 10px;
+}
+
+.delivery-location-picker-title {
+    margin: 0 0 4px;
+    color: #263449;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.delivery-location-picker-help {
+    margin: 0 0 10px;
+    color: #7b8799;
+    font-size: 9px;
+}
+
+.delivery-location-results {
+    display: none;
+    margin-top: 10px;
+    background: white;
+    border: 1px solid #dce3ec;
+    border-radius: 9px;
+    overflow: hidden;
+}
+
+.delivery-location-result {
+    width: 100%;
+    display: block;
+    padding: 10px 12px;
+    border: 0;
+    border-bottom: 1px solid #edf0f5;
+    border-radius: 0;
+    background: white;
+    color: #263449;
+    text-align: left;
+    font-family: 'Poppins', sans-serif;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.delivery-location-result:last-child {
+    border-bottom: 0;
+}
+
+.delivery-location-result:hover {
+    background: #f1f6ff;
+}
+
+.delivery-location-status {
+    margin-top: 10px;
+    color: #748197;
+    font-size: 9px;
+}
+
+.delivery-location-status.selected {
+    color: #199956;
+    font-weight: 600;
+}
+
 /* =========================================================
    MAIN GRID
 ========================================================= */
@@ -1718,6 +1787,41 @@ body {
     </div>
 
 
+    <div class="delivery-location-picker">
+
+        <p class="delivery-location-picker-title">
+            📍 Exact Delivery Location
+        </p>
+
+        <p class="delivery-location-picker-help">
+            Search the address above, choose the correct result, then drag and drop the blue pin anywhere on the map, or click the exact delivery point. The nearest STP and route update automatically.
+        </p>
+
+        <div
+            id="deliveryLocationResults"
+            class="delivery-location-results"
+        ></div>
+
+        <div
+            id="deliveryLocationStatus"
+            class="delivery-location-status"
+        >
+            No delivery location selected.
+        </div>
+
+        <input
+            type="hidden"
+            id="deliveryLatitude"
+        >
+
+        <input
+            type="hidden"
+            id="deliveryLongitude"
+        >
+
+    </div>
+
+
 </div>
 
 
@@ -1918,6 +2022,12 @@ let liveLat = null;
 let liveLon = null;
 let useLive = false;
 
+/* Exact delivery location selected by the buyer */
+let selectedDeliveryLat = null;
+let selectedDeliveryLon = null;
+let selectedDeliveryLabel = "";
+let deliveryLocationMarker = null;
+
 var map =
     L.map('map')
     .setView(
@@ -1979,6 +2089,346 @@ fetch("/api/stps")
 
 
 
+
+/* ================= EXACT DELIVERY LOCATION PICKER ================= */
+
+function escapeDemandHtml(value){
+
+    const div = document.createElement("div");
+    div.textContent = String(value || "");
+    return div.innerHTML;
+
+}
+
+
+function setDeliveryLocation(
+    lat,
+    lon,
+    label,
+    moveMap = true
+){
+
+    lat = Number(lat);
+    lon = Number(lon);
+
+    if(
+        !Number.isFinite(lat) ||
+        !Number.isFinite(lon)
+    ){
+        return;
+    }
+
+    selectedDeliveryLat = lat;
+    selectedDeliveryLon = lon;
+    selectedDeliveryLabel =
+        label || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+    document.getElementById("deliveryLatitude").value =
+        lat.toFixed(8);
+
+    document.getElementById("deliveryLongitude").value =
+        lon.toFixed(8);
+
+    const status =
+        document.getElementById("deliveryLocationStatus");
+
+    status.textContent =
+        "Selected: " + selectedDeliveryLabel;
+
+    status.classList.add("selected");
+
+
+    if(deliveryLocationMarker){
+
+        deliveryLocationMarker.setLatLng(
+            [lat, lon]
+        );
+
+    }else{
+
+        deliveryLocationMarker = L.marker(
+            [lat, lon],
+            {
+                draggable: true,
+                zIndexOffset: 1000
+            }
+        )
+        .addTo(map)
+        .bindPopup(
+            "<b>Delivery Location</b><br>" +
+            escapeDemandHtml(selectedDeliveryLabel)
+        );
+
+
+        deliveryLocationMarker.on(
+            "dragend",
+            function(){
+
+                const position =
+                    deliveryLocationMarker.getLatLng();
+
+                setDeliveryLocation(
+                    position.lat,
+                    position.lng,
+                    "Dropped delivery pin",
+                    false
+                );
+
+                deliveryLocationMarker
+                    .bindPopup(
+                        "<b>Delivery Location</b><br>" +
+                        position.lat.toFixed(6) +
+                        ", " +
+                        position.lng.toFixed(6)
+                    )
+                    .openPopup();
+
+                refreshDemandFromSelectedPin();
+
+            }
+        );
+
+    }
+
+
+    if(moveMap){
+
+        map.setView(
+            [lat, lon],
+            16
+        );
+
+    }
+
+}
+
+
+
+function refreshDemandFromSelectedPin(){
+
+    if(
+        Number.isFinite(Number(selectedDeliveryLat)) &&
+        Number.isFinite(Number(selectedDeliveryLon))
+    ){
+        searchLocation();
+    }
+
+}
+
+
+function clearDeliverySearchResults(){
+
+    const results =
+        document.getElementById(
+            "deliveryLocationResults"
+        );
+
+    results.innerHTML = "";
+    results.style.display = "none";
+
+}
+
+
+async function searchDeliveryAddress(query){
+
+    query = String(query || "").trim();
+
+    if(!query){
+        return false;
+    }
+
+    const resultsBox =
+        document.getElementById(
+            "deliveryLocationResults"
+        );
+
+    resultsBox.innerHTML =
+        '<div style="padding:10px 12px;color:#748197;font-size:10px;">Searching locations...</div>';
+
+    resultsBox.style.display =
+        "block";
+
+
+    try{
+
+        const params =
+            new URLSearchParams({
+                q: query + ", Bengaluru, Karnataka, India",
+                format: "jsonv2",
+                addressdetails: "1",
+                limit: "5",
+                countrycodes: "in"
+            });
+
+
+        const response =
+            await fetch(
+                "https://nominatim.openstreetmap.org/search?" +
+                params.toString(),
+                {
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                }
+            );
+
+
+        if(!response.ok){
+            throw new Error(
+                "Address search failed"
+            );
+        }
+
+
+        const results =
+            await response.json();
+
+        resultsBox.innerHTML = "";
+
+
+        if(!results.length){
+
+            resultsBox.innerHTML =
+                '<div style="padding:10px 12px;color:#748197;font-size:10px;">No matching address found. Try a more complete address, or click the map to select the delivery point.</div>';
+
+            return false;
+        }
+
+
+        results.forEach(function(result){
+
+            const item =
+                document.createElement("button");
+
+            item.type = "button";
+
+            item.className =
+                "delivery-location-result";
+
+            item.textContent =
+                result.display_name;
+
+
+            item.addEventListener(
+                "click",
+                function(){
+
+                    document.getElementById(
+                        "placeInput"
+                    ).value =
+                        result.display_name;
+
+                    useLive = false;
+
+                    setDeliveryLocation(
+                        parseFloat(result.lat),
+                        parseFloat(result.lon),
+                        result.display_name
+                    );
+
+                    clearDeliverySearchResults();
+
+                    /* Run the existing STP search with the
+                       exact selected delivery coordinates. */
+                    searchLocation();
+
+                }
+            );
+
+
+            resultsBox.appendChild(
+                item
+            );
+
+        });
+
+
+        return true;
+
+    }catch(error){
+
+        console.error(
+            "Delivery address search failed:",
+            error
+        );
+
+        resultsBox.innerHTML =
+            '<div style="padding:10px 12px;color:#b91c1c;font-size:10px;">Unable to search addresses right now. You can still click the map to place the delivery pin.</div>';
+
+        return false;
+
+    }
+
+}
+
+
+/* Buyer can refine the delivery point by clicking the map. */
+map.on(
+    "click",
+    function(event){
+
+        const placeInput =
+            document.getElementById(
+                "placeInput"
+            );
+
+        const label =
+            placeInput.value.trim() ||
+            "Selected delivery point";
+
+        useLive = false;
+
+        setDeliveryLocation(
+            event.latlng.lat,
+            event.latlng.lng,
+            "Dropped delivery pin",
+            false
+        );
+
+        if(deliveryLocationMarker){
+
+            deliveryLocationMarker
+                .bindPopup(
+                    "<b>Delivery Location</b><br>" +
+                    event.latlng.lat.toFixed(6) +
+                    ", " +
+                    event.latlng.lng.toFixed(6)
+                )
+                .openPopup();
+
+        }
+
+        refreshDemandFromSelectedPin();
+
+    }
+);
+
+
+/* Press Enter in the location field to show address choices. */
+document.getElementById(
+    "placeInput"
+).addEventListener(
+    "keydown",
+    function(event){
+
+        if(event.key === "Enter"){
+
+            event.preventDefault();
+
+            selectedDeliveryLat = null;
+            selectedDeliveryLon = null;
+            selectedDeliveryLabel = "";
+
+            searchDeliveryAddress(
+                this.value
+            );
+
+        }
+
+    }
+);
+
+
 /* ================= LIVE LOCATION ================= */
 
 function useLiveLocation(){
@@ -2016,6 +2466,17 @@ function useLiveLocation(){
 
             useLive = true;
 
+            selectedDeliveryLat = lat;
+            selectedDeliveryLon = lon;
+            selectedDeliveryLabel = "Current location";
+
+            setDeliveryLocation(
+                lat,
+                lon,
+                "Current location"
+            );
+
+            clearDeliverySearchResults();
 
             searchLocation();
 
@@ -2037,26 +2498,36 @@ function useLiveLocation(){
 
 /* ================= SEARCH FUNCTION ================= */
 
-function searchLocation(){
+async function searchLocation(){
 
-let place=document.getElementById("placeInput").value;
+let place=document.getElementById("placeInput").value.trim();
 let requiredKLD=document.getElementById("kldInput").value || 0;
 let quality=document.getElementById("qualityInput").value;
 let type=document.getElementById("typeInput").value;
 
-/* 🔥 FIXED VALIDATION */
-if(!place && !useLive){
-    alert("Enter location or use Live Location");
+/* A typed address must be selected from the address results
+   before STP matching. Live Location already has exact coords. */
+if(!useLive && !selectedDeliveryLat){
+
+    if(!place){
+        alert("Enter a delivery address or use Live Location");
+        return;
+    }
+
+    await searchDeliveryAddress(place);
     return;
 }
 
-/* 🔥 DYNAMIC URL */
+/* Use exact coordinates whenever the buyer has selected a pin. */
 let url = "";
 
-if(useLive){
-    url = `/api/search_place?lat=${liveLat}&lon=${liveLon}&required_kld=${requiredKLD}&quality=${quality}&type=${type}`;
+if(
+    Number.isFinite(Number(selectedDeliveryLat)) &&
+    Number.isFinite(Number(selectedDeliveryLon))
+){
+    url = `/api/search_place?lat=${selectedDeliveryLat}&lon=${selectedDeliveryLon}&required_kld=${requiredKLD}&quality=${quality}&type=${type}`;
 }else{
-    url = `/api/search_place?place=${place}&required_kld=${requiredKLD}&quality=${quality}&type=${type}`;
+    url = `/api/search_place?place=${encodeURIComponent(place)}&required_kld=${requiredKLD}&quality=${quality}&type=${type}`;
 }
 
 fetch(url)
@@ -2202,7 +2673,19 @@ document.getElementById("routeSummary").innerText = summaryText;
 document.getElementById("assignedStp").innerText=nearest.stp_name;
 
 /* 🔥 FIX BOOKING LOCATION */
-let locationLabel = location.name;
+let locationLabel =
+    selectedDeliveryLabel ||
+    location.name;
+
+let finalDeliveryLat =
+    Number.isFinite(Number(selectedDeliveryLat))
+        ? Number(selectedDeliveryLat)
+        : Number(location.latitude);
+
+let finalDeliveryLon =
+    Number.isFinite(Number(selectedDeliveryLon))
+        ? Number(selectedDeliveryLon)
+        : Number(location.longitude);
 
 addBookButton(
     nearest,
@@ -2210,8 +2693,8 @@ addBookButton(
     quality,
     type,
     locationLabel,
-    location.latitude,
-    location.longitude
+    finalDeliveryLat,
+    finalDeliveryLon
 );
 }
 
