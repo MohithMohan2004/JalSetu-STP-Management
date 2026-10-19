@@ -167,6 +167,28 @@
             color: #7b8799;
             cursor: pointer;
             font-size: 16px;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            z-index: 2;
+        }
+
+        .toggle .password-eye {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: block;
+        }
+
+        .toggle:hover {
+            color: #1976f3;
         }
 
         .login-btn {
@@ -234,6 +256,9 @@
             }
         }
     </style>
+
+          
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -241,9 +266,9 @@
 <div class="page">
 
     <section class="brand-panel">
-        <div class="logo">💧</div>
+        <div class="logo"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:58px;height:58px;object-fit:contain;"></div>
 
-        <h1>WasteWater<br>Management System</h1>
+        <h1>PURVA - JalSetu</h1>
 
         <p>
             Intelligent treated wastewater matching, routing and
@@ -252,9 +277,9 @@
         </p>
 
         <div class="feature">
-            <div>✓ Smart wastewater matching</div>
-            <div>✓ STP and tanker coordination</div>
-            <div>✓ Order and delivery tracking</div>
+            <div> Smart wastewater matching</div>
+            <div>STP and tanker coordination</div>
+            <div> Order and delivery tracking</div>
         </div>
     </section>
 
@@ -276,12 +301,12 @@
         <form method="POST" action="{{ url_for('login') }}">
 
             <div class="field">
-                <label>Email Address</label>
+                <label>Username or Email Address</label>
                 <input
-                    type="email"
+                    type="text"
                     name="login_identifier"
-                    placeholder="Enter your email"
-                    autocomplete="email"
+                    placeholder="Enter username or email"
+                    autocomplete="username"
                     required
                 >
             </div>
@@ -304,7 +329,10 @@
                         class="toggle"
                         onclick="togglePassword()"
                         aria-label="Show password"
-                    >👁</button>
+                        aria-pressed="false"
+                    >
+                        <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.1 12s3.5-6 9.9-6 9.9 6 9.9 6-3.5 6-9.9 6-9.9-6-9.9-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                    </button>
                 </div>
             </div>
 
@@ -330,7 +358,11 @@
 <script>
 function togglePassword() {
     const input = document.getElementById("password");
-    input.type = input.type === "password" ? "text" : "password";
+    const button = document.querySelector(".password-wrap .toggle");
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    button.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    button.setAttribute("aria-pressed", String(isHidden));
 }
 </script>
 

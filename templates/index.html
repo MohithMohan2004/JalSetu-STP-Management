@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Wastewater Routing Optimization System</title>
+  <title>PURVA - JalSetu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   
@@ -26,6 +26,7 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
 @media(max-width:480px){.hero h1{font-size:23px}.hero p{font-size:13px}.hero-btn{font-size:13px}.side-link{font-size:11px}.map-box{height:230px}.card-inner{padding:14px}.feature-icon-box{width:50px;height:50px}.analyze-icon{width:45px;height:45px}.hero-buttons {flex-direction: column;align-items: center;}}
 </style>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -42,13 +43,13 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
     <div class="brand">
       <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon">
       <div>
-        <div class="brand-title">Wastewater Routing Optimization System</div>
+        <div class="brand-title">PURVA - JalSetu</div>
       </div>
-    </div>
+</div>
 
     <div class="menu-label">MAIN MENU</div>
-    <nav class="side-nav">
-      <a href="{{ url_for('home') }}" class="side-link active"><span class="side-icon">⌂</span>Home</a>
+    <nav class="side-nav" id="mobile-sidebar-links">
+      <a href="{{ url_for('home') }}" class="side-link active"><span class="side-icon"></span>Home</a>
       <a href="#about" class="side-link"><span class="side-icon">ⓘ</span>About Project</a>
       <a href="#how-it-works" class="side-link"><span class="side-icon">⚙</span>How It Works</a>
       <a href="#contact" class="side-link"><span class="side-icon">♧</span>Contact</a>
@@ -57,7 +58,30 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
   </aside>
 
   <main class="main-content">
-    <header class="topbar">
+
+    <!-- Mobile navigation: brand and hamburger remain visible; sidebar links open separately. -->
+    <div class="mobile-navbar" role="navigation" aria-label="Mobile navigation">
+        <div class="mobile-navbar-brand">
+      <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon">
+      <div>
+        <div class="brand-title">PURVA - JalSetu</div>
+      </div>
+
+        </div>
+        <button
+            type="button"
+            class="mobile-sidebar-toggle"
+            aria-label="Open sidebar"
+            aria-expanded="false"
+            aria-controls="mobile-sidebar-links"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+
+    <header class="topbar public-topbar">
       <div class="mobile-brand">
         <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon">
         <span>Wastewater Routing Optimization System</span>
@@ -81,13 +105,12 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
             Get Started <span>→</span>
           </a>
 
-
-          <a href="/stp/register" class="hero-btn secondary">
-            Register an STP
-          </a>
-
           <a href="{{ url_for('tanker_register') }}" class="hero-btn secondary">
             Become a Tanker Partner 
+          </a>
+
+          <a href="{{ url_for('stp_register') }}" class="hero-btn secondary">
+            Register an STP
           </a>
 
         </div>
@@ -152,7 +175,7 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
       </section>
 
       <section id="how-it-works" class="info-section">
-        <div class="info-title"><span class="info-icon green-bg">⚙</span><h2>How It Works</h2></div>
+        <div class="info-title"><span class="info-icon green-bg"></span><h2>How It Works</h2></div>
         <ul>
           <li>Collects wastewater generation data from multiple sources</li>
           <li>Predicts wastewater volume using machine learning models</li>
@@ -165,9 +188,9 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
     </div>
 
     <section id="contact" class="info-section contact-section">
-      <div class="info-title"><span class="info-icon purple-bg">✉</span><h2>Contact</h2></div>
+      <div class="info-title"><span class="info-icon purple-bg"></span><h2>Contact</h2></div>
       <p>For project-related queries, collaboration, or technical discussions, please contact the project team through your institution or academic supervisor.</p>
-      <p>📧 Email: eng23am0045@dsu.edu.in<br>📍 Location: Dayananda Sagar University</p>
+      <p> Email: eng23am0045@dsu.edu.in<br> Location: Dayananda Sagar University</p>
     </section>
 
     <footer>© 2026 Wastewater Routing Optimization System</footer>
@@ -194,6 +217,106 @@ footer{margin:24px 0 0;background:#0b1b32;color:#9fb0c5;text-align:center;paddin
 
 
 
+
+
+<script id="mobile-sidebar-script">
+(function () {
+    function initMobileSidebar() {
+        var sidebar = document.querySelector('.sidebar');
+        var toggle = document.querySelector('.mobile-sidebar-toggle');
+        var links = document.getElementById('mobile-sidebar-links');
+        if (!sidebar || !toggle || !links) return;
+
+        var backdrop = document.getElementById('mobile-sidebar-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'mobile-sidebar-backdrop';
+            backdrop.className = 'mobile-sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        function isMobile() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function openSidebar() {
+            if (!isMobile()) return;
+            document.body.classList.add('mobile-sidebar-open');
+            sidebar.classList.add('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.setAttribute('aria-label', 'Close sidebar');
+        }
+
+        function closeSidebar() {
+            document.body.classList.remove('mobile-sidebar-open');
+            sidebar.classList.remove('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-label', 'Open sidebar');
+        }
+
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.body.classList.contains('mobile-sidebar-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        backdrop.addEventListener('click', closeSidebar);
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeSidebar();
+        });
+
+        links.addEventListener('click', function (event) {
+            if (event.target.closest('a') && isMobile()) {
+                closeSidebar();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (!isMobile()) closeSidebar();
+        });
+
+        /* Swipe from the left edge to open; swipe sidebar to close. */
+        var startX = 0;
+        var startY = 0;
+        var tracking = false;
+
+        document.addEventListener('touchstart', function (event) {
+            if (!isMobile() || !event.touches.length) return;
+            startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+            tracking = true;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function (event) {
+            if (!tracking || !isMobile() || !event.changedTouches.length) return;
+            tracking = false;
+            var endX = event.changedTouches[0].clientX;
+            var endY = event.changedTouches[0].clientY;
+            var dx = endX - startX;
+            var dy = Math.abs(endY - startY);
+
+            if (dy > 70 || Math.abs(dx) < 60) return;
+
+            if (!document.body.classList.contains('mobile-sidebar-open') && startX <= 28 && dx > 60) {
+                openSidebar();
+            } else if (document.body.classList.contains('mobile-sidebar-open') && startX < 320 && dx < -60) {
+                closeSidebar();
+            }
+        }, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileSidebar);
+    } else {
+        initMobileSidebar();
+    }
+})();
+</script>
 
 </body>
 </html>

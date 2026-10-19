@@ -609,6 +609,7 @@
 
     </style>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -624,11 +625,11 @@
         <div class="brand">
 
             <div class="brand-icon">
-                💧
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
             <div>
-                <h1>WasteWater</h1>
+                <h1>PURVA - JalSetu</h1>
                 <p>Treated Wastewater Management System</p>
             </div>
 
@@ -995,7 +996,7 @@
                         class="payment-btn pay-now"
                     >
 
-                        💳 Pay Now
+                         Pay Now
 
                     </button>
 
@@ -1023,7 +1024,7 @@
                         class="payment-btn cod"
                     >
 
-                        💵 Cash on Delivery
+                         Cash on Delivery
 
                     </button>
 
@@ -1158,6 +1159,33 @@
         if (!modal) return;
         modal.classList.remove("ww-show");
         modal.setAttribute("aria-hidden", "true");
+
+        // Restore both payment buttons when payment confirmation is cancelled.
+        if (payForm) {
+            const payButton = payForm.querySelector('button[type="submit"], input[type="submit"]');
+            if (payButton) {
+                payButton.disabled = false;
+                payForm.dataset.submitting = "";
+                if (payButton.tagName.toLowerCase() === "input") {
+                    payButton.value = "Pay Now";
+                } else {
+                    payButton.innerHTML = "Pay Now";
+                }
+            }
+        }
+
+        if (codForm) {
+            const codButton = codForm.querySelector('button[type="submit"], input[type="submit"]');
+            if (codButton) {
+                codButton.disabled = false;
+                codForm.dataset.submitting = "";
+                if (codButton.tagName.toLowerCase() === "input") {
+                    codButton.value = "Cash on Delivery";
+                } else {
+                    codButton.innerHTML = "Cash on Delivery";
+                }
+            }
+        }
     }
 
     if (payForm) {
@@ -1310,7 +1338,7 @@
 </style>
 
 <div id="wwGlobalAccountButton" title="Account"
-     aria-label="Open account menu" role="button" tabindex="0">👤</div>
+     aria-label="Open account menu" role="button" tabindex="0"></div>
 
 <div id="wwGlobalAccountMenu" aria-hidden="true">
     <div class="ww-account-header">
@@ -1319,10 +1347,10 @@
     </div>
 
     <a id="wwAccountProfile" class="ww-account-item"
-       href="/profile" style="display:none;">👤 My Profile</a>
+       href="/profile" style="display:none;"> My Profile</a>
 
     <a id="wwAccountLogin" class="ww-account-item ww-account-login"
-       href="/login" style="display:none;">🔐 Login</a>
+       href="/login" style="display:none;"> Login</a>
 
     <a id="wwAccountLogout" class="ww-account-item ww-account-logout"
        href="/logout" style="display:none;">↪ Logout</a>
@@ -1344,7 +1372,7 @@
     const logoutEl=document.getElementById("wwAccountLogout");
 
     function loggedOut(){
-        avatar.textContent="👤";
+        avatar.textContent="";
         avatar.title="Login";
         if(nameEl) nameEl.textContent="Guest";
         if(roleEl) roleEl.textContent="Not logged in";
@@ -1354,7 +1382,7 @@
     }
 
     function loggedIn(user){
-        avatar.textContent=user.initials || "👤";
+        avatar.textContent=user.initials || "";
         avatar.title=user.name || "My Profile";
 
         if(nameEl) nameEl.textContent=user.name || "User";
@@ -1422,7 +1450,10 @@
         if (!form || form.dataset.paymentBound === "1") return;
         form.dataset.paymentBound = "1";
 
-        form.addEventListener("submit", function () {
+        form.addEventListener("submit", function (event) {
+            // Do not show Processing when the submit is being intercepted
+            // just to open the payment confirmation modal.
+            if (event.defaultPrevented) return;
             if (form.dataset.submitting === "1") return;
 
             form.dataset.submitting = "1";

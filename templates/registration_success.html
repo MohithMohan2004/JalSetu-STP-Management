@@ -1,19 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Tanker Registration Submitted</title>
+    <title>Registration Submitted</title>
 
     <style>
-
         * {
             margin: 0;
             padding: 0;
@@ -21,28 +14,20 @@
         }
 
         body {
-
             font-family: Arial, sans-serif;
-
             background: #f4f7fb;
-
             min-height: 100vh;
 
             display: flex;
-
             justify-content: center;
-
             align-items: center;
 
             padding: 20px;
         }
 
         .card {
-
             background: white;
-
             width: 100%;
-
             max-width: 520px;
 
             padding: 40px;
@@ -56,7 +41,6 @@
         }
 
         .success-icon {
-
             width: 70px;
             height: 70px;
 
@@ -67,34 +51,24 @@
             background: #e8f7ee;
 
             display: flex;
-
             align-items: center;
-
             justify-content: center;
 
             font-size: 35px;
-
-            color: #16a34a;
         }
 
         h1 {
-
             color: #163b65;
-
             margin-bottom: 10px;
         }
 
         .subtitle {
-
             color: #6b7280;
-
             line-height: 1.6;
-
             margin-bottom: 25px;
         }
 
         .details {
-
             background: #f7f9fc;
 
             border-radius: 12px;
@@ -107,47 +81,35 @@
         }
 
         .detail-row {
-
             display: flex;
-
             justify-content: space-between;
 
             padding: 10px 0;
 
-            border-bottom:
-                1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
         }
 
         .detail-row:last-child {
-
             border-bottom: none;
         }
 
         .label {
-
             color: #6b7280;
         }
 
         .value {
-
             font-weight: 600;
-
             color: #163b65;
-
-            text-align: right;
         }
 
         .status {
-
             color: #d97706;
         }
 
         .info-box {
-
             background: #eef6ff;
 
-            border-left:
-                4px solid #1769aa;
+            border-left: 4px solid #1769aa;
 
             padding: 15px;
 
@@ -163,7 +125,6 @@
         }
 
         .btn {
-
             display: block;
 
             width: 100%;
@@ -184,12 +145,10 @@
         }
 
         .btn:hover {
-
             background: #12558a;
         }
 
         .secondary-btn {
-
             background: transparent;
 
             color: #1769aa;
@@ -198,182 +157,99 @@
         }
 
         .secondary-btn:hover {
-
             background: #eef6ff;
-        }
-
-        .operator-id {
-
-            font-size: 18px;
-
-            letter-spacing: 0.5px;
         }
 
         @media (max-width: 600px) {
 
             .card {
-
                 padding: 30px 20px;
             }
 
             .detail-row {
-
                 flex-direction: column;
-
                 gap: 4px;
             }
-
-            .value {
-
-                text-align: left;
-            }
-
         }
-
     </style>
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='css/responsive.css') }}"
-    >
-
+          
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
-
 
 <body>
 
-
 <div class="card">
 
+    <div class="success-icon"></div>
 
-    <!-- SUCCESS ICON -->
-
-    <div class="success-icon">
-        ✓
-    </div>
-
-
-    <!-- TITLE -->
-
-    <h1>
-        Tanker Registration Submitted
-    </h1>
-
+    <h1>Registration Submitted</h1>
 
     <p class="subtitle">
-
-        Your tanker partner registration has been
-        successfully submitted for admin verification.
-
+        Your tanker partner registration has been successfully
+        submitted to the Purvankara team.
     </p>
-
-
-    <!-- REGISTRATION DETAILS -->
 
     <div class="details">
 
-
         <div class="detail-row">
+            <span class="label">Operator ID</span>
 
-            <span class="label">
-                Operator ID
-            </span>
-
-            <span class="value operator-id">
+            <span class="value">
                 {{ operator_id }}
             </span>
-
         </div>
 
-
         <div class="detail-row">
-
-            <span class="label">
-                Operator Type
-            </span>
+            <span class="label">Operator Type</span>
 
             <span class="value">
                 {{ operator_type }}
             </span>
-
         </div>
 
-
         <div class="detail-row">
-
-            <span class="label">
-                Status
-            </span>
+            <span class="label">Status</span>
 
             <span class="value status">
                 Pending Verification
             </span>
-
         </div>
 
-
     </div>
-
-
-    <!-- INFORMATION -->
 
     <div class="info-box">
 
-        <strong>
-            What happens next?
-        </strong>
+        <strong>What happens next?</strong>
 
         <br><br>
 
-        Your tanker registration will now be reviewed
-        by the administrator.
+        The Purvankara team will review your submitted
+        information and verify your tanker details.
 
         <br><br>
 
-        Please save your
-        <strong>Operator ID</strong>.
-
-        You will need your Operator ID together with
-        your registered phone number to check your
-        registration status.
-
-        <br><br>
-
-        Once approved, your tanker account can proceed
-        to the next stage of the platform.
+        Once your registration is approved, you will be
+        able to access the tanker partner dashboard.
 
     </div>
 
-
-    <!-- BUTTONS -->
-
-    <a
-        href="{{ url_for('tanker_status') }}"
-        class="btn"
-    >
-        🔍 Check Registration Status
+    <a href="{{ url_for('tanker_status') }}" class="btn" style="margin-right:8px;">
+        Check Registration Status
     </a>
 
-
-    <a
-        href="/tanker/register"
-        class="btn secondary-btn"
-    >
+    <a href="/tanker/register" class="btn">
         Register Another Tanker
     </a>
 
-
-    <a
-        href="/"
-        class="btn secondary-btn"
-    >
+    <a href="/" class="btn secondary-btn">
         Back to Home
     </a>
-
 
 </div>
 
 
-</body>
 
+
+
+</body>
 </html>

@@ -166,6 +166,28 @@
             background: transparent;
             cursor: pointer;
             color: #7b8799;
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            z-index: 2;
+        }
+
+        .toggle .password-eye {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            display: block;
+        }
+
+        .toggle:hover {
+            color: #1976f3;
         }
 
         .submit {
@@ -213,6 +235,8 @@
             }
         }
     </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -220,9 +244,9 @@
 <div class="page">
 
     <div class="header">
-        <div class="logo">💧</div>
+        <div class="logo"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:58px;height:58px;object-fit:contain;"></div>
         <div>
-            <h1>WasteWater</h1>
+            <h1>PURVA - JalSetu</h1>
             <p>Treated Wastewater Management System</p>
         </div>
     </div>
@@ -313,7 +337,11 @@
                             type="button"
                             class="toggle"
                             onclick="togglePassword('password')"
-                        >👁</button>
+                            aria-label="Show password"
+                            aria-pressed="false"
+                        >
+                            <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.1 12s3.5-6 9.9-6 9.9 6 9.9 6-3.5 6-9.9 6-9.9-6-9.9-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -332,7 +360,11 @@
                             type="button"
                             class="toggle"
                             onclick="togglePassword('confirm_password')"
-                        >👁</button>
+                            aria-label="Show password"
+                            aria-pressed="false"
+                        >
+                            <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.1 12s3.5-6 9.9-6 9.9 6 9.9 6-3.5 6-9.9 6-9.9-6-9.9-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                        </button>
                     </div>
                 </div>
 
@@ -341,9 +373,9 @@
                     <select name="role" id="role" required onchange="handleRoleChange()">
                         <option value="">Select your role</option>
                         <option value="demand">Demand Site User</option>
-                        <option value="stp">STP Owner</option>
+                        <option value="stp">STP Operator</option>
                         <option value="tanker">Tanker Operator</option>
-                         <option value="admin">Admin</option>
+                        <option value="admin">Admin</option>
                     </select>
                     <div class="hint">
                         Admin accounts are created separately for security.
@@ -352,20 +384,31 @@
 
                 <div class="field full role-id-section" id="stp-id-section">
                     <label>STP ID</label>
-                    <select
+                    <input
+                        type="text"
                         name="stp_id"
                         id="stp_id"
+                        placeholder="Enter your STP ID"
+                        autocomplete="off"
+                    >
+                    <div class="hint">
+                        Enter the STP ID assigned to your STP.
+                    </div>
+                    <div class="hint" id="stp-selector-hint" style="display:none;">
+                        Select the STP assigned to you from the registered STP dataset.
+                    </div>
+                    <select
+                        id="stp_id_selector"
+                        style="display:none; margin-top:8px;"
+                        onchange="syncSelectedStp()"
                     >
                         <option value="">Select your STP</option>
-                        {% for stp in stps %}
+                        {% for stp in stps|default([]) %}
                             <option value="{{ stp.get('stp_id', '') }}">
                                 {{ stp.get('stp_id', '') }} - {{ stp.get('stp_name', 'STP') }}
                             </option>
                         {% endfor %}
                     </select>
-                    <div class="hint">
-                        Select the STP assigned to you from the registered STP dataset.
-                    </div>
                 </div>
 
                 <div class="field full role-id-section" id="tanker-id-section">
@@ -402,7 +445,11 @@
 <script>
 function togglePassword(id) {
     const input = document.getElementById(id);
-    input.type = input.type === "password" ? "text" : "password";
+    const button = input.parentElement.querySelector(".toggle");
+    const isHidden = input.type === "password";
+    input.type = isHidden ? "text" : "password";
+    button.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    button.setAttribute("aria-pressed", String(isHidden));
 }
 
 function handleRoleChange() {
@@ -439,6 +486,31 @@ function handleRoleChange() {
 
 
 
+
+
+<script>
+function syncSelectedStp() {
+    const selector = document.getElementById("stp_id_selector");
+    const input = document.getElementById("stp_id");
+    if (selector && input) input.value = selector.value;
+}
+
+(function(){
+    const originalHandleRoleChange = window.handleRoleChange;
+    if (typeof originalHandleRoleChange !== "function") return;
+    window.handleRoleChange = function(){
+        originalHandleRoleChange();
+        const role = document.getElementById("role")?.value;
+        const selector = document.getElementById("stp_id_selector");
+        const hint = document.getElementById("stp-selector-hint");
+        if (!selector) return;
+        const show = role === "stp";
+        selector.style.display = show ? "block" : "none";
+        if (hint) hint.style.display = show ? "block" : "none";
+        if (!show) selector.value = "";
+    };
+})();
+</script>
 
 </body>
 </html>

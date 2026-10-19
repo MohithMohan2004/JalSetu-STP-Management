@@ -1017,173 +1017,7 @@
             background: #f1f5f9;
             color: #1976f3;
         }
-        
-        /* =====================================================
-           LIVE GPS TRIP TRACKING
-        ===================================================== */
 
-        .trip-tracking {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 12px;
-
-            flex-wrap: wrap;
-
-            background: white;
-
-            padding: 13px 16px;
-
-            margin-bottom: 10px;
-
-            border-radius: 9px;
-
-            border: 1px solid #e4eaf2;
-
-            box-shadow:
-                0 3px 10px
-                rgba(25,40,70,.04);
-        }
-
-
-        .trip-tracking-buttons {
-
-            display: flex;
-
-            gap: 8px;
-        }
-
-
-        .trip-btn {
-
-            border: none;
-
-            border-radius: 7px;
-
-            padding: 9px 16px;
-
-            font-family: 'Poppins', sans-serif;
-
-            font-size: 11px;
-
-            font-weight: 600;
-
-            cursor: pointer;
-
-            transition: .2s;
-        }
-
-
-        .trip-btn:disabled {
-
-            opacity: .5;
-
-            cursor: not-allowed;
-        }
-
-
-        .trip-btn-start {
-
-            background: #16834d;
-
-            color: white;
-        }
-
-
-        .trip-btn-start:not(:disabled):hover {
-
-            background: #126b3f;
-        }
-
-
-        .trip-btn-stop {
-
-            background: #dc4141;
-
-            color: white;
-        }
-
-
-        .trip-btn-stop:not(:disabled):hover {
-
-            background: #b53434;
-        }
-
-
-        .trip-status {
-
-            font-size: 10px;
-
-            font-weight: 500;
-
-            color: #66748a;
-        }
-
-
-        .trip-status[data-tone="good"] {
-
-            color: #16834d;
-        }
-
-
-        .trip-status[data-tone="warn"] {
-
-            color: #d88910;
-        }
-
-
-        .trip-status[data-tone="error"] {
-
-            color: #dc4141;
-        }
-
-
-        .tanker-live-marker {
-
-            background: transparent;
-
-            border: 0;
-        }
-
-
-        .tanker-live-dot {
-
-            width: 34px;
-
-            height: 34px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-size: 20px;
-
-            background: #ffffff;
-
-            border: 3px solid #16834d;
-
-            border-radius: 50%;
-
-            box-shadow: 0 3px 10px rgba(0,0,0,.25);
-        }
-
-
-        @media (max-width: 480px) {
-
-            .trip-tracking {
-
-                flex-direction: column;
-
-                align-items: flex-start;
-            }
-
-        }
 
         /* =====================================================
            LIVE GPS TRIP TRACKING
@@ -1627,7 +1461,88 @@
 
         }
 
+
+        /* =========================================================
+           REPORTS - DASHBOARD SECTION
+           ========================================================= */
+        .dashboard-reports { margin-top: 24px; }
+        .dashboard-reports .report-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+        .dashboard-reports .report-stat { background:#fff; border:1px solid #e8edf3; border-radius:12px; padding:18px; }
+        .dashboard-reports .report-stat p { margin:0; color:#7b8799; font-size:11px; }
+        .dashboard-reports .report-stat strong { display:block; margin-top:5px; font-size:22px; }
+        .dashboard-reports .report-panel { margin-top:16px; background:#fff; border:1px solid #e8edf3; border-radius:12px; padding:20px; }
+        .dashboard-reports .report-panel h3 { margin:0; font-size:16px; }
+        .dashboard-reports .report-subtitle { margin:5px 0 18px; color:#7b8799; font-size:11px; }
+        .dashboard-reports .report-details { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+        .dashboard-reports .report-detail { padding:12px; border:1px solid #edf0f5; background:#fafbfd; border-radius:8px; }
+        .dashboard-reports .report-detail span { display:block; color:#8a94a6; font-size:9px; margin-bottom:4px; }
+        .dashboard-reports .report-detail strong { font-size:12px; }
+        .dashboard-reports .report-vehicle-list { display:grid; gap:12px; }
+        .dashboard-reports .report-vehicle { border:1px solid #e5eaf1; border-radius:10px; overflow:hidden; background:#fff; }
+        .dashboard-reports .report-vehicle-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background:#fafbfd; }
+        .dashboard-reports .report-vehicle-head strong { font-size:13px; }
+        .dashboard-reports .report-vehicle-head span { display:block; margin-top:3px; color:#7b8799; font-size:9px; }
+        .dashboard-reports .report-status { padding:5px 9px; border-radius:20px; background:#eaf8ef; color:#168447; font-size:9px; font-weight:600; }
+        .dashboard-reports .report-vehicle-body { padding:15px; }
+        .dashboard-reports .report-vehicle-info { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-bottom:14px; }
+        .dashboard-reports .report-docs-title { margin:0 0 10px; font-size:12px; }
+        .dashboard-reports .report-docs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+        .dashboard-reports .report-doc { border:1px solid #e7ebf1; border-radius:8px; padding:10px; background:#fff; }
+        .dashboard-reports .report-doc-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
+        .dashboard-reports .report-doc-name { font-size:10px; font-weight:500; }
+        .dashboard-reports .report-doc-file { margin-top:3px; color:#8a94a6; font-size:8px; word-break:break-word; }
+        .dashboard-reports .report-doc-status { white-space:nowrap; padding:4px 7px; border-radius:20px; background:#f1f3f6; color:#7a8493; font-size:8px; font-weight:600; }
+        .dashboard-reports .report-doc-status.pending { background:#fff5dc; color:#a66a00; }
+        .dashboard-reports .report-doc-status.verified { background:#e8f8ee; color:#168447; }
+        .dashboard-reports .report-doc-status.rejected { background:#ffeded; color:#c43d3d; }
+        .dashboard-reports .report-doc form { display:grid; gap:6px; }
+        .dashboard-reports .report-doc input[type="file"] { width:100%; padding:6px; border:1px solid #e0e5ec; border-radius:6px; background:#fafbfd; font-size:9px; }
+        .dashboard-reports .report-upload { width:100%; border:0; border-radius:6px; padding:7px 10px; background:#1976f3; color:#fff; font-size:9px; font-weight:600; cursor:pointer; }
+        .dashboard-reports .report-remark { margin-top:7px; padding:7px 8px; border-radius:6px; background:#fff7f7; color:#9f3535; font-size:8px; }
+        .dashboard-reports .report-empty { padding:25px; text-align:center; border:1px dashed #d6dce5; border-radius:9px; color:#7b8799; font-size:11px; }
+        @media (max-width: 800px) {
+            .dashboard-reports .report-grid,
+            .dashboard-reports .report-details,
+            .dashboard-reports .report-vehicle-info,
+            .dashboard-reports .report-docs { grid-template-columns:1fr; }
+        }
+
+        
+/* TWO-STAGE TANKER ANIMATION */
+
+.tanker-journey-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.tanker-journey-truck {
+    font-size: 28px;
+    line-height: 36px;
+    width: 38px;
+    height: 38px;
+    text-align: center;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.3));
+    animation: tankerJourneyBob .6s ease-in-out infinite alternate;
+}
+
+@keyframes tankerJourneyBob {
+    from { transform: translateY(-2px); }
+    to { transform: translateY(2px); }
+}
+
+.tanker-journey-label {
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #eff6ff;
+    border-radius: 7px;
+    color: #1d4ed8;
+    font-size: 11px;
+    font-weight: 600;
+}
+
     </style>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 
 </head>
 
@@ -1648,23 +1563,20 @@
         <div class="brand">
 
             <div class="brand-icon">
-                💧
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
 
             <div class="brand-text">
 
-                <h2>
-                    WasteWater
-                </h2>
+                <h2>PURVA - JalSetu</h2>
 
                 <p>
                     Management System
                 </p>
 
             </div>
-
-        </div>
+</div>
 
 
         <div class="menu-title">
@@ -1672,16 +1584,14 @@
         </div>
 
 
-        <div class="nav-links">
+        <div class="nav-links" id="mobile-sidebar-links">
 
 
             <a
                 href="/tanker"
             >
 
-                <div class="nav-icon">
-                    ⌂
-                </div>
+                <div class="nav-icon">⌂</div>
 
                 <span>
                     Dashboard
@@ -1692,9 +1602,7 @@
 
             <a href="#orders">
 
-                <div class="nav-icon">
-                    ▣
-                </div>
+                <div class="nav-icon">▤</div>
 
                 <span>
                     Available Orders
@@ -1705,9 +1613,7 @@
 
             <a href="/trip_history">
 
-                <div class="nav-icon">
-                    🚚
-                </div>
+                <div class="nav-icon">▱</div>
 
                 <span>
                     My Trips
@@ -1716,24 +1622,9 @@
             </a>
 
 
-            <a href="#map-section">
-
-                <div class="nav-icon">
-                    ◉
-                </div>
-
-                <span>
-                    Tracking
-                </span>
-
-            </a>
-
-
             <a href="{{ url_for('tanker_reports') }}">
 
-                <div class="nav-icon">
-                    ▥
-                </div>
+                <div class="nav-icon">▥</div>
 
                 <span>
                     Reports
@@ -1742,7 +1633,8 @@
             </a>
 
 
-        </div>
+            
+</div>
 
 
         <div
@@ -1756,11 +1648,9 @@
         <div class="nav-links">
 
 
-            <a href="#">
+            <a href="/profile">
 
-                <div class="nav-icon">
-                    ♙
-                </div>
+                <div class="nav-icon">◉</div>
 
                 <span>
                     Profile
@@ -1771,9 +1661,7 @@
 
             <a href="#">
 
-                <div class="nav-icon">
-                    ⚙
-                </div>
+                <div class="nav-icon">⚙︎</div>
 
                 <span>
                     Settings
@@ -1784,9 +1672,7 @@
 
             <a href="{{ url_for('login') }}">
 
-                <div class="nav-icon">
-                    ↪
-                </div>
+                <div class="nav-icon">↪</div>
 
                 <span>
                     Logout
@@ -1826,6 +1712,40 @@
 
     <main class="main-content">
 
+    <!-- Mobile navigation: brand and hamburger remain visible; sidebar links open separately. -->
+    <div class="mobile-navbar" role="navigation" aria-label="Mobile navigation">
+        <div class="mobile-navbar-brand">
+
+            <div class="brand-icon">
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+            </div>
+
+
+            <div class="brand-text">
+
+                <h2>PURVA - JalSetu</h2>
+
+                <p>
+                    Management System
+                </p>
+
+            </div>
+
+        </div>
+        <button
+            type="button"
+            class="mobile-sidebar-toggle"
+            aria-label="Open sidebar"
+            aria-expanded="false"
+            aria-controls="mobile-sidebar-links"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+
+
 
         <!-- TOP BAR -->
 
@@ -1835,7 +1755,7 @@
             <div class="welcome">
 
                 <h1>
-                    Welcome, {{ operator.operator_name or "Tanker Operator" }} 👋
+                    Welcome, {{ operator.operator_name or "Tanker Operator" }} 
                 </h1>
 
                 <p>
@@ -1853,7 +1773,7 @@
 
                 <div class="notification">
 
-                    🔔
+                    
 
                     <div class="notification-badge">
                         {{ orders|length }}
@@ -1904,9 +1824,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon blue">
-                        📋
-                    </div>
+                    
 
 
                     <div class="stat-info">
@@ -1929,9 +1847,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon green">
-                        🚚
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1957,9 +1873,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon purple">
-                        🚛
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1985,9 +1899,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon orange">
-                        ✓
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -2007,8 +1919,10 @@
 
                 </div>
 
-            </div>
-            
+            </div> 
+
+
+
             <!-- =================================================
                  ORDERS + MAP
             ================================================== -->
@@ -2017,7 +1931,7 @@
 
 
                 <!-- =================================================
-                     AVAILABLE ORDERS / ACTIVE JOBS
+                     AVAILABLE ORDERS
                 ================================================== -->
 
                 <div
@@ -2025,275 +1939,220 @@
                     id="orders"
                 >
 
+
                     <div class="card-header">
+
 
                         <h2>
                             Available Orders
                         </h2>
 
+
                         <span>
                             {{ orders|length }} Orders
                         </span>
+
 
                     </div>
 
 
                     <div class="orders-list">
 
-                        {% set visible_orders = namespace(found=false) %}
 
                         {% for order in orders %}
 
-                            {% set assigned_id = order.assigned_operator_id or '' %}
 
-                            {% if order.status in ["Accepted", "Out for Delivery"] %}
-
-                                {% set visible_orders.found = true %}
-
-                                <div class="order-card">
-
-                                    <div class="order-top">
-
-                                        <div class="order-id">
-
-                                            <div class="order-dot"></div>
-
-                                            {{ order.order_id }}
-
-                                        </div>
+                        <div class="order-card">
 
 
-                                        {% if assigned_id == operator_id %}
-
-                                            {% if order.status == "Accepted" %}
-
-                                                <div class="new-badge">
-                                                    Accepted
-                                                </div>
-
-                                            {% elif order.status == "Out for Delivery" %}
-
-                                                <div class="new-badge">
-                                                    Out for Delivery
-                                                </div>
-
-                                            {% endif %}
-
-                                        {% else %}
-
-                                            <div class="new-badge">
-                                                Available
-                                            </div>
-
-                                        {% endif %}
-
-                                    </div>
+                            <div class="order-top">
 
 
-                                    <div class="order-details">
+                                <div class="order-id">
 
-                                        <div class="order-detail">
+                                    <div class="order-dot"></div>
 
-                                            STP
+                                    {{ order.order_id }}
 
-                                            <strong>
-                                                {{ order.stp_name }}
-                                            </strong>
-
-                                        </div>
+                                </div>
 
 
-                                        <div class="order-detail">
-
-                                            Quantity
-
-                                            <strong>
-                                                {{ order.quantity_kld }} KLD
-                                            </strong>
-
-                                        </div>
+                                <div class="new-badge">
+                                    Available
+                                </div>
 
 
-                                        <div class="order-detail location-detail">
-
-                                            Delivery Location
-
-                                            <strong>
-                                                📍 {{ order.location }}
-                                            </strong>
-
-                                        </div>
+                            </div>
 
 
-                                        <div class="order-detail">
-
-                                            Buyer
-
-                                            <strong>
-                                                {{ order.buyer_name }}
-                                            </strong>
-
-                                        </div>
+                            <div class="order-details">
 
 
-                                        <div class="order-detail">
+                                <div class="order-detail">
 
-                                            Phone
+                                    STP
 
-                                            <strong>
-                                                {{ order.buyer_phone }}
-                                            </strong>
+                                    <strong>
+                                        {{ order.stp_name }}
+                                    </strong>
 
-                                        </div>
-
-
-                                        <div class="order-detail">
-
-                                            Distance
-
-                                            <strong>
-                                                {{ order.distance_km }} km
-                                            </strong>
-
-                                        </div>
-
-                                    </div>
+                                </div>
 
 
-                                    <!-- VIEW ROUTE -->
+                                <div class="order-detail">
 
-                                    <button
-                                        type="button"
-                                        class="route-button"
-                                        onclick="showRoute(
-                                            {{ order.stp_lat }},
-                                            {{ order.stp_lon }},
-                                            {{ order.delivery_lat or 0 }},
-                                            {{ order.delivery_lon or 0 }},
-                                            '{{ order.location | e }}'
-                                        )"
+                                    Quantity
+
+                                    <strong>
+                                        {{ order.quantity_kld }}
+                                        KLD
+                                    </strong>
+
+                                </div>
+
+
+                                <div
+                                    class="order-detail location-detail"
+                                >
+
+                                    Delivery Location
+
+                                    <strong>
+                                         {{ order.location }}
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="order-detail">
+
+                                    Buyer
+
+                                    <strong>
+                                        {{ order.buyer_name }}
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="order-detail">
+
+                                    Phone
+
+                                    <strong>
+                                        {{ order.buyer_phone }}
+                                    </strong>
+
+                                </div>
+
+
+                                <div class="order-detail">
+
+                                    Distance
+
+                                    <strong>
+                                        {{ order.distance_km }}
+                                        km
+                                    </strong>
+
+                                </div>
+
+
+                            </div>
+
+
+
+                            
+                            <!-- TWO-STAGE TANKER ROUTE -->
+                            <button
+                                type="button"
+                                class="route-button"
+                                data-order-id="{{ order.order_id | e }}"
+                                data-status="{{ order.status | e }}"
+                                data-request-type="{{ order.request_type | default('demand') | e }}"
+                                data-stp-lat="{{ order.stp_lat | default('', true) }}"
+                                data-stp-lon="{{ order.stp_lon | default('', true) }}"
+                                data-delivery-lat="{{ order.delivery_lat | default('', true) }}"
+                                data-delivery-lon="{{ order.delivery_lon | default('', true) }}"
+                                onclick="showTwoStageTankerRoute(this)"
+                            >
+                                View Tanker Journey
+                            </button>
+
+
+
+
+                            {% if order.status == "Accepted" %}
+
+                                {% if order.request_type == "stp_transfer" %}
+
+                                <!-- ============================================= -->
+                                <!-- STP TRANSFER OFFER ACTIONS -->
+                                <!-- ============================================= -->
+
+                                <div class="tanker-request-actions">
+
+                                    <!-- ACCEPT TRANSFER -->
+
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('accept_transfer_pickup') }}"
+                                        style="margin:0;"
                                     >
-                                        🗺 View Route
-                                    </button>
+
+                                        <input
+                                            type="hidden"
+                                            name="transfer_id"
+                                            value="{{ order.transfer_id }}"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="
+                                                tanker-request-button
+                                                tanker-request-accept
+                                            "
+                                        >
+                                             Accept
+                                        </button>
+
+                                    </form>
 
 
-                                    <!-- =========================================
-                                         NEW OFFER -> ACCEPT / REJECT
-                                    ========================================== -->
+                                    <!-- REJECT TRANSFER -->
 
-                                    {% if order.status == "Accepted"
-                                          and assigned_id != operator_id %}
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('reject_transfer_pickup') }}"
+                                        style="margin:0;"
+                                    >
 
-                                        {% if order.request_type == "stp_transfer" %}
+                                        <input
+                                            type="hidden"
+                                            name="transfer_id"
+                                            value="{{ order.transfer_id }}"
+                                        >
 
-                                            <div class="tanker-request-actions">
+                                        <button
+                                            type="submit"
+                                            class="
+                                                tanker-request-button
+                                                tanker-request-reject
+                                            "
+                                        >
+                                             Reject
+                                        </button>
 
-                                                <form
-                                                    method="POST"
-                                                    action="{{ url_for('accept_transfer_pickup') }}"
-                                                    style="margin:0;"
-                                                >
+                                    </form>
 
-                                                    <input
-                                                        type="hidden"
-                                                        name="transfer_id"
-                                                        value="{{ order.transfer_id }}"
-                                                    >
+                                </div>
 
-                                                    <button
-                                                        type="submit"
-                                                        class="tanker-request-button tanker-request-accept"
-                                                    >
-                                                        ✓ Accept
-                                                    </button>
+                                {% else %}
 
-                                                </form>
+                                    {% if order.assigned_operator_id
+                                          and order.assigned_operator_id == operator_id %}
 
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ url_for('reject_transfer_pickup') }}"
-                                                    style="margin:0;"
-                                                >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="transfer_id"
-                                                        value="{{ order.transfer_id }}"
-                                                    >
-
-                                                    <button
-                                                        type="submit"
-                                                        class="tanker-request-button tanker-request-reject"
-                                                    >
-                                                        ✕ Reject
-                                                    </button>
-
-                                                </form>
-
-                                            </div>
-
-
-                                        {% else %}
-
-                                            <div class="tanker-request-actions">
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ url_for('accept_pickup') }}"
-                                                    style="margin:0;"
-                                                >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="order_id"
-                                                        value="{{ order.order_id }}"
-                                                    >
-
-                                                    <button
-                                                        type="submit"
-                                                        class="tanker-request-button tanker-request-accept"
-                                                    >
-                                                        ✓ Accept
-                                                    </button>
-
-                                                </form>
-
-
-                                                <form
-                                                    method="POST"
-                                                    action="{{ url_for('reject_pickup') }}"
-                                                    style="margin:0;"
-                                                >
-
-                                                    <input
-                                                        type="hidden"
-                                                        name="order_id"
-                                                        value="{{ order.order_id }}"
-                                                    >
-
-                                                    <button
-                                                        type="submit"
-                                                        class="tanker-request-button tanker-request-reject"
-                                                    >
-                                                        ✕ Reject
-                                                    </button>
-
-                                                </form>
-
-                                            </div>
-
-                                        {% endif %}
-
-
-                                    <!-- =========================================
-                                         NORMAL DEMAND:
-                                         ACCEPTED -> MARK PICKED UP
-                                    ========================================== -->
-
-                                    {% elif order.request_type == "demand"
-                                            and assigned_id == operator_id
-                                            and order.status == "Accepted" %}
+                                        <!-- NORMAL DEMAND: EXPLICIT PICKUP (legacy/compatible flow) -->
 
                                         <form
                                             method="POST"
@@ -2303,131 +2162,187 @@
                                             ) }}"
                                             class="pickup-form"
                                         >
-
                                             <button
                                                 type="submit"
                                                 class="pickup-button"
                                             >
-                                                ✓ Mark as Picked Up
+                                                 Mark as Picked Up
                                             </button>
-
                                         </form>
 
+                                    {% else %}
 
-                                    <!-- =========================================
-                                         NORMAL DEMAND:
-                                         OUT FOR DELIVERY -> MARK DELIVERED
-                                    ========================================== -->
+                                    <!-- NORMAL DEMAND ORDER OFFER -->
 
-                                    {% elif order.request_type == "demand"
-                                            and assigned_id == operator_id
-                                            and order.status == "Out for Delivery" %}
+                                    <div class="tanker-request-actions">
+
+                                        <!-- ACCEPT -->
 
                                         <form
                                             method="POST"
-                                            action="{{ url_for(
-                                                'tanker_mark_order_delivered',
-                                                order_id=order.order_id
-                                            ) }}"
-                                            class="pickup-form"
-                                            onsubmit="return confirm('Confirm that this order has been delivered?');"
-                                        >
-
-                                            <button
-                                                type="submit"
-                                                class="pickup-button"
-                                            >
-                                                ✓ Mark as Delivered
-                                            </button>
-
-                                        </form>
-
-
-                                    <!-- =========================================
-                                         STP TRANSFER:
-                                         EXISTING DELIVERY COMPLETION
-                                    ========================================== -->
-
-                                    {% elif order.request_type == "stp_transfer"
-                                            and assigned_id == operator_id
-                                            and order.status == "Out for Delivery" %}
-
-                                        <form
-                                            method="POST"
-                                            action="{{ url_for('complete_transfer') }}"
-                                            class="pickup-form"
+                                            action="{{ url_for('accept_pickup') }}"
+                                            style="margin:0;"
                                         >
 
                                             <input
                                                 type="hidden"
-                                                name="transfer_id"
-                                                value="{{ order.transfer_id }}"
+                                                name="order_id"
+                                                value="{{ order.order_id }}"
                                             >
 
                                             <button
                                                 type="submit"
-                                                class="pickup-button"
+                                                class="
+                                                    tanker-request-button
+                                                    tanker-request-accept
+                                                "
                                             >
-                                                ✓ Mark Delivered
+                                                 Accept
                                             </button>
 
                                         </form>
 
+
+                                        <!-- REJECT -->
+
+                                        <form
+                                            method="POST"
+                                            action="{{ url_for('reject_pickup') }}"
+                                            style="margin:0;"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="order_id"
+                                                value="{{ order.order_id }}"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="
+                                                    tanker-request-button
+                                                    tanker-request-reject
+                                                "
+                                            >
+                                                 Reject
+                                            </button>
+
+                                        </form>
+
+                                    </div>
+
                                     {% endif %}
 
-                                </div>
+                                {% endif %}
+
+                            {% elif order.status == "Out for Delivery"
+                                and order.request_type == "stp_transfer" %}
+
+                                <!-- STP TRANSFER DELIVERY -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('complete_transfer') }}"
+                                    class="pickup-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="transfer_id"
+                                        value="{{ order.transfer_id }}"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="pickup-button"
+                                    >
+                                         Mark Delivered
+                                    </button>
+
+                                </form>
+
+                            {% elif order.status == "Out for Delivery"
+                                and order.request_type == "demand"
+                                and order.assigned_operator_id == operator_id %}
+
+                                <!-- NORMAL DEMAND DELIVERY -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for(
+                                        'tanker_mark_order_delivered',
+                                        order_id=order.order_id
+                                    ) }}"
+                                    class="pickup-form"
+                                    onsubmit="return confirm('Confirm that this order has been delivered?');"
+                                >
+                                    <button
+                                        type="submit"
+                                        class="pickup-button"
+                                    >
+                                         Mark as Delivered
+                                    </button>
+                                </form>
 
                             {% endif %}
+
+
+                        </div>
+
 
                         {% endfor %}
 
 
-                        {% if not visible_orders.found %}
+                        {% if not orders %}
+
+
+                        <div
+                            style="
+                                padding:50px 15px;
+                                text-align:center;
+                                color:#8793a5;
+                            "
+                        >
 
                             <div
                                 style="
-                                    padding:50px 15px;
-                                    text-align:center;
-                                    color:#8793a5;
+                                    font-size:30px;
+                                    margin-bottom:10px;
                                 "
                             >
-
-                                <div
-                                    style="
-                                        font-size:30px;
-                                        margin-bottom:10px;
-                                    "
-                                >
-                                    📋
-                                </div>
-
-
-                                <strong
-                                    style="
-                                        display:block;
-                                        color:#526075;
-                                        font-size:13px;
-                                    "
-                                >
-                                    No Available Orders
-                                </strong>
-
-
-                                <span
-                                    style="
-                                        display:block;
-                                        margin-top:5px;
-                                        font-size:10px;
-                                    "
-                                >
-                                    New pickup requests and active jobs will appear here.
-                                </span>
-
+                                
                             </div>
+
+
+                            <strong
+                                style="
+                                    display:block;
+                                    color:#526075;
+                                    font-size:13px;
+                                "
+                            >
+                                No Available Orders
+                            </strong>
+
+
+                            <span
+                                style="
+                                    display:block;
+                                    margin-top:5px;
+                                    font-size:10px;
+                                "
+                            >
+                                New pickup requests will appear here.
+                            </span>
+
+                        </div>
+
 
                         {% endif %}
 
+
                     </div>
+
 
                 </div>
 
@@ -2461,7 +2376,6 @@
 
 
                     </div>
-
 
 
                     <!-- LIVE GPS TRIP TRACKING -->
@@ -2558,6 +2472,9 @@
 
 
 
+
+
+
     </main>
 
 
@@ -2571,70 +2488,18 @@
 
 <script>
 
-    /* =========================================================
-       REGISTERED TANKER OPERATOR LOCATION
-    ========================================================= */
-
-    const operatorLatitude =
-        Number({{ operator_latitude | default(0) | tojson }});
-
-    const operatorLongitude =
-        Number({{ operator_longitude | default(0) | tojson }});
-
-    const hasRegisteredLocation =
-        Number.isFinite(operatorLatitude) &&
-        Number.isFinite(operatorLongitude) &&
-        operatorLatitude !== 0 &&
-        operatorLongitude !== 0;
-
 
     /* =========================================================
        MAP INITIALIZATION
     ========================================================= */
 
-    const initialLatitude =
-        hasRegisteredLocation
-            ? operatorLatitude
-            : 12.9716;
-
-    const initialLongitude =
-        hasRegisteredLocation
-            ? operatorLongitude
-            : 77.5946;
-
 
     var map =
         L.map('map')
         .setView(
-            [
-                initialLatitude,
-                initialLongitude
-            ],
-            hasRegisteredLocation ? 15 : 11
+            [12.9716, 77.5946],
+            11
         );
-
-
-    /* =========================================================
-       REGISTERED OPERATOR MARKER
-    ========================================================= */
-
-    var registeredOperatorMarker = null;
-
-    if (hasRegisteredLocation) {
-
-        registeredOperatorMarker = L.marker([
-            operatorLatitude,
-            operatorLongitude
-        ])
-        .addTo(map)
-        .bindPopup(
-            "<b>📍 Registered Operator Location</b><br>" +
-            "{{ operator.operator_name | e }}<br>" +
-            "{{ operator.operator_id | e }}"
-        );
-
-        registeredOperatorMarker.openPopup();
-    }
 
 
     setTimeout(
@@ -2657,6 +2522,82 @@
         }
 
     ).addTo(map);
+
+    /* =========================================================
+       REGISTERED TANKER OPERATOR LOCATION
+       This is the location captured during tanker registration.
+       It is separate from the live GPS trip location.
+    ========================================================= */
+
+    const registeredOperatorLatitude = Number(
+        {{ operator_latitude|default(0, true)|tojson }}
+    );
+
+    const registeredOperatorLongitude = Number(
+        {{ operator_longitude|default(0, true)|tojson }}
+    );
+
+    let registeredOperatorMarker = null;
+
+    const registeredOperatorName = {{
+        (operator.operator_name or 'Tanker Operator')|tojson
+    }};
+
+    const registeredOperatorId = {{
+        (operator.operator_id or operator_id or '')|tojson
+    }};
+
+    const hasRegisteredOperatorLocation =
+        Number.isFinite(registeredOperatorLatitude) &&
+        Number.isFinite(registeredOperatorLongitude) &&
+        registeredOperatorLatitude !== 0 &&
+        registeredOperatorLongitude !== 0;
+
+    if (hasRegisteredOperatorLocation) {
+
+        const registeredLocationPopup =
+            '<div style="min-width:180px;line-height:1.45;">' +
+            '<div style="font-weight:700;font-size:14px;margin-bottom:4px;">' +
+            '📍 Registered Operator Location</div>' +
+            '<div style="font-size:13px;">' +
+            registeredOperatorName +
+            '</div>' +
+            (registeredOperatorId
+                ? '<div style="font-size:12px;color:#64748b;margin-top:2px;">' +
+                  registeredOperatorId +
+                  '</div>'
+                : '') +
+            '</div>';
+
+        registeredOperatorMarker = L.marker(
+            [
+                registeredOperatorLatitude,
+                registeredOperatorLongitude
+            ],
+            {
+                title: 'Registered Tanker Operator Location',
+                zIndexOffset: 900
+            }
+        )
+        .addTo(map)
+        .bindPopup(registeredLocationPopup, {
+            closeButton: true,
+            autoClose: false,
+            closeOnClick: false
+        });
+
+        map.setView(
+            [
+                registeredOperatorLatitude,
+                registeredOperatorLongitude
+            ],
+            13
+        );
+
+        // Show the registered operator location immediately, matching the
+        // tanker dashboard location behavior without affecting live GPS.
+        registeredOperatorMarker.openPopup();
+    }
 
     /* =========================================================
        RECENTER MAP BUTTON
@@ -2693,17 +2634,28 @@
 
                 L.DomEvent.stopPropagation(event);
 
-                map.flyTo(
-                    [
-                        initialLatitude,
-                        initialLongitude
-                    ],
-                    hasRegisteredLocation ? 15 : 11,
-                    {
-                        animate: true,
-                        duration: 0.8
-                    }
-                );
+                if (hasRegisteredOperatorLocation) {
+                    map.flyTo(
+                        [
+                            registeredOperatorLatitude,
+                            registeredOperatorLongitude
+                        ],
+                        13,
+                        {
+                            animate: true,
+                            duration: 0.8
+                        }
+                    );
+                } else {
+                    map.flyTo(
+                        [12.9716, 77.5946],
+                        11,
+                        {
+                            animate: true,
+                            duration: 0.8
+                        }
+                    );
+                }
 
             });
 
@@ -2938,202 +2890,342 @@
 }
 
 
-</script>
+/* =========================================
+   TWO-STAGE TANKER JOURNEY
+========================================= */
 
-<!-- =========================================================
-     LIVE GPS TRIP TRACKING
-     Uses navigator.geolocation.watchPosition() to follow the operator's
-     position while a trip is active, and pings Flask ~every 10 seconds.
-========================================================= -->
+let journeyMarker = null;
+let journeyFrame = null;
+let journeyRequestNumber = 0;
+let journeyLabel = null;
 
-<script>
-(function () {
+const registeredTankerPosition = [
+    Number({{ operator_latitude | default(0, true) | tojson }}),
+    Number({{ operator_longitude | default(0, true) | tojson }})
+];
 
-    var startBtn = document.getElementById('tripStartBtn');
-    var stopBtn = document.getElementById('tripStopBtn');
-    var statusEl = document.getElementById('tripStatus');
+const journeyTruckIcon = L.divIcon({
+    className: "tanker-journey-marker",
+    html: '<div class="tanker-journey-truck">🚚</div>',
+    iconSize: [38, 38],
+    iconAnchor: [19, 19]
+});
 
-    var SEND_INTERVAL_MS = 10000;
+function validJourneyPoint(point) {
+    return Array.isArray(point) &&
+        point.length === 2 &&
+        point.every(Number.isFinite) &&
+        Math.abs(point[0]) <= 90 &&
+        Math.abs(point[1]) <= 180 &&
+        !(point[0] === 0 && point[1] === 0);
+}
 
-    var watchId = null;
-    var sendTimer = null;
-    var latestPosition = null;
-    var tankerMarker = null;
-
-    var tankerIcon = L.divIcon({
-        className: 'tanker-live-marker',
-        html: '<div class="tanker-live-dot">\uD83D\uDE9A</div>',
-        iconSize: [34, 34],
-        iconAnchor: [17, 17]
-    });
-
-    function setStatus(text, tone) {
-        if (!statusEl) return;
-        statusEl.textContent = text;
-        statusEl.dataset.tone = tone || 'muted';
+function stopJourneyAnimation() {
+    if (journeyFrame !== null) {
+        cancelAnimationFrame(journeyFrame);
+        journeyFrame = null;
     }
 
-    function placeMarker(lat, lon) {
-        if (tankerMarker) {
-            tankerMarker.setLatLng([lat, lon]);
+    if (journeyMarker) {
+        map.removeLayer(journeyMarker);
+        journeyMarker = null;
+    }
+}
+
+function setJourneyLabel(message) {
+    if (!journeyLabel) {
+        journeyLabel = document.createElement("div");
+        journeyLabel.className = "tanker-journey-label";
+        document.getElementById("map").after(journeyLabel);
+    }
+
+    journeyLabel.textContent = message;
+}
+
+async function getJourneyTankerStart() {
+    try {
+        const response = await fetch(
+            "/api/tanker/location/latest",
+            { credentials: "same-origin", cache: "no-store" }
+        );
+
+        if (response.ok) {
+            const data = await response.json();
+            const loc = data.location;
+
+            if (loc) {
+                const point = [
+                    Number(loc.latitude),
+                    Number(loc.longitude)
+                ];
+
+                if (validJourneyPoint(point)) {
+                    return point;
+                }
+            }
+        }
+    } catch (error) {
+        console.warn("Tanker location unavailable:", error);
+    }
+
+    return registeredTankerPosition;
+}
+
+async function fetchJourneyRoadRoute(start, end) {
+    const url =
+        "https://router.project-osrm.org/route/v1/driving/" +
+        start[1] + "," + start[0] + ";" +
+        end[1] + "," + end[0] +
+        "?overview=full&geometries=geojson";
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+        throw new Error("Routing service unavailable");
+    }
+
+    const data = await response.json();
+
+    if (!data.routes || !data.routes.length) {
+        throw new Error("Road route not found");
+    }
+
+    const route = data.routes[0];
+
+    return {
+        points: route.geometry.coordinates.map(
+            point => [Number(point[1]), Number(point[0])]
+        ),
+        distance: route.distance,
+        duration: route.duration
+    };
+}
+
+function animateJourneyTruck(points, durationMs, requestNumber) {
+    if (!points.length) return;
+
+    journeyMarker = L.marker(points[0], {
+        icon: journeyTruckIcon,
+        zIndexOffset: 1500
+    }).addTo(map);
+
+    // Cumulative distances make the truck move at
+    // a visually consistent speed along the road.
+    const distances = [0];
+
+    for (let i = 1; i < points.length; i++) {
+        const segment = map.distance(
+            L.latLng(points[i - 1]),
+            L.latLng(points[i])
+        );
+
+        distances.push(distances[i - 1] + segment);
+    }
+
+    const totalDistance = distances[distances.length - 1];
+
+    if (totalDistance <= 0) return;
+
+    let startTime = null;
+
+    function frame(timestamp) {
+        if (requestNumber !== journeyRequestNumber ||
+            !journeyMarker) return;
+
+        if (startTime === null) startTime = timestamp;
+
+        const progress = Math.min(
+            (timestamp - startTime) / durationMs,
+            1
+        );
+
+        const travelled = progress * totalDistance;
+        let index = 1;
+
+        while (
+            index < distances.length - 1 &&
+            distances[index] < travelled
+        ) {
+            index++;
+        }
+
+        const segmentDistance =
+            distances[index] - distances[index - 1];
+
+        const fraction = segmentDistance > 0
+            ? (travelled - distances[index - 1]) /
+              segmentDistance
+            : 0;
+
+        const from = points[index - 1];
+        const to = points[index];
+
+        journeyMarker.setLatLng([
+            from[0] + (to[0] - from[0]) * fraction,
+            from[1] + (to[1] - from[1]) * fraction
+        ]);
+
+        if (progress < 1) {
+            journeyFrame = requestAnimationFrame(frame);
         } else {
-            tankerMarker = L.marker(
-                [lat, lon],
-                { icon: tankerIcon, zIndexOffset: 1000 }
-            )
-                .addTo(map)
-                .bindPopup('\uD83D\uDCCD Your current location');
+            journeyFrame = null;
+            setJourneyLabel(
+                "Simulation completed — awaiting actual status update"
+            );
         }
     }
 
-    function sendLocation(position) {
-        var coords = position.coords;
+    journeyFrame = requestAnimationFrame(frame);
+}
 
-        var body = {
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-            accuracy: coords.accuracy,
-            speed: coords.speed,
-            heading: coords.heading,
-            timestamp: position.timestamp
-        };
+async function showTwoStageTankerRoute(button) {
+    const requestNumber = ++journeyRequestNumber;
 
-        fetch('/api/tanker/location', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        })
-            .then(function (response) {
-                if (response.status === 401) {
-                    stopTrip();
-                    setStatus('Session expired. Please log in again.', 'error');
-                    return null;
-                }
-                return response.json().catch(function () { return {}; });
-            })
-            .then(function (data) {
-                if (!data) return;
-                if (!data.success) {
-                    setStatus('Tracking on, but the last update did not save.', 'warn');
-                    return;
-                }
-                setStatus(
-                    'Tracking active \u2014 last sent ' +
-                    new Date().toLocaleTimeString(),
-                    'good'
-                );
-            })
-            .catch(function (error) {
-                console.error('Tanker location send failed:', error);
-                setStatus('Tracking on, but you appear to be offline.', 'warn');
-            });
+    stopJourneyAnimation();
+
+    if (routeLayer) map.removeLayer(routeLayer);
+    if (startMarker) map.removeLayer(startMarker);
+    if (endMarker) map.removeLayer(endMarker);
+
+    routeLayer = null;
+    startMarker = null;
+    endMarker = null;
+
+    const status = button.dataset.status
+        .trim().toLowerCase().replace(/_/g, " ");
+
+    const stp = [
+        Number(button.dataset.stpLat),
+        Number(button.dataset.stpLon)
+    ];
+
+    const delivery = [
+        Number(button.dataset.deliveryLat),
+        Number(button.dataset.deliveryLon)
+    ];
+
+    if (!validJourneyPoint(stp)) {
+        setJourneyLabel("STP coordinates unavailable.");
+        return;
     }
 
-    function handlePositionUpdate(position) {
-        latestPosition = position;
+    const isPickedUp = [
+        "out for delivery",
+        "delivered"
+    ].includes(status);
 
-        placeMarker(
-            position.coords.latitude,
-            position.coords.longitude
+    let start;
+    let end;
+
+    if (isPickedUp) {
+        start = stp;
+        end = delivery;
+    } else {
+        start = await getJourneyTankerStart();
+        end = stp;
+    }
+
+    if (requestNumber !== journeyRequestNumber) return;
+
+    if (!validJourneyPoint(start) ||
+        !validJourneyPoint(end)) {
+        setJourneyLabel("Required route coordinates unavailable.");
+        return;
+    }
+
+    const stageText = isPickedUp
+        ? "Stage 2: STP → Delivery"
+        : "Stage 1: Tanker → Pickup STP";
+
+    setJourneyLabel(stageText + " | Calculating road route...");
+
+    try {
+        const route = await fetchJourneyRoadRoute(start, end);
+
+        if (requestNumber !== journeyRequestNumber) return;
+
+        startMarker = L.marker(start)
+            .addTo(map)
+            .bindPopup(
+                isPickedUp ? "Pickup STP" : "Tanker starting location"
+            );
+
+        endMarker = L.marker(end)
+            .addTo(map)
+            .bindPopup(
+                isPickedUp ? "Delivery destination" : "Pickup STP"
+            );
+
+        routeLayer = L.polyline(route.points, {
+            color: isPickedUp ? "#16a34a" : "#2563eb",
+            weight: 5,
+            opacity: 0.9
+        }).addTo(map);
+
+        map.fitBounds(routeLayer.getBounds(), {
+            padding: [40, 40]
+        });
+
+        const distanceEl = document.getElementById(
+            "routeDistance"
         );
 
-        map.setView(
-            [position.coords.latitude, position.coords.longitude],
-            Math.max(map.getZoom(), 14)
+        const timeEl = document.getElementById(
+            "routeTime"
         );
 
-        if (statusEl && statusEl.dataset.tone !== 'good') {
-            setStatus('GPS lock acquired. Sending updates every 10s...', 'good');
-        }
-    }
+        const infoEl = document.getElementById(
+            "routeInfo"
+        );
 
-    function handlePositionError(error) {
-        var message = 'Unable to get your location.';
-
-        if (error.code === error.PERMISSION_DENIED) {
-            message = 'Location permission denied. Enable it in your browser settings to start a trip.';
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-            message = 'Location is currently unavailable. Retrying...';
-        } else if (error.code === error.TIMEOUT) {
-            message = 'Timed out getting your location. Retrying...';
+        if (distanceEl) {
+            distanceEl.textContent =
+                (route.distance / 1000).toFixed(2) + " km";
         }
 
-        console.warn('Geolocation error:', error);
-        setStatus(message, 'error');
-    }
+        if (timeEl) {
+            timeEl.textContent =
+                (route.duration / 60).toFixed(1) + " mins";
+        }
 
-    function startTrip() {
-        if (!navigator.geolocation) {
-            setStatus('Geolocation is not supported by this browser.', 'error');
+        if (infoEl) infoEl.style.display = "block";
+
+        if (status === "delivered") {
+            journeyMarker = L.marker(end, {
+                icon: journeyTruckIcon
+            }).addTo(map);
+
+            setJourneyLabel("Delivery completed");
             return;
         }
 
-        if (watchId !== null) return;
-
-        setStatus('Requesting location permission...', 'muted');
-
-        watchId = navigator.geolocation.watchPosition(
-            handlePositionUpdate,
-            handlePositionError,
-            {
-                enableHighAccuracy: true,
-                maximumAge: 5000,
-                timeout: 20000
-            }
+        setJourneyLabel(
+            stageText + " | Simulated movement"
         );
 
-        sendTimer = setInterval(function () {
-            if (latestPosition) {
-                sendLocation(latestPosition);
-            }
-        }, SEND_INTERVAL_MS);
+        // Preview animation duration: 45 seconds.
+        // Not an actual estimated delivery time.
+        animateJourneyTruck(
+            route.points,
+            45000,
+            requestNumber
+        );
 
-        if (startBtn) startBtn.disabled = true;
-        if (stopBtn) stopBtn.disabled = false;
-    }
+    } catch (error) {
+        console.error("Tanker journey error:", error);
 
-    function stopTrip() {
-        if (watchId !== null) {
-            navigator.geolocation.clearWatch(watchId);
-            watchId = null;
+        if (requestNumber === journeyRequestNumber) {
+            setJourneyLabel(
+                "Unable to load the road route."
+            );
         }
-
-        if (sendTimer) {
-            clearInterval(sendTimer);
-            sendTimer = null;
-        }
-
-        latestPosition = null;
-
-        if (startBtn) startBtn.disabled = false;
-        if (stopBtn) stopBtn.disabled = true;
-
-        setStatus('Tracking stopped.', 'muted');
     }
+}
 
-    if (startBtn && stopBtn) {
-        startBtn.addEventListener('click', startTrip);
-        stopBtn.addEventListener('click', stopTrip);
-        stopBtn.disabled = true;
-    }
 
-    // Restore the tanker's last known position on page load, if any,
-    // without starting a new trip automatically.
-    fetch('/api/tanker/location/latest', { credentials: 'same-origin' })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-            var loc = data && data.location;
-            if (loc && loc.latitude && loc.longitude) {
-                placeMarker(Number(loc.latitude), Number(loc.longitude));
-            }
-        })
-        .catch(function (error) {
-            console.warn('Unable to load last tanker location:', error);
-        });
 
-})();
 </script>
+
 
 <!-- =========================================================
      LIVE GPS TRIP TRACKING
@@ -3148,7 +3240,7 @@
     var stopBtn = document.getElementById('tripStopBtn');
     var statusEl = document.getElementById('tripStatus');
 
-    var SEND_INTERVAL_MS = 10000;
+    var SEND_INTERVAL_MS = 5000;
 
     var watchId = null;
     var sendTimer = null;
@@ -3416,7 +3508,7 @@ async function respondToTankerRequest(orderId, action) {
             });
 
             onMessage(messaging, function(payload) {
-                const title = payload.notification?.title || "🚨 New Water Delivery Request";
+                const title = payload.notification?.title || " New Water Delivery Request";
                 const body = payload.notification?.body || "A new tanker delivery request is waiting for approval.";
                 alert(title + "\n\n" + body);
                 refreshTankerNotifications();
@@ -3460,11 +3552,111 @@ async function respondToTankerRequest(orderId, action) {
 
 <link
     rel="stylesheet"
-    href="{{ url_for('static', filename='chatbot.css') }}"
+    href="{{ url_for('static', filename='chatbot.css', v='20260922-1050') }}"
 >
 
 <script
-    src="{{ url_for('static', filename='chatbot.js') }}">
+    src="{{ url_for('static', filename='chatbot.js', v='20260922-1050') }}">
+</script>
+
+
+<script id="mobile-sidebar-script">
+(function () {
+    function initMobileSidebar() {
+        var sidebar = document.querySelector('.sidebar');
+        var toggle = document.querySelector('.mobile-sidebar-toggle');
+        var links = document.getElementById('mobile-sidebar-links');
+        if (!sidebar || !toggle || !links) return;
+
+        var backdrop = document.getElementById('mobile-sidebar-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'mobile-sidebar-backdrop';
+            backdrop.className = 'mobile-sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        function isMobile() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function openSidebar() {
+            if (!isMobile()) return;
+            document.body.classList.add('mobile-sidebar-open');
+            sidebar.classList.add('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.setAttribute('aria-label', 'Close sidebar');
+        }
+
+        function closeSidebar() {
+            document.body.classList.remove('mobile-sidebar-open');
+            sidebar.classList.remove('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-label', 'Open sidebar');
+        }
+
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.body.classList.contains('mobile-sidebar-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        backdrop.addEventListener('click', closeSidebar);
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeSidebar();
+        });
+
+        links.addEventListener('click', function (event) {
+            if (event.target.closest('a') && isMobile()) {
+                closeSidebar();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (!isMobile()) closeSidebar();
+        });
+
+        /* Swipe from the left edge to open; swipe sidebar to close. */
+        var startX = 0;
+        var startY = 0;
+        var tracking = false;
+
+        document.addEventListener('touchstart', function (event) {
+            if (!isMobile() || !event.touches.length) return;
+            startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+            tracking = true;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function (event) {
+            if (!tracking || !isMobile() || !event.changedTouches.length) return;
+            tracking = false;
+            var endX = event.changedTouches[0].clientX;
+            var endY = event.changedTouches[0].clientY;
+            var dx = endX - startX;
+            var dy = Math.abs(endY - startY);
+
+            if (dy > 70 || Math.abs(dx) < 60) return;
+
+            if (!document.body.classList.contains('mobile-sidebar-open') && startX <= 28 && dx > 60) {
+                openSidebar();
+            } else if (document.body.classList.contains('mobile-sidebar-open') && startX < 320 && dx < -60) {
+                closeSidebar();
+            }
+        }, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileSidebar);
+    } else {
+        initMobileSidebar();
+    }
+})();
 </script>
 
 </body>

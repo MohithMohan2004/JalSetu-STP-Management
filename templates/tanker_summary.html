@@ -170,8 +170,98 @@
             color: #199956;
         }
 
+        .message {
+            margin-top: 20px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
 
-        .assigned-vehicles-section {
+        .message.success {
+            background: #e8f8ef;
+            color: #16834d;
+            border: 1px solid #d2f0df;
+        }
+
+        .message.fail {
+            background: #fff0f0;
+            color: #d63d3d;
+            border: 1px solid #ffdada;
+        }
+
+        .actions {
+            margin-top: 24px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .back-btn {
+            width: 100%;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            background: #1976f3;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: .2s;
+        }
+
+        .back-btn:hover {
+            background: #125fc5;
+        }
+
+        .redirect-note {
+            margin: 13px 0 0;
+            text-align: center;
+            color: #8a96a8;
+            font-size: 10px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+                align-items: flex-start;
+            }
+
+            .page {
+                margin-top: 20px;
+            }
+
+            .header {
+                padding: 22px 20px;
+            }
+
+            .content {
+                padding: 22px 20px 24px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .details,
+            .tanker-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .detail strong {
+                font-size: 12px;
+            }
+
+            .icon {
+                width: 46px;
+                height: 46px;
+                font-size: 22px;
+            }
+        }
+    
+.assigned-vehicles-section {
             margin-top: 22px;
             padding-top: 20px;
             border-top: 1px solid #edf0f5;
@@ -330,52 +420,10 @@
             font-size: 10px;
         }
 
-        @media (max-width: 600px) {
-            body {
-                padding: 15px;
-                align-items: flex-start;
-            }
-
-            .page {
-                margin-top: 20px;
-            }
-
-            .header {
-                padding: 22px 20px;
-            }
-
-            .content {
-                padding: 22px 20px 24px;
-            }
-
-            .header h1 {
-                font-size: 18px;
-            }
-
-            .details,
-            .tanker-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .detail strong {
-                font-size: 12px;
-            }
-
-            .vehicle-details {
-                grid-template-columns: 1fr;
-            }
-
-            .vehicle-card-header {
-                align-items: flex-start;
-            }
-
-            .icon {
-                width: 46px;
-                height: 46px;
-                font-size: 22px;
-            }
-        }
-    </style>
+        
+</style>
+          
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -384,7 +432,7 @@
 
     <div class="header">
         <div class="header-top">
-            <div class="icon">🚛</div>
+            
             <div>
                 <h1>Tanker Assignment Summary</h1>
                 <p>Wastewater delivery assignment overview</p>
@@ -452,15 +500,15 @@
 
             {% if info.sufficient %}
             <div class="message success">
-                ✔ Sufficient tankers available for this assignment.
+                 Sufficient tankers available for this assignment.
             </div>
             {% else %}
             <div class="message fail">
-                ❌ Not enough tankers are currently available.
+                 Not enough tankers are currently available.
             </div>
             {% endif %}
 
-            <div class="assigned-vehicles-section">
+        <div class="assigned-vehicles-section">
 
                 <h2 class="details-title">Assigned Vehicle{% if info.assigned_vehicles and info.assigned_vehicles|length > 1 %}s{% endif %}</h2>
 
@@ -616,7 +664,7 @@
 </style>
 
 <div id="wwGlobalAccountButton" title="Account"
-     aria-label="Open account menu" role="button" tabindex="0">👤</div>
+     aria-label="Open account menu" role="button" tabindex="0"></div>
 
 <div id="wwGlobalAccountMenu" aria-hidden="true">
     <div class="ww-account-header">
@@ -625,10 +673,10 @@
     </div>
 
     <a id="wwAccountProfile" class="ww-account-item"
-       href="/profile" style="display:none;">👤 My Profile</a>
+       href="/profile" style="display:none;"> My Profile</a>
 
     <a id="wwAccountLogin" class="ww-account-item ww-account-login"
-       href="/login" style="display:none;">🔐 Login</a>
+       href="/login" style="display:none;"> Login</a>
 
     <a id="wwAccountLogout" class="ww-account-item ww-account-logout"
        href="/logout" style="display:none;">↪ Logout</a>
@@ -650,7 +698,7 @@
     const logoutEl=document.getElementById("wwAccountLogout");
 
     function loggedOut(){
-        avatar.textContent="👤";
+        avatar.textContent="";
         avatar.title="Login";
         if(nameEl) nameEl.textContent="Guest";
         if(roleEl) roleEl.textContent="Not logged in";
@@ -660,7 +708,7 @@
     }
 
     function loggedIn(user){
-        avatar.textContent=user.initials || "👤";
+        avatar.textContent=user.initials || "";
         avatar.title=user.name || "My Profile";
 
         if(nameEl) nameEl.textContent=user.name || "User";

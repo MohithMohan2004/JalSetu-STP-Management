@@ -1583,8 +1583,402 @@
                 height: 330px;
             }
         }
+        
+        /* =========================================
+        OCEMS UPLOAD
+        ========================================= */
+
+        .ocems-upload-box {
+
+            margin-top: 20px;
+
+            padding-top: 18px;
+
+            border-top: 1px solid #edf1f6;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 20px;
+        }
+
+
+        .ocems-upload-box h3 {
+
+            margin: 0;
+
+            color: #172033;
+
+            font-size: 15px;
+        }
+
+
+        .ocems-upload-box p {
+
+            margin: 5px 0 0;
+
+            color: #8490a5;
+
+            font-size: 12px;
+        }
+
+
+        .ocems-upload-form {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .ocems-upload-form input[type="file"] {
+
+            font-size: 12px;
+
+            max-width: 240px;
+        }
+
+
+        .ocems-upload-form button {
+
+            border: none;
+
+            padding: 9px 16px;
+
+            border-radius: 8px;
+
+            background: #2563eb;
+
+            color: #ffffff;
+
+            font-size: 13px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+        }
+
+
+        .ocems-upload-form button:hover {
+
+            background: #1d4ed8;
+        }
+
+
+        @media (max-width: 700px) {
+
+            .ocems-upload-box {
+
+                flex-direction: column;
+
+                align-items: flex-start;
+
+            }
+
+        }
+
+        /* =========================================
+        OCEMS QUALITY INDICATORS
+        ========================================= */
+
+        .ocems-indicator {
+
+            display: inline-block;
+
+            margin-top: 7px;
+
+            padding: 4px 9px;
+
+            border-radius: 20px;
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            line-height: 1;
+
+        }
+
+
+        /* GOOD */
+
+        .ocems-indicator.good {
+
+            color: #15803d;
+
+            background: #dcfce7;
+
+        }
+
+
+        /* BAD */
+
+        .ocems-indicator.bad {
+
+            color: #dc2626;
+
+            background: #fee2e2;
+
+        }
+
+
+        /* UNKNOWN */
+
+        .ocems-indicator.unknown {
+
+            color: #64748b;
+
+            background: #f1f5f9;
+
+        }
+    </style>
+    <style>
+
+    /* =========================================
+    OCEMS MONITORING
+    ========================================= */
+
+    .ocems-section {
+
+        background: #ffffff;
+
+        border-radius: 14px;
+
+        padding: 24px;
+
+        margin-top: 22px;
+
+        margin-bottom: 22px;
+
+        box-shadow:
+            0 2px 10px rgba(15, 23, 42, 0.06);
+
+        border: 1px solid #eef2f7;
+    }
+
+
+    /* Header */
+
+    .ocems-header {
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        margin-bottom: 22px;
+    }
+
+
+    .ocems-header h2 {
+
+        margin: 0;
+
+        font-size: 20px;
+
+        font-weight: 700;
+
+        color: #172033;
+    }
+
+
+    .ocems-header p {
+
+        margin: 5px 0 0;
+
+        font-size: 13px;
+
+        color: #8490a5;
+    }
+
+
+    /* View details button */
+
+    .ocems-details-btn {
+
+        display: inline-flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        padding: 9px 16px;
+
+        border-radius: 8px;
+
+        background: #2563eb;
+
+        color: #ffffff;
+
+        text-decoration: none;
+
+        font-size: 13px;
+
+        font-weight: 600;
+
+        transition: 0.2s ease;
+    }
+
+
+    .ocems-details-btn:hover {
+
+        background: #1d4ed8;
+
+        transform: translateY(-1px);
+    }
+
+
+    /* Parameter grid */
+
+    .ocems-grid {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(4, 1fr);
+
+        gap: 14px;
+    }
+
+
+    /* Individual parameter */
+
+    .ocems-value {
+
+        background: #f8fafc;
+
+        border: 1px solid #edf1f6;
+
+        border-radius: 10px;
+
+        padding: 17px 18px;
+
+        min-height: 105px;
+    }
+
+
+    .ocems-value span {
+
+        display: block;
+
+        color: #7b8799;
+
+        font-size: 12px;
+
+        font-weight: 500;
+
+        margin-bottom: 8px;
+    }
+
+
+    .ocems-value strong {
+
+        display: inline-block;
+
+        color: #172033;
+
+        font-size: 27px;
+
+        line-height: 1;
+
+        font-weight: 700;
+    }
+
+
+    .ocems-value small {
+
+        display: block;
+
+        color: #8994a6;
+
+        font-size: 11px;
+
+        margin-top: 7px;
+    }
+
+
+    /* Footer / status */
+
+    .ocems-footer {
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 7px;
+
+        margin-top: 18px;
+
+        padding-top: 14px;
+
+        border-top: 1px solid #edf1f6;
+
+        color: #667085;
+
+        font-size: 12px;
+    }
+
+
+    .ocems-status-dot {
+
+        width: 8px;
+
+        height: 8px;
+
+        border-radius: 50%;
+
+        background: #16a34a;
+
+        display: inline-block;
+    }
+
+
+    /* Responsive */
+
+    @media (max-width: 900px) {
+
+        .ocems-grid {
+
+            grid-template-columns:
+                repeat(2, 1fr);
+
+        }
+
+    }
+
+
+    @media (max-width: 600px) {
+
+        .ocems-header {
+
+            align-items: flex-start;
+
+            flex-direction: column;
+
+            gap: 15px;
+
+        }
+
+
+        .ocems-grid {
+
+            grid-template-columns: 1fr;
+
+        }
+
+    }
 
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+
 </head>
 
 <body>
@@ -1600,15 +1994,14 @@
         <div class="brand">
 
             <div class="brand-icon">
-                💧
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
             <div class="brand-text">
-                <h2>WasteWater</h2>
+                <h2>PURVA - JalSetu</h2>
                 <p>Management System</p>
             </div>
-
-        </div>
+</div>
 
 
         <div class="menu-title">
@@ -1616,39 +2009,20 @@
         </div>
 
 
-        <div class="nav-links">
+        <div class="nav-links" id="mobile-sidebar-links">
 
             <a href="/supply" class="active">
                 <div class="nav-icon">⌂</div>
                 <span>Dashboard</span>
             </a>
 
-            <a href="/supply">
-                <div class="nav-icon">▣</div>
-                <span>Select STP</span>
-            </a>
-
-            <a href="/supply">
-                <div class="nav-icon">▤</div>
-                <span>Demand Requests</span>
-            </a>
-
-            <a href="/tanker">
-                <div class="nav-icon">▰</div>
-                <span>Assignments</span>
-            </a>
-
             <a href="{{ url_for('track_stp') }}">
-                <div class="nav-icon">🚚</div>
+                <div class="nav-icon">◎</div>
                 <span>Tanker Tracking</span>
             </a>
 
-            <a href="/supply">
-                <div class="nav-icon">▥</div>
-                <span>Reports</span>
-            </a>
-
-        </div>
+            
+</div>
 
 
         <div class="menu-title" style="margin-top:25px;">
@@ -1658,13 +2032,13 @@
 
         <div class="nav-links">
 
-            <a href="/supply">
-                <div class="nav-icon">♙</div>
+            <a href="/profile">
+                <div class="nav-icon">◉</div>
                 <span>Profile</span>
             </a>
 
             <a href="/supply">
-                <div class="nav-icon">⚙</div>
+                <div class="nav-icon">⚙︎</div>
                 <span>Settings</span>
             </a>
 
@@ -1699,6 +2073,34 @@
 
     <main class="main-content">
 
+    <!-- Mobile navigation: brand and hamburger remain visible; sidebar links open separately. -->
+    <div class="mobile-navbar" role="navigation" aria-label="Mobile navigation">
+        <div class="mobile-navbar-brand">
+
+            <div class="brand-icon">
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+            </div>
+
+            <div class="brand-text">
+                <h2>PURVA - JalSetu</h2>
+                <p>Management System</p>
+            </div>
+
+        </div>
+        <button
+            type="button"
+            class="mobile-sidebar-toggle"
+            aria-label="Open sidebar"
+            aria-expanded="false"
+            aria-controls="mobile-sidebar-links"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+    </div>
+
+
 
         <!-- TOP BAR -->
 
@@ -1707,7 +2109,7 @@
             <div class="welcome">
 
                 <h1>
-                    Welcome back, Operator 👋
+                    Welcome back, Operator 
                 </h1>
 
                 <p>
@@ -1721,7 +2123,7 @@
 
                 <div class="notification">
 
-                    🔔
+                    
 
                     <div class="notification-badge">
                         3
@@ -1878,9 +2280,7 @@
 
                 <div class="request-water-content">
 
-                    <div class="request-water-icon">
-                        💧
-                    </div>
+                    
 
                     <div>
                         <h2>Request Water</h2>
@@ -1895,7 +2295,7 @@
                     href="/request-water?stp_id={{ selected_stp.stp_id }}"
                     class="request-water-btn"
                 >
-                    💧 Request Water
+                     Request Water
                 </a>
 
             </div>
@@ -1910,9 +2310,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon blue">
-                        🏭
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1931,9 +2329,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon green">
-                        💧
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1958,9 +2354,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon purple">
-                        📋
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1979,9 +2373,7 @@
 
                 <div class="stat-card">
 
-                    <div class="stat-icon orange">
-                        🚚
-                    </div>
+                    
 
                     <div class="stat-info">
 
@@ -1998,8 +2390,149 @@
                 </div>
 
             </div>
+            
+            <!-- OCEMS MONITORING -->
+            <div class="ocems-section">
+
+                <div class="ocems-header">
+
+                    <div>
+                        <h2>OCEMS Monitoring</h2>
+                        <p>Latest wastewater quality parameters</p>
+                    </div>
+
+                    <a
+                        id="ocems-details-link"
+                        href="#"
+                        class="ocems-details-btn"
+                    >
+                        View Details →
+                    </a>
+
+                </div>
 
 
+                <div class="ocems-grid">
+
+                    <div class="ocems-value">
+
+                        <span>pH</span>
+
+                        <strong id="ocems-ph">—</strong>
+
+                        <small
+                            id="ocems-ph-status"
+                            class="ocems-indicator"
+                        >
+                            —
+                        </small>
+
+                    </div>
+
+
+                    <div class="ocems-value">
+
+                        <span>BOD</span>
+
+                        <strong id="ocems-bod">—</strong>
+
+                        <small>mg/L</small>
+
+                        <small
+                            id="ocems-bod-status"
+                            class="ocems-indicator"
+                        >
+                            —
+                        </small>
+
+                    </div>
+
+
+                    <div class="ocems-value">
+
+                        <span>COD</span>
+
+                        <strong id="ocems-cod">—</strong>
+
+                        <small>mg/L</small>
+
+                        <small
+                            id="ocems-cod-status"
+                            class="ocems-indicator"
+                        >
+                            —
+                        </small>
+
+                    </div>
+
+
+                    <div class="ocems-value">
+
+                        <span>TSS</span>
+
+                        <strong id="ocems-tss">—</strong>
+
+                        <small>mg/L</small>
+
+                        <small
+                            id="ocems-tss-status"
+                            class="ocems-indicator"
+                        >
+                            —
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="ocems-footer">
+
+                    <span class="ocems-status-dot"></span>
+
+                    <span id="ocems-status">
+                        OCEMS Data Unavailable
+                    </span>
+
+                </div>
+
+                <!-- OCEMS REPORT UPLOAD -->
+
+                <div class="ocems-upload-box">
+
+                    <div>
+
+                        <h3>Upload OCEMS Report</h3>
+
+                        <p>
+                            Upload the latest OCEMS Excel report for admin verification.
+                        </p>
+
+                    </div>
+
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('upload_ocems_report') }}"
+                        enctype="multipart/form-data"
+                        class="ocems-upload-form"
+                    >
+
+                        <input
+                            type="file"
+                            name="ocems_file"
+                            accept=".xlsx,.xls"
+                            required
+                        >
+
+                        <button type="submit">
+                            Upload Report
+                        </button>
+
+                    </form>
+
+                </div>
+            </div>
             <!-- =========================
                  MAP + DEMAND REQUESTS
             ========================== -->
@@ -2044,9 +2577,7 @@
 
                             <div class="pricing-header-left">
 
-                                <div class="pricing-icon">
-                                    💎
-                                </div>
+                                <div class="pricing-icon">₹</div>
 
                                 <div>
                                     <h2>Pricing & Incentives</h2>
@@ -2162,21 +2693,21 @@
                         <div class="stp-advantages">
 
                             <div class="stp-advantages-title">
-                                ✓ Your STP Advantages
+                                 Your STP Advantages
                             </div>
 
                             <div class="advantage-list">
 
                                 <span class="advantage">
-                                    ✓ {{ selected_stp.quality_grade }} quality
+                                     {{ selected_stp.quality_grade }} quality
                                 </span>
 
                                 <span class="advantage">
-                                    ✓ {{ selected_stp.available_capacity_mld }} MLD available
+                                     {{ selected_stp.available_capacity_mld }} MLD available
                                 </span>
 
                                 <span class="advantage">
-                                    ✓ {{ selected_stp.technology }}
+                                     {{ selected_stp.technology }}
                                 </span>
 
                             </div>
@@ -2190,9 +2721,7 @@
 
                             <div class="bonus-item">
 
-                                <div class="bonus-item-icon">
-                                    🌱
-                                </div>
+                                <div class="bonus-item-icon">⭐</div>
 
                                 <div>
 
@@ -2308,7 +2837,7 @@
 
                             <div class="demand-location">
 
-                                📍 {{ demand.site_name }}
+                                 {{ demand.site_name }}
 
                             </div>
 
@@ -2445,7 +2974,7 @@
 
                                 <div class="transfer-id">
 
-                                    🔄 {{ transfer.transfer_id }}
+                                     {{ transfer.transfer_id }}
 
                                 </div>
 
@@ -2638,7 +3167,7 @@
 
                                 {% if transfer_status == "accepted" %}
 
-                                    ✓ Request accepted
+                                     Request accepted
 
                                 {% elif transfer_status == "rejected" %}
 
@@ -2661,9 +3190,7 @@
 
                     <div class="no-transfer-requests">
 
-                        <div class="no-transfer-icon">
-                            💧
-                        </div>
+                        <div class="no-transfer-icon"></div>
 
                         <strong>
                             No water transfer requests
@@ -2714,7 +3241,7 @@
                     class="pricing-manage-btn"
                     onclick="openPricingModal()"
                 >
-                    💎 Manage Pricing
+                     Manage Pricing
                 </button>
 
             </div>
@@ -3516,7 +4043,452 @@
             });
         });
     </script>
+    <script>
 
+
+    function setOCEMSIndicator(
+        elementId,
+        status,
+        text
+    ) {
+
+        const element =
+            document.getElementById(
+                elementId
+            );
+
+
+        if (!element) {
+            return;
+        }
+
+
+        element.className =
+            `ocems-indicator ${status}`;
+
+
+        element.textContent =
+            text;
+    }
+
+
+    function updateOCEMSIndicator(
+        elementId,
+        value,
+        rangeText
+    ) {
+
+        if (
+            value === null ||
+            value === undefined ||
+            rangeText === null ||
+            rangeText === undefined
+        ) {
+
+            setOCEMSIndicator(
+                elementId,
+                "unknown",
+                "No Limit"
+            );
+
+            return;
+        }
+
+
+        const numericValue =
+            Number(value);
+
+
+        if (Number.isNaN(numericValue)) {
+
+            setOCEMSIndicator(
+                elementId,
+                "unknown",
+                "Unknown"
+            );
+
+            return;
+        }
+
+
+        const range =
+            String(rangeText)
+                .trim()
+                .replace(/–/g, "-")
+                .replace(/—/g, "-");
+
+
+        // -----------------------------------------
+        // RANGE: 5 - 9
+        // -----------------------------------------
+
+        let match =
+            range.match(
+                /^(-?\d+(?:\.\d+)?)\s*[-to]+\s*(-?\d+(?:\.\d+)?)$/i
+            );
+
+
+        if (match) {
+
+            const min =
+                Number(match[1]);
+
+            const max =
+                Number(match[2]);
+
+
+            if (
+                numericValue >= min &&
+                numericValue <= max
+            ) {
+
+                setOCEMSIndicator(
+                    elementId,
+                    "good",
+                    "● Good"
+                );
+
+            } else {
+
+                setOCEMSIndicator(
+                    elementId,
+                    "bad",
+                    "● Bad"
+                );
+
+            }
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // RANGE: < 30
+        // -----------------------------------------
+
+        match =
+            range.match(
+                /^<\s*(-?\d+(?:\.\d+)?)$/
+            );
+
+
+        if (match) {
+
+            const max =
+                Number(match[1]);
+
+
+            setOCEMSIndicator(
+                elementId,
+                numericValue < max
+                    ? "good"
+                    : "bad",
+                numericValue < max
+                    ? "● Good"
+                    : "● Bad"
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // RANGE: <= 30
+        // -----------------------------------------
+
+        match =
+            range.match(
+                /^(?:<=|≤)\s*(-?\d+(?:\.\d+)?)$/
+            );
+
+
+        if (match) {
+
+            const max =
+                Number(match[1]);
+
+
+            setOCEMSIndicator(
+                elementId,
+                numericValue <= max
+                    ? "good"
+                    : "bad",
+                numericValue <= max
+                    ? "● Good"
+                    : "● Bad"
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // RANGE: > 5
+        // -----------------------------------------
+
+        match =
+            range.match(
+                /^>\s*(-?\d+(?:\.\d+)?)$/
+            );
+
+
+        if (match) {
+
+            const min =
+                Number(match[1]);
+
+
+            setOCEMSIndicator(
+                elementId,
+                numericValue > min
+                    ? "good"
+                    : "bad",
+                numericValue > min
+                    ? "● Good"
+                    : "● Bad"
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // RANGE: >= 5
+        // -----------------------------------------
+
+        match =
+            range.match(
+                /^(?:>=|≥)\s*(-?\d+(?:\.\d+)?)$/
+            );
+
+
+        if (match) {
+
+            const min =
+                Number(match[1]);
+
+
+            setOCEMSIndicator(
+                elementId,
+                numericValue >= min
+                    ? "good"
+                    : "bad",
+                numericValue >= min
+                    ? "● Good"
+                    : "● Bad"
+            );
+
+            return;
+        }
+
+
+        // -----------------------------------------
+        // COULD NOT UNDERSTAND RANGE
+        // -----------------------------------------
+
+        setOCEMSIndicator(
+            elementId,
+            "unknown",
+            "Limit Unknown"
+        );
+    }
+
+    async function loadOCEMS() {
+
+        const stpId =
+            "{{ selected_stp.stp_id if selected_stp else '' }}";
+
+
+        if (!stpId) {
+            return;
+        }
+
+
+        const detailsLink =
+            document.getElementById(
+                "ocems-details-link"
+            );
+
+
+        if (detailsLink) {
+
+            detailsLink.href =
+                `/supply_ocems?stp_id=${encodeURIComponent(stpId)}`;
+
+        }
+
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/ocems_summary/${encodeURIComponent(stpId)}`
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success ||
+                !data.available
+            ) {
+
+                document.getElementById(
+                    "ocems-ph"
+                ).textContent = "—";
+
+
+                document.getElementById(
+                    "ocems-bod"
+                ).textContent = "—";
+
+
+                document.getElementById(
+                    "ocems-cod"
+                ).textContent = "—";
+
+
+                document.getElementById(
+                    "ocems-tss"
+                ).textContent = "—";
+
+
+                setOCEMSIndicator(
+                    "ocems-ph-status",
+                    "unknown",
+                    "No Data"
+                );
+
+                setOCEMSIndicator(
+                    "ocems-bod-status",
+                    "unknown",
+                    "No Data"
+                );
+
+                setOCEMSIndicator(
+                    "ocems-cod-status",
+                    "unknown",
+                    "No Data"
+                );
+
+                setOCEMSIndicator(
+                    "ocems-tss-status",
+                    "unknown",
+                    "No Data"
+                );
+
+
+                document.getElementById(
+                    "ocems-status"
+                ).textContent =
+                    "OCEMS Data Unavailable";
+
+                return;
+            }
+
+
+            // -----------------------------------------
+            // DISPLAY VALUES
+            // -----------------------------------------
+
+            document.getElementById(
+                "ocems-ph"
+            ).textContent =
+                data.pH ?? "—";
+
+
+            document.getElementById(
+                "ocems-bod"
+            ).textContent =
+                data.BOD ?? "—";
+
+
+            document.getElementById(
+                "ocems-cod"
+            ).textContent =
+                data.COD ?? "—";
+
+
+            document.getElementById(
+                "ocems-tss"
+            ).textContent =
+                data.TSS ?? "—";
+
+
+            // -----------------------------------------
+            // GET PERMISSIBLE RANGES
+            // -----------------------------------------
+
+            const ranges =
+                data.permissible_ranges || {};
+
+
+            // -----------------------------------------
+            // CHECK EACH PARAMETER
+            // -----------------------------------------
+
+            updateOCEMSIndicator(
+                "ocems-ph-status",
+                data.pH,
+                ranges["pH"]
+            );
+
+
+            updateOCEMSIndicator(
+                "ocems-bod-status",
+                data.BOD,
+                ranges["BOD"]
+            );
+
+
+            updateOCEMSIndicator(
+                "ocems-cod-status",
+                data.COD,
+                ranges["COD"]
+            );
+
+
+            updateOCEMSIndicator(
+                "ocems-tss-status",
+                data.TSS,
+                ranges["TSS"]
+            );
+
+
+            document.getElementById(
+                "ocems-status"
+            ).textContent =
+                `● Monitoring | Latest: ${data.timestamp || "—"}`;
+
+        }
+
+
+        catch (error) {
+
+            console.error(
+                "OCEMS loading error:",
+                error
+            );
+
+
+            document.getElementById(
+                "ocems-status"
+            ).textContent =
+                "OCEMS Data Unavailable";
+
+        }
+
+    }
+
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        loadOCEMS
+    );
+
+    </script>
 
 
 <!-- =========================================================
@@ -3577,10 +4549,10 @@
     </div>
 
     <a id="wwAccountProfile" class="ww-account-item"
-       href="/profile" style="display:none;">👤 My Profile</a>
+       href="/profile" style="display:none;"> My Profile</a>
 
     <a id="wwAccountLogin" class="ww-account-item ww-account-login"
-       href="/login" style="display:none;">🔐 Login</a>
+       href="/login" style="display:none;"> Login</a>
 
     <a id="wwAccountLogout" class="ww-account-item ww-account-logout"
        href="/logout" style="display:none;">↪ Logout</a>
@@ -3604,7 +4576,7 @@
     function loggedOut(){
         const circle=avatar.querySelector(".profile-circle");
         const profileName=avatar.querySelector("span:not(:last-child)");
-        if(circle) circle.textContent="👤";
+        if(circle) circle.textContent="";
         if(profileName) profileName.textContent="Guest";
         avatar.title="Login";
         if(nameEl) nameEl.textContent="Guest";
@@ -3617,7 +4589,7 @@
     function loggedIn(user){
         const circle=avatar.querySelector(".profile-circle");
         const profileName=avatar.querySelector("span:not(:last-child)");
-        if(circle) circle.textContent=user.initials || "👤";
+        if(circle) circle.textContent=user.initials || "";
         if(profileName) profileName.textContent=user.name || "User";
         avatar.title=user.name || "My Profile";
 
@@ -3706,11 +4678,111 @@
 
 <link
     rel="stylesheet"
-    href="{{ url_for('static', filename='chatbot.css') }}"
+    href="{{ url_for('static', filename='chatbot.css', v='20260922-1050') }}"
 >
 
 <script
-    src="{{ url_for('static', filename='chatbot.js') }}">
+    src="{{ url_for('static', filename='chatbot.js', v='20260922-1050') }}">
+</script>
+
+
+<script id="mobile-sidebar-script">
+(function () {
+    function initMobileSidebar() {
+        var sidebar = document.querySelector('.sidebar');
+        var toggle = document.querySelector('.mobile-sidebar-toggle');
+        var links = document.getElementById('mobile-sidebar-links');
+        if (!sidebar || !toggle || !links) return;
+
+        var backdrop = document.getElementById('mobile-sidebar-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'mobile-sidebar-backdrop';
+            backdrop.className = 'mobile-sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        function isMobile() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function openSidebar() {
+            if (!isMobile()) return;
+            document.body.classList.add('mobile-sidebar-open');
+            sidebar.classList.add('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.setAttribute('aria-label', 'Close sidebar');
+        }
+
+        function closeSidebar() {
+            document.body.classList.remove('mobile-sidebar-open');
+            sidebar.classList.remove('mobile-sidebar-open');
+            toggle.setAttribute('aria-expanded', 'false');
+            toggle.setAttribute('aria-label', 'Open sidebar');
+        }
+
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.body.classList.contains('mobile-sidebar-open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        });
+
+        backdrop.addEventListener('click', closeSidebar);
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') closeSidebar();
+        });
+
+        links.addEventListener('click', function (event) {
+            if (event.target.closest('a') && isMobile()) {
+                closeSidebar();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (!isMobile()) closeSidebar();
+        });
+
+        /* Swipe from the left edge to open; swipe sidebar to close. */
+        var startX = 0;
+        var startY = 0;
+        var tracking = false;
+
+        document.addEventListener('touchstart', function (event) {
+            if (!isMobile() || !event.touches.length) return;
+            startX = event.touches[0].clientX;
+            startY = event.touches[0].clientY;
+            tracking = true;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function (event) {
+            if (!tracking || !isMobile() || !event.changedTouches.length) return;
+            tracking = false;
+            var endX = event.changedTouches[0].clientX;
+            var endY = event.changedTouches[0].clientY;
+            var dx = endX - startX;
+            var dy = Math.abs(endY - startY);
+
+            if (dy > 70 || Math.abs(dx) < 60) return;
+
+            if (!document.body.classList.contains('mobile-sidebar-open') && startX <= 28 && dx > 60) {
+                openSidebar();
+            } else if (document.body.classList.contains('mobile-sidebar-open') && startX < 320 && dx < -60) {
+                closeSidebar();
+            }
+        }, { passive: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMobileSidebar);
+    } else {
+        initMobileSidebar();
+    }
+})();
 </script>
 
 </body>

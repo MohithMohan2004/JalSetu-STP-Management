@@ -31,41 +31,6 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
 
 .order-track-actions{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
 .track-order-btn{border:1px solid #1976f3;background:#1976f3;color:#fff;border-radius:7px;padding:9px 14px;font:600 10px Inter,Arial,sans-serif;cursor:pointer}
-.reorder-btn{
-    border:1px solid #16a34a;
-    background:#ffffff;
-    color:#16834d;
-
-    border-radius:7px;
-
-    padding:9px 14px;
-
-    font:600 10px Inter,Arial,sans-serif;
-
-    cursor:pointer;
-
-    transition:
-        background .2s ease,
-        color .2s ease,
-        transform .15s ease;
-}
-
-
-.reorder-btn:hover{
-    background:#ecfdf3;
-    color:#11743f;
-}
-
-
-.reorder-btn:active{
-    transform:scale(.97);
-}
-
-
-.reorder-btn:disabled{
-    opacity:.6;
-    cursor:not-allowed;
-}
 .route-panel{display:none;margin-top:16px;border:1px solid #e5ebf3;border-radius:12px;overflow:hidden;background:#fff}
 .route-panel.show{display:block}
 .route-header{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid #edf1f5}
@@ -109,90 +74,131 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
     from{transform:translateY(-1px)}
     to{transform:translateY(1px)}
 }
+    to{transform:translateY(1px)}
+}.reorder-btn{
+    border:1px solid #16a34a;
+    background:#ffffff;
+    color:#16834d;
 
-
-.nav-back{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    color:#fff;
-    text-decoration:none;
-    font-size:12px;
-    font-weight:600;
-    padding:8px 12px 8px 9px;
-    border:1px solid rgba(255,255,255,.20);
-    border-radius:8px;
-    background:rgba(255,255,255,.07);
-    box-shadow:0 2px 6px rgba(0,0,0,.10);
-    white-space:nowrap;
-    transition:all .2s ease;
-}
-.nav-back:hover{
-    background:rgba(255,255,255,.14);
-    border-color:rgba(255,255,255,.32);
-    color:#fff;
-    transform:translateX(-1px);
-}
-.nav-back:active{
-    transform:translateX(0);
-}
-.nav-back-arrow{
-    width:27px;
-    height:27px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
     border-radius:7px;
-    background:rgba(255,255,255,.12);
-    line-height:0;
-}
-.nav-back-arrow svg{
-    display:block;
-}
-@media(max-width:760px){
-    .nav-back{
-        padding:7px 9px;
-        font-size:11px;
-    }
-    .nav-back span:last-child{
-        display:none;
-    }
+
+    padding:9px 14px;
+
+    font:600 10px Inter,Arial,sans-serif;
+
+    cursor:pointer;
+
+    transition:
+        background .2s ease,
+        color .2s ease,
+        transform .15s ease;
 }
 
+
+.reorder-btn:hover{
+    background:#ecfdf3;
+    color:#11743f;
+}
+
+
+.reorder-btn:active{
+    transform:scale(.97);
+}
+
+
+.reorder-btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+}
+
+    .nav-back{
+     display:flex;
+     align-items:center;
+     justify-content:center;
+     gap:8px;
+     color:#fff;
+     text-decoration:none;
+     font-size:12px;
+     font-weight:600;
+     padding:7px 14px 7px 10px;
+     border:2px solid #78b8ed;
+     border-radius:22px;
+     background:rgba(31,75,122,.22);
+     box-shadow:none;
+     white-space:nowrap;
+     transition:all .2s ease;
+     flex-shrink:0;
+}
+    .nav-back:hover{
+     background:rgba(42,93,145,.42);
+     border-color:#a7d3f7;
+     color:#fff;
+     transform:translateY(-1px);
+}
+    .nav-back:active{
+     transform:translateY(0);
+}
+    .nav-back-arrow{
+     width:22px;
+     height:22px;
+     display:flex;
+     align-items:center;
+     justify-content:center;
+     border-radius:50%;
+     background:transparent;
+     line-height:0;
+}
+    .nav-back-arrow svg{
+     display:block;
+     width:18px;
+     height:18px;
+}
+    @media(max-width:760px){
+     .nav-back{
+         padding:6px 12px 6px 9px;
+         font-size:11px;
+         border-width:1.5px;
+    }
+     .nav-back-arrow{
+         width:21px;
+         height:21px;
+    }
+}
 </style>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
 
 <div class="navbar">
-    <a href="/demand" class="nav-back" title="Back to Demand">
+        <a href="/demand" class="nav-back" title="Back to Demand">
         <span class="nav-back-arrow" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
             </svg>
         </span>
         <span>Back</span>
     </a>
-    <div class="brand"><span class="brand-icon">💧</span> WasteWater Management System</div>
+<div class="brand"><span class="brand-icon"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;"></span> PURVA - JalSetu</div>
     <div class="nav-links">
-        <a href="/">⌂ Home</a>
+        <a href="/"> Home</a>
         <a href="/demand">◉ Order Water</a>
         <a href="/track" class="active">▣ Track Orders</a>
-        <a href="/profile">♙ Profile</a>
+        <a href="/profile"> Profile</a>
     </div>
     <div class="account-area">
-        <div class="notification" title="Notifications">🔔<span id="orderBadge" class="notification-badge">0</span></div>
+        <div class="notification" title="Notifications"><span id="orderBadge" class="notification-badge">0</span></div>
         <button id="profileButton" class="profile-button" type="button">
-            <span id="avatar" class="avatar">👤</span>
+            <span id="avatar" class="avatar"></span>
             <span class="profile-text"><strong id="profileName">User</strong><span id="profileRole">Buyer</span></span>
-            <span class="chevron">⌄</span>
+            <span class="chevron"></span>
         </button>
         <div id="accountMenu" class="account-menu">
             <div class="head"><strong id="menuName">User</strong><span id="menuRole">Buyer</span></div>
-            <a href="/profile">👤 My Profile</a>
+            <a href="/profile"> My Profile</a>
             <a href="/logout" class="logout">↪ Logout</a>
         </div>
     </div>
@@ -214,14 +220,14 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
     <div id="results"></div>
 
     <div id="emptyState" class="empty-state" style="display:none;">
-        <div class="empty-icon">👜</div>
+        
         <h3>No orders yet</h3>
         <p>You haven't placed any orders.</p>
-        <a class="order-now" href="/demand">💧 Order Water Now</a>
+        <a class="order-now" href="/demand"> Order Water Now</a>
     </div>
 
     <div id="notFound" class="not-found">
-        <div class="not-found-icon">📦</div>
+        
         <h3>No orders found</h3>
         <p>There are no orders associated with this account yet.</p>
     </div>
@@ -247,8 +253,8 @@ function formatMoney(quantity){
 
 function paymentLabel(payment){
     const p=(payment||"").toLowerCase();
-    if(p.includes("paid")) return '<span class="payment-paid">✓ Paid</span>';
-    if(p.includes("cash") || p.includes("cod")) return '<span class="payment-cod">✓ COD</span>';
+    if(p.includes("paid")) return '<span class="payment-paid"> Paid</span>';
+    if(p.includes("cash") || p.includes("cod")) return '<span class="payment-cod"> COD</span>';
     return '<span style="color:#7b8799">Pending</span>';
 }
 
@@ -263,7 +269,7 @@ function statusInfo(raw){
 
 function buildProgress(order, info){
     if(info.step===-1){
-        return '<div style="width:100%;text-align:center;padding:12px;background:#fff5f5;border-radius:8px;color:#dc2626;font-size:10px;font-weight:700">❌ This order has been rejected.</div>';
+        return '<div style="width:100%;text-align:center;padding:12px;background:#fff5f5;border-radius:8px;color:#dc2626;font-size:10px;font-weight:700"> This order has been rejected.</div>';
     }
 
     const steps=["Order Placed","STP Accepted","Out for Delivery","Delivered"];
@@ -273,7 +279,7 @@ function buildProgress(order, info){
         const current=index===info.step && info.step!==3;
         const acceptedCurrent=current && index===1;
         html += `<div class="progress-item ${completed?'completed':''} ${current?'current':''} ${acceptedCurrent?'accepted':''}">
-            <div class="circle">${completed?'✓':index+1}</div>
+            <div class="circle">${completed?'':index+1}</div>
             <div class="progress-label">${step}</div>
             <div class="progress-time">${index===0 ? escapeHTML(order.created_at||"") : (current ? "Current" : (index<info.step || info.step===3 ? "Completed" : "Pending"))}</div>
         </div>`;
@@ -315,32 +321,8 @@ function createOrderCard(order){
                 <div class="detail"><span class="detail-label">Payment Status</span><span class="detail-value">${paymentLabel(order.payment_status)}</span></div>
             </div>
             <div class="order-track-actions">
-
-                ${info.step!==-1
-                    ? `<button
-                            type="button"
-                            class="track-order-btn"
-                            onclick="toggleRoute(
-                                this,
-                                '${escapeHTML(order.order_id||"")}'
-                            )"
-                    >
-                            Track Order
-                    </button>`
-                    : ""
-                }
-
-                <button
-                    type="button"
-                    class="reorder-btn"
-                    onclick="reorderOrder(
-                        this,
-                        '${escapeHTML(order.order_id||"")}'
-                    )"
-                >
-                    ↻ Reorder
-                </button>
-
+                ${info.step!==-1 ? `<button type="button" class="track-order-btn" onclick="toggleRoute(this,'${escapeHTML(order.order_id||"")}')">Track Order</button>` : ""}
+                <button type="button" class="reorder-btn" onclick="reorderOrder(this,'${escapeHTML(order.order_id||"")}')">↻ Reorder</button>
             </div>
             <div class="route-panel">
                 <div class="route-header">
@@ -352,9 +334,9 @@ function createOrderCard(order){
                 </div>
                 <div class="route-map"></div>
                 <div class="route-bottom">
-                    <span>🛣 Distance: <strong class="route-distance">--</strong></span>
-                    <span>⏱ ETA: <strong class="route-eta">--</strong></span>
-                    <span>🚛 Status: <strong class="route-live-status">${escapeHTML(info.label)}</strong></span>
+                    <span> Distance: <strong class="route-distance">--</strong></span>
+                    <span> ETA: <strong class="route-eta">--</strong></span>
+                    <span> Status: <strong class="route-live-status">${escapeHTML(info.label)}</strong></span>
                 </div>
             </div>
         </div>
@@ -555,9 +537,9 @@ async function loadMyOrders(showError){
                     if(headerStatus){
                         headerStatus.textContent=
                             currentStatus==="out for delivery"
-                                ?"🚛 Tanker is on the way"
+                                ?" Tanker is on the way"
                                 :currentStatus==="delivered"
-                                    ?"✓ Delivered"
+                                    ?" Delivered"
                                     :"Route ready";
                     }
                 }
@@ -613,13 +595,14 @@ let activeTruckMarker=null;
 let activeTruckAnimation=null;
 let activeRouteKey=null;
 let activeGpsPollTimer=null;
+let activeLiveGpsReceived=false;
 let activeTraveledLine=null;
 let activeRemainingLine=null;
 
 const tankerMapIcon=L.divIcon({
     className:"tanker-moving-marker",
     html:`<div class="tanker-vehicle">
-        <span class="tanker-truck">🚛</span>
+        <span class="tanker-truck">🚚</span>
     </div>`,
     iconSize:[42,42],
     iconAnchor:[21,21],
@@ -631,13 +614,6 @@ function stopTruckAnimation(){
         cancelAnimationFrame(activeTruckAnimation);
     }
     activeTruckAnimation=null;
-}
-
-function stopGpsPolling(){
-    if(activeGpsPollTimer){
-        clearInterval(activeGpsPollTimer);
-    }
-    activeGpsPollTimer=null;
 }
 
 /* ==========================================================
@@ -755,6 +731,11 @@ async function pollTankerLocation(order,card,pts){
 
         if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
 
+        // Once a real tanker GPS position is available, let live GPS control
+        // the marker instead of competing with the simulated animation.
+        activeLiveGpsReceived=true;
+        stopTruckAnimation();
+
         if(!activeTruckMarker){
             activeTruckMarker=L.marker([lat,lon],{
                 icon:tankerMapIcon,
@@ -803,15 +784,23 @@ async function pollTankerLocation(order,card,pts){
     }
 }
 
+function stopGpsPolling(){
+    if(activeGpsPollTimer){
+        clearInterval(activeGpsPollTimer);
+        activeGpsPollTimer=null;
+    }
+}
+
 function startLiveGpsTracking(order,card,pts){
     if(!activeTrackingMap||!pts||pts.length<2)return;
 
     stopGpsPolling();
+    activeLiveGpsReceived=false;
 
-    if(activeTruckMarker){
-        try{activeTrackingMap.removeLayer(activeTruckMarker);}catch(e){}
-        activeTruckMarker=null;
-    }
+    // Keep the animated tanker marker visible until real GPS data arrives.
+    // The previous code removed the animation marker immediately when live
+    // polling started, so when no GPS position was available there was no
+    // tanker marker on the map at all.
     if(activeTraveledLine){
         try{activeTrackingMap.removeLayer(activeTraveledLine);}catch(e){}
         activeTraveledLine=null;
@@ -829,6 +818,7 @@ function startLiveGpsTracking(order,card,pts){
     );
 }
 
+
 function closeRoute(button){
     const card=button.closest(".order-card");
     if(!card)return;
@@ -837,11 +827,16 @@ function closeRoute(button){
     if(panel)panel.classList.remove("show");
     if(btn)btn.textContent="Track Order";
     stopTruckAnimation();
+    if(activeGpsPollTimer){
+        clearInterval(activeGpsPollTimer);
+        activeGpsPollTimer=null;
+    }
     if(activeTrackingMap){
         activeTrackingMap.remove();
         activeTrackingMap=null;
     }
     activeTruckMarker=null;
+    activeLiveGpsReceived=false;
     activeTraveledLine=null;
     activeRemainingLine=null;
     activeRouteKey=null;
@@ -1119,11 +1114,12 @@ async function openOrderRoute(orderId,card){
             ).trim().toLowerCase().replace(/_/g," ");
 
         if(status==="out for delivery"){
-            statusEl.textContent="🚛 Tanker is on the way";
+            statusEl.textContent=" Tanker is on the way";
             animateTanker(pts,order,card);
+            startLiveGpsTracking(order,card,pts);
 
         }else if(status==="delivered"){
-            statusEl.textContent="✓ Delivered";
+            statusEl.textContent=" Delivered";
 
             activeTruckMarker=L.marker(
                 pts[pts.length-1],
@@ -1139,13 +1135,20 @@ async function openOrderRoute(orderId,card){
             card.dataset.localTrackingComplete="true";
             syncDeliveredCard(card,{...order,status:"Delivered"});
         }else if(status==="accepted"){
-            statusEl.textContent="✓ STP accepted • Waiting for pickup";
+            statusEl.textContent=" STP accepted • Waiting for pickup";
 
         }else if(status==="rejected"){
-            statusEl.textContent="✕ Order rejected";
+            statusEl.textContent=" Order rejected";
 
         }else{
             statusEl.textContent="Order placed • Waiting for STP acceptance";
+        }
+
+        if(status!=="out for delivery"){
+            if(activeGpsPollTimer){
+                clearInterval(activeGpsPollTimer);
+                activeGpsPollTimer=null;
+            }
         }
 
         setTimeout(
@@ -1195,7 +1198,7 @@ function syncDeliveredCard(card,order){
     if(liveStatus)liveStatus.textContent="Delivered";
 
     const headerStatus=card.querySelector(".route-header-status");
-    if(headerStatus)headerStatus.textContent="✓ Delivered";
+    if(headerStatus)headerStatus.textContent=" Delivered";
 
     card.dataset.localDelivered="true";
     card.dataset.localTrackingComplete="true";
@@ -1255,7 +1258,7 @@ async function completeDelivery(order,card){
     const statusText=card.querySelector(".route-live-status");
     const headerStatus=card.querySelector(".route-header-status");
     if(statusText)statusText.textContent="Delivered";
-    if(headerStatus)headerStatus.textContent="✓ Delivered";
+    if(headerStatus)headerStatus.textContent=" Delivered";
 
     syncDeliveredCard(card,{...order,status:"Delivered"});
 
@@ -1303,7 +1306,7 @@ function animateTanker(pts,order,card){
     const headerStatus=card.querySelector(".route-header-status");
 
     if(statusText)statusText.textContent="Out for Delivery";
-    if(headerStatus)headerStatus.textContent="🚛 Tanker is on the way";
+    if(headerStatus)headerStatus.textContent=" Tanker is on the way";
 
     let lastTimestamp=null;
     let routeProgress=0;
@@ -1312,7 +1315,7 @@ function animateTanker(pts,order,card){
     const duration=45000;
 
     function move(timestamp){
-        if(!activeTrackingMap || activeRouteKey!==String(order.order_id)){
+        if(!activeTrackingMap || activeRouteKey!==String(order.order_id) || activeLiveGpsReceived){
             activeTruckAnimation=null;
             return;
         }
@@ -1324,14 +1327,15 @@ function animateTanker(pts,order,card){
         routeProgress+=delta/duration;
 
         if(routeProgress>=1){
-            routeProgress=1;
-
-            activeTruckMarker.setLatLng(
-                pts[pts.length-1]
-            );
-
-            card.dataset.localTrackingComplete="true";
-            completeDelivery(order,card);
+            // This is only a visual fallback when live GPS is unavailable.
+            // Never mark an order delivered just because the demo animation
+            // reached the end of the route.
+            if(!activeLiveGpsReceived){
+                routeProgress=0;
+                activeTruckMarker.setLatLng(pts[0]);
+                activeTruckAnimation=requestAnimationFrame(move);
+                return;
+            }
 
             activeTruckAnimation=null;
             return;

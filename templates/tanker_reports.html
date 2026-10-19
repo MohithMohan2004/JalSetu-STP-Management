@@ -127,11 +127,18 @@
             font-size: 13px;
         }
 
-        /* ==========================================
-        VEHICLE FLEET
-        ========================================== */
+        @media (max-width: 800px) {
 
-        .fleet-card {
+            .stats,
+            .details {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+    
+        /* File 1: tanker fleet and document management */
+.fleet-card {
             margin-top: 20px;
         }
 
@@ -391,28 +398,21 @@
             font-size: 9px;
         }
 
+        
         @media (max-width: 800px) {
-
-            .stats,
-            .details,
             .vehicle-info,
             .documents-grid {
                 grid-template-columns: 1fr;
             }
-
-            .page {
-                padding: 20px;
-            }
-
             .fleet-header {
                 align-items: flex-start;
                 flex-direction: column;
             }
-
         }
 
     </style>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 <body>
@@ -511,6 +511,28 @@
             <div class="detail">
                 <p>Pincode</p>
                 <strong>{{ operator.pincode or "—" }}</strong>
+            </div>
+
+            <div class="detail">
+                <p>Tanker Registration</p>
+                <strong>
+                    {{ operator.tanker_registration_no or "—" }}
+                </strong>
+            </div>
+
+            <div class="detail">
+                <p>Vehicle Model</p>
+                <strong>{{ operator.vehicle_model or "—" }}</strong>
+            </div>
+
+            <div class="detail">
+                <p>Tanker Capacity</p>
+                <strong>
+                    {{ operator.tanker_capacity_kl or "—" }}
+                    {% if operator.tanker_capacity_kl %}
+                        KL
+                    {% endif %}
+                </strong>
             </div>
 
 
@@ -616,9 +638,7 @@
 
                             <div class="vehicle-title">
 
-                                <div class="vehicle-icon">
-                                    🚚
-                                </div>
+                                
 
                                 <div>
 
@@ -752,7 +772,7 @@
                                             <div>
 
                                                 <div class="document-name">
-                                                    📄 {{ doc_label }}
+                                                     {{ doc_label }}
                                                 </div>
 
 
@@ -881,6 +901,7 @@
         {% endif %}
 
     </div>
+
 
 </div>
 

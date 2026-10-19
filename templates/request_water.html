@@ -479,6 +479,7 @@
 
     </style>
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 </head>
 
 
@@ -490,14 +491,12 @@
     <div class="brand">
 
         <div class="brand-icon">
-            💧
-        </div>
+                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+            </div>
 
         <div class="brand-text">
 
-            <h2>WasteWater</h2>
-
-            <p>Management System</p>
+            <h2>PURVA - JalSetu</h2>
 
         </div>
 
@@ -536,9 +535,7 @@
 
     <div class="requesting-card">
 
-        <div class="stp-icon">
-            🏭
-        </div>
+        
 
         <div class="requesting-info">
 
@@ -765,7 +762,7 @@
                 class="submit-btn"
                 onclick="submitRequest()"
             >
-                💧 Send Request
+                 Send Request
             </button>
 
         </div>
