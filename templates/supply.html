@@ -1979,6 +1979,296 @@
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
 
+<style id="jalsetu-reference-layout">
+/* Layout matched to the JalSetu dashboard reference image. */
+:root{--jl-bg:#eef3fa;--jl-border:#e4ebf5;--jl-blue:#126cff;--jl-ink:#14233d;--jl-muted:#72829b;--jl-radius:13px}
+*{box-sizing:border-box}
+body{background:var(--jl-bg);color:var(--jl-ink)}
+.main-content{min-width:0}
+.topbar{height:66px;padding:0 28px;background:#f8fbff;border-bottom:1px solid var(--jl-border)}
+.container{max-width:none;width:100%;padding:18px 28px 30px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"select select" "request request" "stats ocems" "main main" "transfers operations";gap:14px;align-items:stretch}
+.container>.select-card{grid-area:select;margin:0;padding:15px 18px;display:flex;align-items:center;gap:20px}
+.select-card .card-header{margin:0;min-width:145px}
+.select-wrapper{flex:1;min-width:0}
+.select-wrapper select{max-width:none;width:100%;background:#fbfdff}
+.container>.request-water-card{grid-area:request;margin:0;padding:13px 18px;border-radius:12px;box-shadow:0 3px 12px rgba(25,40,70,.035)}
+.request-water-content{gap:12px}
+.request-water-icon{width:38px;height:38px;flex:0 0 38px}
+.container>.stats-grid{grid-area:stats;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:stretch}
+.stats-grid .stat-card{min-width:0;min-height:105px;padding:16px;border-radius:12px;box-shadow:0 3px 12px rgba(25,40,70,.035)}
+.stat-info{min-width:0}.stat-info p{font-size:11px}.stat-info h2{font-size:18px;overflow-wrap:anywhere}
+.container>.ocems-section{grid-area:ocems;margin:0;padding:18px;border-radius:12px;box-shadow:0 3px 12px rgba(25,40,70,.035);min-width:0}
+.ocems-header{margin-bottom:14px;gap:10px}.ocems-header h2{font-size:17px}.ocems-header p{font-size:11px}
+.ocems-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.ocems-value{min-width:0;min-height:92px;padding:13px}
+.ocems-value strong{font-size:24px}.ocems-value span{font-size:11px}
+.ocems-footer{font-size:10px;flex-wrap:wrap;margin-top:12px;padding-top:11px}
+.ocems-upload-box{margin-top:13px;padding-top:13px;gap:12px;align-items:center}.ocems-upload-box h3{font-size:12px}.ocems-upload-box p{font-size:10px}.ocems-upload-form input[type=file]{max-width:190px;font-size:10px}.ocems-upload-form button{font-size:11px;padding:9px 12px}
+.container>.main-grid{grid-area:main;margin:0;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);gap:14px;align-items:start}
+.main-grid>.card,.right-column>.pricing-card,.right-column>.card{min-width:0;border:1px solid var(--jl-border);border-radius:12px;box-shadow:0 3px 12px rgba(25,40,70,.035)}
+.main-grid>.card{padding:18px}
+.right-column{min-width:0;gap:14px}
+.map-container{height:390px;border-radius:10px}
+.pricing-card{padding:17px}.pricing-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.pricing-item{padding:11px;min-width:0}.pricing-item span{font-size:9px}.pricing-item strong{font-size:16px}.pricing-item small{font-size:9px}
+.demand-list{max-height:370px;overflow-y:auto;display:flex;flex-direction:column;gap:9px}.demand-item{padding:12px;border:1px solid var(--jl-border);border-radius:10px}.request-id{font-size:11px}.demand-location{font-size:10px}.demand-info{gap:7px 10px}.demand-info div{font-size:10px}.request-actions button{font-size:10px;padding:8px 12px}
+.container>.transfer-requests-card{grid-area:transfers;margin:0;min-width:0}.container>.update-section{grid-area:operations;margin:0;min-width:0;align-self:start}
+.transfer-requests-card,.update-section{padding:18px;border:1px solid var(--jl-border);border-radius:12px;box-shadow:0 3px 12px rgba(25,40,70,.035)}
+.transfer-item{padding:13px}.transfer-route{gap:10px;padding:10px}.transfer-route span,.transfer-details span{font-size:9px}.transfer-route strong,.transfer-details strong{font-size:11px}.transfer-details{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.transfer-actions button{font-size:10px}
+.card{border-color:var(--jl-border);border-radius:12px}
+.forecast-banner{padding:11px 28px;font-size:12px;gap:12px}
+.graph-container{padding:18px}
+@media(max-width:1200px){.container{padding:16px;gap:12px}.container>.main-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.map-container{height:340px}.ocems-value strong{font-size:22px}.pricing-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:950px){.container{grid-template-columns:minmax(0,1fr);grid-template-areas:"select" "request" "stats" "ocems" "main" "transfers" "operations"}.container>.main-grid{grid-template-columns:minmax(0,1fr)}.container>.stats-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.ocems-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.right-column{display:flex;flex-direction:column}.map-container{height:360px}}
+@media(max-width:700px){.topbar{padding:0 14px}.container{padding:12px;gap:12px}.container>.select-card{display:block;padding:14px}.select-card .card-header{margin-bottom:10px}.container>.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ocems-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ocems-section{padding:14px}.ocems-header{align-items:flex-start}.ocems-upload-box{align-items:flex-start;flex-direction:column}.ocems-upload-form{width:100%}.ocems-upload-form input[type=file]{max-width:100%}.container>.request-water-card{align-items:flex-start;flex-direction:column}.request-water-btn{width:100%}.map-container{height:300px}.pricing-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.transfer-details{grid-template-columns:repeat(2,minmax(0,1fr))}.forecast-banner{padding:12px 14px}}
+@media(max-width:420px){.container>.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pricing-grid{grid-template-columns:minmax(0,1fr)}.ocems-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-card{padding:11px;gap:8px}.stat-info h2{font-size:15px}}
+</style>
+
+
+
+    <style id="jalsetu-reference-layout-fix">
+      :root { --jl-blue:#126cff; --jl-ink:#10213b; --jl-muted:#7b8ca6; --jl-line:#e3ebf5; }
+      * { box-sizing:border-box; }
+      body { background:#f1f5fb; color:var(--jl-ink); }
+      .main-content { min-width:0; width:calc(100% - 210px); margin-left:210px; }
+      .sidebar { width:210px; }
+      .topbar { min-height:70px; height:auto; padding:13px 24px; }
+      .container { width:100%; max-width:none; padding:18px 24px 30px; display:flex; flex-direction:column; gap:16px; }
+      .forecast-banner { padding:12px 24px; font-size:12px; gap:12px; }
+      .select-card { margin:0; padding:14px 18px; display:flex; align-items:center; gap:18px; }
+      .select-card .card-header { margin:0; flex:0 0 150px; }
+      .select-card .card-header span { display:none; }
+      .select-wrapper { flex:1; min-width:0; }
+      .select-wrapper select { max-width:none; width:100%; min-height:42px; }
+      .request-water-card { margin:0; padding:13px 18px; }
+      .overview-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr); gap:16px; align-items:stretch; width:100%; }
+      .stp-information { min-width:0; padding:16px; }
+      .stp-info-header { margin-bottom:14px; }
+      .stp-info-title { display:flex; align-items:center; gap:10px; min-width:0; }
+      .stp-info-title h2 { margin:0; font-size:15px; }
+      .stp-info-icon { width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; background:#e8f1ff; color:#126cff; font-size:20px; }
+      .stp-active-pill { display:inline-flex; padding:5px 10px; border-radius:20px; background:#d8f9e8; color:#07854d; font-size:10px; font-weight:700; }
+      .stp-details-label { color:#126cff; font-size:10px; white-space:nowrap; }
+      .overview-row .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0; }
+      .overview-row .stat-card { min-width:0; min-height:92px; padding:13px; gap:10px; box-shadow:none; background:#f8faff; border-color:#e4edf8; align-items:flex-start; justify-content:center; }
+      .overview-row .stat-icon { width:32px; height:32px; flex:0 0 32px; font-size:16px; }
+      .overview-row .stat-info p { font-size:11px; line-height:1.35; }
+      .overview-row .stat-info h2 { font-size:16px; line-height:1.35; overflow-wrap:anywhere; }
+      .overview-row .ocems-section { margin:0; min-width:0; padding:16px; display:flex; flex-direction:column; }
+      .overview-row .ocems-header { margin-bottom:12px; gap:12px; }
+      .overview-row .ocems-header h2 { font-size:16px; }
+      .overview-row .ocems-header p { font-size:11px; }
+      .overview-row .ocems-details-btn { padding:8px 12px; font-size:11px; white-space:nowrap; }
+      .overview-row .ocems-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+      .overview-row .ocems-value { min-width:0; min-height:78px; padding:11px; }
+      .overview-row .ocems-value span { font-size:10px; margin-bottom:5px; }
+      .overview-row .ocems-value strong { font-size:21px; }
+      .overview-row .ocems-value small { font-size:10px; margin-top:4px; }
+      .overview-row .ocems-indicator { padding:4px 7px; font-size:9px; }
+      .overview-row .ocems-footer { margin-top:10px; padding-top:10px; font-size:10px; flex-wrap:wrap; }
+      .overview-row .ocems-upload-box { margin-top:12px; padding-top:12px; gap:12px; }
+      .overview-row .ocems-upload-box h3 { font-size:12px; }
+      .overview-row .ocems-upload-box p { font-size:10px; }
+      .overview-row .ocems-upload-form { gap:8px; }
+      .overview-row .ocems-upload-form input[type=file] { max-width:170px; font-size:10px; }
+      .overview-row .ocems-upload-form button { padding:9px 12px; font-size:10px; }
+      .main-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.08fr); gap:16px; align-items:start; margin:0; }
+      .main-grid > .card, .right-column > .card, .right-column > .pricing-card { min-width:0; }
+      .map-container { height:310px; }
+      .right-column { display:flex; flex-direction:column; gap:14px; min-width:0; }
+      .pricing-card { padding:16px; }
+      .pricing-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+      .pricing-item { min-width:0; padding:10px; }
+      .pricing-item span { font-size:10px; }
+      .pricing-item strong { font-size:16px; }
+      .pricing-item small { font-size:9px; }
+      .effective-price { padding:10px; }
+      .effective-price span, .effective-price small { font-size:10px; }
+      .stp-advantages { padding:10px; }
+      .stp-advantages-title { font-size:11px; }
+      .advantage { font-size:9px; }
+      .bonus-item strong { font-size:10px; }
+      .bonus-item small { font-size:9px; }
+      .demand-list { max-height:370px; overflow:auto; }
+      .demand-item { padding:12px; }
+      .request-id { font-size:11px; }
+      .demand-location { font-size:11px; line-height:1.45; }
+      .demand-info { gap:7px 10px; }
+      .demand-info div { font-size:10px; overflow-wrap:anywhere; }
+      .transfer-requests-card { margin-top:0; }
+      .transfer-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+      .transfer-item { min-width:0; }
+      .update-section { margin-top:0; }
+      @media(max-width:1200px) {
+        .main-content { width:calc(100% - 210px); margin-left:210px; }
+        .overview-row { grid-template-columns:minmax(0,1fr); }
+        .overview-row .stats-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+        .main-grid { grid-template-columns:minmax(0,1fr); }
+        .map-container { height:340px; }
+      }
+      @media(max-width:768px) {
+        .sidebar { width:70px; }
+        .main-content { margin-left:70px; width:calc(100% - 70px); }
+        .container { padding:13px 12px 24px; gap:13px; }
+        .topbar { padding:12px 14px; }
+        .select-card { display:block; }
+        .select-card .card-header { margin-bottom:10px; }
+        .overview-row .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .overview-row .ocems-upload-box { align-items:flex-start; flex-direction:column; }
+        .overview-row .ocems-upload-form { width:100%; }
+        .overview-row .ocems-upload-form input[type=file] { max-width:100%; }
+        .right-column { gap:13px; }
+        .transfer-list { grid-template-columns:minmax(0,1fr); }
+      }
+      @media(max-width:480px) {
+        .sidebar { width:56px; }
+        .main-content { margin-left:56px; width:calc(100% - 56px); }
+        .container { padding:10px 8px 20px; }
+        .overview-row .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .overview-row .stat-card { padding:9px; }
+        .overview-row .stat-info h2 { font-size:14px; }
+        .overview-row .ocems-header { align-items:flex-start; flex-direction:column; }
+        .overview-row .ocems-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .pricing-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .demand-info { grid-template-columns:minmax(0,1fr); }
+        .request-water-card { align-items:flex-start; flex-direction:column; }
+      }
+    </style>
+
+
+<style id="jalsetu-final-alignment-fix">
+  /* Final alignment pass: consistent page gutters, equal columns, matching card edges. */
+  *, *::before, *::after { box-sizing: border-box; }
+  .main-content { min-width: 0; }
+  .container {
+    width: 100%; max-width: 1680px; margin-inline: auto;
+    padding: 20px clamp(18px, 2vw, 30px) 34px;
+    gap: 16px;
+  }
+  .overview-row, .main-grid {
+    width: 100%; min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 16px; align-items: stretch;
+  }
+  .overview-row > *, .main-grid > *, .right-column > * {
+    width: 100%; min-width: 0; max-width: 100%; margin: 0;
+  }
+  .stp-information, .overview-row .ocems-section,
+  .main-grid > .card, .right-column > .pricing-card, .right-column > .card,
+  .transfer-requests-card, .update-section {
+    width: 100%; min-width: 0; height: auto; margin: 0;
+  }
+  .map-container { width: 100%; height: 360px; min-width: 0; overflow: hidden; }
+  #map { width: 100%; height: 100%; }
+  .right-column { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .pricing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .demand-list { width: 100%; max-width: 100%; }
+  .transfer-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Keep all main cards aligned to the same left/right page edges. */
+  .container > .select-card, .container > .request-water-card,
+  .container > .overview-row, .container > .main-grid,
+  .container > .transfer-requests-card, .container > .update-section {
+    justify-self: stretch;
+  }
+  @media (max-width: 1200px) {
+    .container { max-width: none; padding-inline: 20px; }
+    .overview-row { grid-template-columns: minmax(0, 1fr); }
+    .main-grid { grid-template-columns: minmax(0, 1fr); }
+    .map-container { height: 340px; }
+  }
+  @media (max-width: 768px) {
+    .container { padding: 14px 12px 24px; gap: 13px; }
+    .overview-row .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .transfer-list { grid-template-columns: minmax(0, 1fr); }
+    .map-container { height: 300px; }
+  }
+</style>
+
+
+<style id="jalsetu-final-grid-correction">
+  /* One consistent content grid: same page gutters and truly equal columns. */
+  *, *::before, *::after { box-sizing: border-box; }
+  .main-content { min-width: 0; }
+  .container {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 20px clamp(18px, 2vw, 30px) 34px !important;
+    gap: 16px !important;
+  }
+  .container > .select-card,
+  .container > .request-water-card,
+  .container > .overview-row,
+  .container > .main-grid,
+  .container > .transfer-requests-card,
+  .container > .update-section {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    align-self: stretch !important;
+  }
+  .overview-row,
+  .main-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    column-gap: 16px !important;
+    row-gap: 16px !important;
+    align-items: start !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .overview-row > *,
+  .main-grid > *,
+  .right-column,
+  .right-column > *,
+  .stp-information,
+  .overview-row .ocems-section {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+  .overview-row .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  .overview-row .stat-card { min-width: 0 !important; }
+  .overview-row .ocems-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+  .main-grid { align-items: start !important; }
+  .main-grid > .card { width: 100% !important; min-width: 0 !important; }
+  .right-column { display: flex !important; flex-direction: column !important; gap: 16px !important; }
+  .map-container { width: 100% !important; height: 420px !important; min-width: 0 !important; overflow: hidden !important; }
+  #map { width: 100% !important; height: 100% !important; }
+  .pricing-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .demand-list { width: 100% !important; max-width: none !important; }
+  .transfer-list { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px !important; }
+  /* Keep two-column layout until tablet widths; then stack deliberately. */
+  @media (max-width: 1100px) {
+    .overview-row, .main-grid { grid-template-columns: minmax(0, 1fr) !important; }
+    .map-container { height: 360px !important; }
+    .overview-row .stats-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+    .right-column { display: flex !important; }
+  }
+  @media (max-width: 700px) {
+    .container { padding: 12px !important; gap: 12px !important; }
+    .overview-row .stats-grid,
+    .overview-row .ocems-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .overview-row .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .map-container { height: 300px !important; }
+    .transfer-list { grid-template-columns: minmax(0, 1fr) !important; }
+    .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  }
+</style>
+
 </head>
 
 <body>
@@ -2301,11 +2591,21 @@
             </div>
 
             {% endif %}
+            <div class="overview-row">
             <!-- =========================
                  STP STATISTICS
             ========================== -->
 
-            <div class="stats-grid">
+            <section class="stp-information card">
+                <div class="card-header stp-info-header">
+                    <div class="stp-info-title">
+                        <span class="stp-info-icon">▥</span>
+                        <h2>STP Information</h2>
+                        <span class="stp-active-pill">Active</span>
+                    </div>
+                    <span class="stp-details-label">STP Overview</span>
+                </div>
+                <div class="stats-grid">
 
 
                 <div class="stat-card">
@@ -2389,7 +2689,10 @@
 
                 </div>
 
-            </div>
+                </div>
+            </section>
+
+
             
             <!-- OCEMS MONITORING -->
             <div class="ocems-section">
@@ -2533,6 +2836,8 @@
 
                 </div>
             </div>
+            </div>
+
             <!-- =========================
                  MAP + DEMAND REQUESTS
             ========================== -->
