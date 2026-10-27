@@ -155,3 +155,19 @@ Still Flask/Jinja (with the shared design system): login, signup, admin, order t
 ## 12. Git preference
 
 - Commits must not credit Claude (no co-author or "Generated with" lines) and must not be signed. This is saved as a standing preference.
+
+## 13. Invoice, OCEMS, admin and signup (2026-10-27)
+
+- **Invoice pricing fixed:** water was billed at a hard-coded ₹30/KL, ignoring each plant's rate card. The rate now comes from the plant's base price, with the peak surcharge or off-peak discount applied by booking time. It is frozen on the order (`invoice_water_rate`, `invoice_tariff` in `orders.csv`), so later price edits never change an issued invoice. Orders booked before this keep the ₹30 they were quoted. GST is shown as CGST 9% + SGST 9%, amounts are rounded to paise, and the total is written out in words.
+- **Invoice page:** a tax-invoice layout with an order timeline and print/PDF support. Pay buttons appear only while payment is actually due; a delivered order previously still said "Awaiting payment".
+- **OCEMS loader bug:** the Excel files have an empty first column, so the company and station names showed as the labels "Company Name" / "Station Name", and "Parameter Name" was treated as a parameter. The loader now finds the label column. The page now uses the server's limits everywhere; the old page drew different CPCB limits than it enforced.
+- **OCEMS page:** reading cards with gauge and sparkline, a trend chart per parameter (24 h / 3 days / all), compliance per parameter, data coverage, history with gap toggle, CSV download.
+- **Admin security:** `/admin`, `/admin/add_stp`, `/admin/delete_stp/<id>` and both approve/reject routes had no login check. They now require `@login_required(role="admin")`.
+- **Admin demand map:** an order-density gradient weighted by order size, with a "fewer → more orders" scale. Plants use the same plant pin as the React pages (`pinIcon("plant")`): brand blue with free capacity, faded ink when full. Plants at identical coordinates share one pin; hover shows the name and the popup lists each plant with a capacity bar.
+- **OCEMS review page (`admin_ocems_view.html`):** rebuilt in light mode with the admin styling; the spreadsheet preview highlights the header rows and hides fully empty columns, and rejecting without a remark is caught inline (the server already requires one).
+- **Admin page:** tabs (Overview, Plants, Approvals, Orders) on one page, driven by the URL hash so action redirects return to the same tab. Fake nav links and the "All systems operational" panel were removed; capacities are rounded; confirmations were added before delete/approve/reject.
+- **Signup page:** matches the login page. Login's styles moved to `static/auth.css`, shared by both. It has role tiles, inline validation, a password-strength meter and keeps entered values after a server error.
+- **Admin signup removed:** the signup form and `/api/signup` no longer accept the Admin role. Admin accounts are created directly in Supabase; existing admins still sign in normally.
+- **Files changed:** `app.py`, `templates/{invoice,supply_ocems,admin,admin_ocems_view,signup,login}.html`, new `static/auth.css`.
+- **Verified:** admin routes send logged-out users to `/login` and other roles to their own dashboard; posting `role=admin` to either signup endpoint returns "Please select a valid account type."; invoice math checked by hand (₹82 × 10 KL + ₹100 transport = ₹920, + ₹82.80 CGST + ₹82.80 SGST = ₹1,085.60), and peak (₹94) / off-peak (₹75) rates resolve correctly; the OCEMS loader returns the real company and station names. All pages were screenshotted at desktop and phone widths.
+- **Not exercised** (they write real records): paying or choosing COD on an invoice, approving/rejecting an OCEMS report or registration, adding/deleting a plant, submitting signup. Test each once on test data.

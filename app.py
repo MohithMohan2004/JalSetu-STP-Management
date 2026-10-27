@@ -1604,7 +1604,11 @@ ORDER_FIELDS = [
     "delivery_lat",
     "delivery_lon",
     "tanker_request_status",
-    "delivered_at"
+    "delivered_at",
+    # Price per KL frozen when the order is booked, so later rate-card
+    # edits never change an invoice that was already issued.
+    "invoice_water_rate",
+    "invoice_tariff"
 ]
 
 def ensure_orders_schema():
@@ -1904,31 +1908,39 @@ def load_ocems_data(stp_id):
         # METADATA
         # ----------------------------------------
 
-        company_name = None
-        station_name = None
+        # Some exports have an empty first column, so find the column that
+        # holds the row labels ("Company Name", "Station Name", ...) and
+        # read values from the column after it.
+        label_col = 0
+        for col in range(min(len(df.columns), 4)):
+            cell = df.iloc[0, col] if len(df) > 0 else None
+            if pd.notna(cell) and str(cell).strip().lower() == "company name":
+                label_col = col
+                break
+        value_col = label_col + 1
 
-        if len(df) > 0:
-            company_name = str(df.iloc[0, 1]).strip()
+        def _cell(row, col):
+            if row < len(df) and col < len(df.columns) and pd.notna(df.iloc[row, col]):
+                return str(df.iloc[row, col]).strip()
+            return None
 
-        if len(df) > 1:
-            station_name = str(df.iloc[1, 1]).strip()
+        company_name = _cell(0, value_col)
+        station_name = _cell(1, value_col)
 
         # ----------------------------------------
         # PARAMETERS
         # ----------------------------------------
 
-        parameters = []
+        # (parameter name, column index)
+        parameter_columns = []
 
         if len(df) > 2:
+            for col in range(value_col, len(df.columns)):
+                parameter = _cell(2, col)
+                if parameter:
+                    parameter_columns.append((parameter, col))
 
-            for value in df.iloc[2, 1:].tolist():
-
-                if pd.notna(value):
-
-                    parameter = str(value).strip()
-
-                    if parameter:
-                        parameters.append(parameter)
+        parameters = [name for name, _ in parameter_columns]
 
         # ----------------------------------------
         # PERMISSIBLE RANGE
@@ -1963,17 +1975,10 @@ def load_ocems_data(stp_id):
             "nan"
         ]
 
-        for index, parameter in enumerate(parameters, start=1):
-
-            excel_value = None
+        for parameter, index in parameter_columns:
 
             # Try to read the permissible value from Excel
-            if len(df) > 3 and index < len(df.columns):
-
-                value = df.iloc[3, index]
-
-                if pd.notna(value):
-                    excel_value = str(value).strip()
+            excel_value = _cell(3, index)
 
             # If Excel contains a valid value, use it
             if excel_value and excel_value not in invalid_values:
@@ -2016,7 +2021,7 @@ def load_ocems_data(stp_id):
 
         for row_index in range(4, len(df)):
 
-            timestamp = df.iloc[row_index, 1]
+            timestamp = df.iloc[row_index, label_col]
 
             if pd.isna(timestamp):
                 continue
@@ -2025,11 +2030,7 @@ def load_ocems_data(stp_id):
                 "timestamp": str(timestamp)
             }
 
-            for column_index, parameter in enumerate(parameters, start=1):
-
-                if column_index >= len(df.columns):
-                    row_data[parameter] = None
-                    continue
+            for parameter, column_index in parameter_columns:
 
                 value = df.iloc[row_index, column_index]
 
@@ -2631,11 +2632,12 @@ def signup():
     # BASIC VALIDATION
     # =========================================================
 
+    # Admin accounts are never self-registered; they are created
+    # directly in Supabase.
     allowed_roles = {
         "demand",
         "stp",
-        "tanker",
-        "admin"
+        "tanker"
     }
 
     if not all([
@@ -3387,11 +3389,12 @@ def api_signup():
         or ""
     ).strip()
 
+    # Admin accounts are never self-registered; they are created
+    # directly in Supabase.
     allowed_roles = {
         "demand",
         "stp",
-        "tanker",
-        "admin"
+        "tanker"
     }
 
     if not all([
@@ -5126,6 +5129,7 @@ def tanker_register_independent():
     return serve_spa()
 
 @app.route("/admin")
+@login_required(role="admin")
 def admin_dashboard():
 
     # =========================
@@ -5351,6 +5355,7 @@ def admin_dashboard():
     )
 
 @app.route("/admin/tanker/<operator_id>/status/<status>")
+@login_required(role="admin")
 def update_tanker_status(operator_id, status):
 
     # Only allow valid statuses
@@ -5419,6 +5424,7 @@ def update_tanker_status(operator_id, status):
 # ADD STP
 # =========================
 @app.route("/admin/add_stp", methods=["POST"])
+@login_required(role="admin")
 def add_stp():
     stps = load_stps()
 
@@ -5448,6 +5454,7 @@ def add_stp():
 # DELETE STP
 # =========================
 @app.route("/admin/delete_stp/<stp_id>")
+@login_required(role="admin")
 def delete_stp(stp_id):
     stps = load_stps()
 
@@ -6263,6 +6270,10 @@ def create_order():
         "delivery_lon": delivery_lon
     }
 
+    water_rate, tariff = invoice_water_rate(row["stp_id"], row["created_at"])
+    row["invoice_water_rate"] = f"{water_rate:.2f}"
+    row["invoice_tariff"] = tariff
+
     # Keep the order as a temporary payment draft.
     # It must NOT be placed/saved in orders.csv until the buyer
     # explicitly confirms the selected payment method.
@@ -6612,10 +6623,13 @@ def invoice():
                     order = row
                     break
 
+    is_draft = False
+
     if not order:
         pending_order = session.get("pending_order_draft") or {}
         if str(pending_order.get("order_id", "")).strip() == str(order_id).strip():
             order = pending_order
+            is_draft = True
 
     if not order:
         return "Order not found", 404
@@ -6680,65 +6694,211 @@ def invoice():
     except Exception as e:
         print("Invoice road-distance refresh failed:", e)
 
-    quantity = float(order.get("quantity_kld") or 0)
-
-    # Price of treated wastewater per KL
-    WATER_RATE = 30.0
-
-    # Transportation charge per KL
-    TRANSPORT_RATE = 10.0
-
-    # GST rate
-    GST_RATE = 0.18
-
-    # Calculate water amount
-    water_amount = quantity * WATER_RATE
-
-    # Calculate transportation amount
-    transport_amount = quantity * TRANSPORT_RATE
-
-    # Calculate subtotal
-    subtotal = water_amount + transport_amount
-
-    # Calculate GST
-    gst = subtotal * GST_RATE
-
-    # Calculate final amount
-    total = subtotal + gst
-
-    info = {
-        "order_id": order.get("order_id"),
-        "stp_id": order.get("stp_id"),
-        "stp_name": order.get("stp_name"),
-
-        "quantity": order.get("quantity_kld"),
-        "quality_required": order.get("quality"),
-        "water_type": order.get("water_type"),
-
-        "distance_km": invoice_distance_km,
-        "location": order.get("location"),
-
-        "buyer_name": order.get("buyer_name"),
-        "buyer_phone": order.get("buyer_phone"),
-
-        "status": order.get("status"),
-        "created_at": order.get("created_at"),
-
-        # Invoice amounts
-        "water_rate": f"{WATER_RATE:.2f}",
-        "water_amount": f"{water_amount:.2f}",
-        "transport_rate": f"{TRANSPORT_RATE:.2f}",
-        "transport_amount": f"{transport_amount:.2f}",
-        "subtotal": f"{subtotal:.2f}",
-        "gst": f"{gst:.2f}",
-        "total": f"{total:.2f}"
-    }
+    info = build_invoice_context(order, invoice_distance_km)
+    info["is_draft"] = is_draft
 
     return render_template(
         "invoice.html",
         info=info,
         invoice_date=order.get("created_at")
     )
+
+
+# Fallback prices, used only when the plant has no rate card yet.
+INVOICE_DEFAULT_WATER_RATE = 30.0
+INVOICE_TRANSPORT_RATE = 10.0
+# Intra-state supply (Karnataka): GST is billed as CGST + SGST.
+INVOICE_CGST_RATE = 0.09
+INVOICE_SGST_RATE = 0.09
+
+
+def _money(value):
+    from decimal import Decimal, ROUND_HALF_UP
+    return Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _clock_minutes(value):
+    """Turn '06:00 AM' (or '18:00') into minutes after midnight."""
+    text = str(value or "").strip().upper()
+    for fmt in ("%I:%M %p", "%H:%M", "%I %p"):
+        try:
+            parsed = datetime.strptime(text, fmt)
+            return parsed.hour * 60 + parsed.minute
+        except ValueError:
+            continue
+    return None
+
+
+def _in_window(minute, start, end):
+    start, end = _clock_minutes(start), _clock_minutes(end)
+    if minute is None or start is None or end is None or start == end:
+        return False
+    if start < end:
+        return start <= minute < end
+    # Window that wraps past midnight, e.g. 10:00 PM - 04:00 AM.
+    return minute >= start or minute < end
+
+
+def invoice_water_rate(stp_id, created_at):
+    """Price per KL from the plant's rate card at the time the order was placed.
+
+    Returns (rate, tariff label). Peak hours add the peak surcharge and
+    off-peak hours subtract the off-peak discount, matching the prices the
+    plant sees on its Supply page.
+    """
+    row = None
+    for pricing in load_stp_pricing():
+        if str(pricing.get("stp_id") or "").strip() == str(stp_id or "").strip():
+            row = pricing
+            break
+
+    base = _pricing_number(row.get("base_price_per_kld")) if row else 0.0
+    if base <= 0:
+        return INVOICE_DEFAULT_WATER_RATE, "Standard rate"
+
+    minute = None
+    try:
+        placed = pd.to_datetime(created_at)
+        minute = placed.hour * 60 + placed.minute
+    except (TypeError, ValueError):
+        pass
+
+    if _in_window(minute, row.get("peak_start"), row.get("peak_end")):
+        return base + _pricing_number(row.get("peak_incentive")), "Peak-hour rate"
+
+    if _in_window(minute, row.get("off_peak_start"), row.get("off_peak_end")):
+        return max(0.0, base - _pricing_number(row.get("off_peak_incentive"))), "Off-peak rate"
+
+    return base, "Base rate"
+
+
+def _invoice_when(value):
+    """'2026-10-08T12:33:25.8' -> '8 Oct 2026, 12:33 PM' (blank when unknown)."""
+    if not value:
+        return ""
+    try:
+        moment = pd.to_datetime(str(value))
+    except (TypeError, ValueError):
+        return str(value)
+    if pd.isna(moment):
+        return ""
+    return f"{moment.day} {moment.strftime('%b %Y, %I:%M %p')}"
+
+
+def _rupees_in_words(amount):
+    """1085.60 -> 'One thousand eighty-five rupees and sixty paise only'."""
+    ones = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+            "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+            "seventeen", "eighteen", "nineteen"]
+    tens = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+    def below_hundred(n):
+        if n < 20:
+            return ones[n]
+        return tens[n // 10] + ("-" + ones[n % 10] if n % 10 else "")
+
+    def below_thousand(n):
+        hundreds, rest = divmod(n, 100)
+        words = []
+        if hundreds:
+            words.append(ones[hundreds] + " hundred")
+        if rest:
+            words.append(below_hundred(rest))
+        return " ".join(words)
+
+    def indian(n):
+        if n == 0:
+            return "zero"
+        words = []
+        for size, name in ((10 ** 7, "crore"), (10 ** 5, "lakh"), (10 ** 3, "thousand")):
+            if n >= size:
+                words.append(indian(n // size) + " " + name)
+                n %= size
+        if n:
+            words.append(below_thousand(n))
+        return " ".join(words)
+
+    rupees = int(amount)
+    paise = int(round((amount - rupees) * 100))
+    text = indian(rupees) + (" rupee" if rupees == 1 else " rupees")
+    if paise:
+        text += " and " + below_hundred(paise) + " paise"
+    return text[0].upper() + text[1:] + " only"
+
+
+def build_invoice_context(order, distance_km=None):
+    """Line items and totals for one order, rounded to paise."""
+    try:
+        quantity = max(0.0, float(order.get("quantity_kld") or 0))
+    except (TypeError, ValueError):
+        quantity = 0.0
+
+    # Use the rate frozen at booking. Orders booked before rates were
+    # frozen were quoted the flat standard rate, so keep showing that.
+    try:
+        water_rate = float(order.get("invoice_water_rate"))
+        tariff = order.get("invoice_tariff") or "Base rate"
+    except (TypeError, ValueError):
+        water_rate, tariff = INVOICE_DEFAULT_WATER_RATE, "Standard rate"
+
+    water_amount = _money(quantity * water_rate)
+    transport_amount = _money(quantity * INVOICE_TRANSPORT_RATE)
+    subtotal = water_amount + transport_amount
+    cgst = _money(subtotal * _money(INVOICE_CGST_RATE))
+    sgst = _money(subtotal * _money(INVOICE_SGST_RATE))
+    total = subtotal + cgst + sgst
+
+    try:
+        distance = f"{float(distance_km):.2f}" if distance_km not in (None, "") else ""
+    except (TypeError, ValueError):
+        distance = ""
+
+    quantity_text = f"{quantity:g}"
+
+    return {
+        "order_id": order.get("order_id"),
+        "stp_id": order.get("stp_id"),
+        "stp_name": order.get("stp_name"),
+
+        "quantity": quantity_text,
+        "quality_required": order.get("quality"),
+        "water_type": order.get("water_type"),
+
+        "distance_km": distance,
+        "location": order.get("location"),
+
+        "buyer_name": order.get("buyer_name"),
+        "buyer_phone": order.get("buyer_phone"),
+
+        "status": order.get("status") or "Pending",
+        "payment_status": order.get("payment_status") or "Pending",
+        "created_at": order.get("created_at"),
+        "assigned_operator_name": order.get("assigned_operator_name"),
+        "delivered_at": order.get("delivered_at"),
+
+        "tariff": tariff,
+        "water_rate": f"{water_rate:,.2f}",
+        "water_amount": f"{water_amount:,.2f}",
+        "transport_rate": f"{INVOICE_TRANSPORT_RATE:,.2f}",
+        "transport_amount": f"{transport_amount:,.2f}",
+        "subtotal": f"{subtotal:,.2f}",
+        "cgst_percent": f"{INVOICE_CGST_RATE * 100:g}",
+        "sgst_percent": f"{INVOICE_SGST_RATE * 100:g}",
+        "cgst": f"{cgst:,.2f}",
+        "sgst": f"{sgst:,.2f}",
+        "gst": f"{cgst + sgst:,.2f}",
+        "total": f"{total:,.2f}",
+        "total_plain": f"{total:.2f}",
+        "total_words": _rupees_in_words(total),
+
+        "timeline": [
+            ("Order placed", _invoice_when(order.get("created_at"))),
+            ("Accepted by plant", _invoice_when(order.get("accepted_at"))),
+            ("Picked up", _invoice_when(order.get("pickup_at"))),
+            ("Delivered", _invoice_when(order.get("delivered_at")))
+        ],
+        "created_label": _invoice_when(order.get("created_at"))
+    }
 
 
 # =========================================================
@@ -9720,6 +9880,7 @@ def stp_order_tracking(order_id):
     return jsonify({"error": "Order not found"}), 404
 
 @app.route("/admin/stp/<registration_id>/status/<status>")
+@login_required(role="admin")
 def update_stp_status(registration_id, status):
 
     # =========================
@@ -16218,9 +16379,12 @@ def admin_view_ocems(submission_id):
             header=None
         )
 
-        html_table = df.fillna("").to_html(
+        # Hide columns that are completely empty (some exports start with
+        # a blank column) so the preview lines up with the data.
+        html_table = df.dropna(how="all", axis=1).fillna("").to_html(
             index=False,
             header=False,
+            border=0,
             classes="ocems-preview-table"
         )
 
