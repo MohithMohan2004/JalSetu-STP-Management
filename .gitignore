@@ -227,3 +227,6 @@ obj/
 # =========================================================
 
 *.pdf.tmp
+# React frontend
+frontend/node_modules/
+frontend/*.tsbuildinfo

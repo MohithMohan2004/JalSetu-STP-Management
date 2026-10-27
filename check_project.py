@@ -49,7 +49,7 @@ def add_success(message):
 
 print()
 print("=" * 70)
-print("JALSETU PROJECT CHECKER")
+print("REFLOW PROJECT CHECKER")
 print("=" * 70)
 print()
 

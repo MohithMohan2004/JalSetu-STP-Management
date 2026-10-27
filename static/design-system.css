@@ -1,0 +1,929 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&display=swap");
+/* ============================================================
+   ReFlow · Design System
+   ------------------------------------------------------------
+   Loaded LAST in every template so it is the final word on the
+   shared chrome (sidebar, topbar, cards, controls, tables).
+   Page-specific layout stays in each template.
+
+   Principles (see skill.md):
+   - One typeface, size-specific tracking & leading (§15)
+   - Feedback on press, never only on release (§1)
+   - Translucent chrome, hairline depth, no glow (§12)
+   - Restraint: colour carries meaning, not decoration (§16)
+   - Reduced motion / transparency / contrast honoured (§14)
+   ============================================================ */
+
+/* ----------------------------------------------------------
+   1. TOKENS
+   ---------------------------------------------------------- */
+:root {
+  /* Neutrals – a single cool-grey ramp */
+  --ink-900: #0f1b2d;
+  --ink-800: #1d2a3d;
+  --ink-700: #334155;
+  --ink-600: #4b5a6e;
+  --ink-500: #5f6e82;
+  --ink-400: #8a97a8;
+  --ink-300: #b8c2cf;
+  --line:        #e4e9f0;
+  --line-strong: #d4dbe4;
+  --bg:          #f4f6f9;
+  --surface:     #ffffff;
+  --surface-2:   #f8fafc;
+  --surface-3:   #f1f4f8;
+
+  /* One brand colour. Status colours only mean status. */
+  --brand:       #1463d6;
+  --brand-hover: #0f54ba;
+  --brand-press: #0c4699;
+  --brand-tint:  rgba(20, 99, 214, 0.08);
+  --brand-ring:  rgba(20, 99, 214, 0.22);
+
+  --success:     #15803d;
+  --success-bg:  #ecfdf3;
+  --success-line:#bbe8cb;
+  --warning:     #b45309;
+  --warning-bg:  #fff8eb;
+  --warning-line:#f6dcae;
+  --danger:      #c42b2b;
+  --danger-bg:   #fef3f2;
+  --danger-line: #f6caca;
+
+  /* Sidebar – the heavier structural material */
+  --side-bg:      #0b1626;
+  --side-line:    rgba(255, 255, 255, 0.06);
+  --side-text:    #a3b0c2;
+  --side-label:   #5d6e86;
+  --side-hover:   rgba(255, 255, 255, 0.05);
+  --side-active:  rgba(255, 255, 255, 0.09);
+
+  /* Type */
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Radius – three steps, used consistently */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  /* Depth – hairline + soft ambient, never coloured glow */
+  --shadow-1: 0 1px 2px rgba(15, 27, 45, 0.04);
+  --shadow-2: 0 1px 2px rgba(15, 27, 45, 0.04), 0 4px 12px -4px rgba(15, 27, 45, 0.06);
+  --shadow-3: 0 2px 4px rgba(15, 27, 45, 0.04), 0 12px 32px -8px rgba(15, 27, 45, 0.12);
+  --shadow-pop: 0 4px 8px rgba(15, 27, 45, 0.05), 0 24px 48px -12px rgba(15, 27, 45, 0.20);
+
+  /* Motion – critically damped feel (no overshoot) */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --t-press: 90ms;
+  --t-fast: 140ms;
+  --t-base: 220ms;
+}
+
+/* ----------------------------------------------------------
+   2. BASE
+   ---------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg) !important;
+  color: var(--ink-900) !important;
+  font-family: var(--font) !important;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.003em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+}
+
+/* Every page used to pick its own font; one family everywhere. */
+body :where(h1, h2, h3, h4, h5, h6, p, a, span, div, label, li, td, th,
+            input, select, textarea, button, small, strong, b) {
+  font-family: inherit !important;
+}
+code, pre, kbd, .mono { font-family: var(--mono) !important; }
+
+h1, h2, h3, h4 { color: var(--ink-900); text-wrap: balance; }
+p { text-wrap: pretty; }
+
+a { color: var(--brand); text-underline-offset: 2px; }
+
+::selection { background: rgba(20, 99, 214, 0.18); }
+
+/* Keyboard focus is always visible; mouse focus stays quiet. */
+:focus-visible {
+  outline: 2px solid var(--brand) !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Quiet scrollbars */
+* { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.35) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.5); }
+
+/* Inline SVG icons injected by the templates */
+.ds-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+
+/* Icons that stand in for a glyph inherit the glyph's font-size */
+.ds-icon.ds-em {
+  width: 1em;
+  height: 1em;
+  flex-basis: 1em;
+  display: inline-block;
+  vertical-align: -0.125em;
+}
+
+/* ----------------------------------------------------------
+   3. SIDEBAR
+   ---------------------------------------------------------- */
+.sidebar {
+  background: var(--side-bg) !important;
+  border-right: 1px solid var(--side-line) !important;
+  box-shadow: none !important;
+  color: #fff;
+}
+
+.sidebar .brand {
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.sidebar .brand-icon,
+.mobile-navbar .brand-icon,
+.navbar .brand-icon {
+  width: 34px !important;
+  height: 34px !important;
+  flex: 0 0 34px;
+  border-radius: 9px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+.sidebar .brand-icon img,
+.mobile-navbar .brand-icon img,
+.navbar .brand-icon img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+.sidebar .brand-text h2,
+.sidebar .brand-title {
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.012em !important;
+  line-height: 1.25 !important;
+  color: #fff !important;
+}
+.sidebar .brand-text p,
+.sidebar .brand-subtitle {
+  font-size: 11.5px !important;
+  color: var(--side-text) !important;
+  letter-spacing: 0 !important;
+  opacity: 0.8;
+}
+
+.sidebar .menu-title,
+.sidebar .menu-label {
+  color: var(--side-label) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+  margin-top: 18px !important;
+  margin-bottom: 6px !important;
+}
+
+.sidebar .nav-links,
+.sidebar .side-nav {
+  gap: 2px !important;
+}
+
+.sidebar .nav-links a,
+.sidebar .side-link {
+  position: relative;
+  gap: 11px !important;
+  padding: 9px 12px !important;
+  border-radius: var(--r-md) !important;
+  color: var(--side-text) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.005em !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  transition: background var(--t-fast) var(--ease-out),
+              color var(--t-fast) var(--ease-out) !important;
+}
+
+.sidebar .nav-links a:hover,
+.sidebar .side-link:hover {
+  background: var(--side-hover) !important;
+  color: #e8edf4 !important;
+}
+
+/* Press feedback is instant (§1) */
+.sidebar .nav-links a:active,
+.sidebar .side-link:active {
+  background: var(--side-active) !important;
+  transition-duration: 0ms !important;
+}
+
+.sidebar .nav-links a.active,
+.sidebar .side-link.active {
+  background: var(--side-active) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+/* A slim indicator says "you are here" without shouting */
+.sidebar .nav-links a.active::before,
+.sidebar .side-link.active::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #4c8dff;
+}
+
+.sidebar .nav-icon,
+.sidebar .side-icon {
+  width: 18px !important;
+  height: 18px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px !important;
+  opacity: 0.85;
+  color: inherit;
+}
+.sidebar a.active .nav-icon,
+.sidebar a.active .side-icon { opacity: 1; }
+
+/* System status: a single quiet line, no glowing pulse */
+.sidebar .system-status {
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--side-line) !important;
+  border-radius: 0 !important;
+  padding: 14px 6px 0 !important;
+  backdrop-filter: none !important;
+}
+.sidebar .system-status h4 {
+  color: var(--side-label) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase;
+  margin: 0 0 6px !important;
+}
+.sidebar .status-line {
+  color: var(--side-text) !important;
+  font-size: 12.5px !important;
+}
+.sidebar .status-dot {
+  width: 7px !important;
+  height: 7px !important;
+  background: #3ccf7f !important;
+  box-shadow: 0 0 0 3px rgba(60, 207, 127, 0.14) !important;
+  animation: none !important;
+}
+
+/* ----------------------------------------------------------
+   4. TOPBAR / NAVBAR – translucent material (§12)
+   ---------------------------------------------------------- */
+.topbar,
+.mobile-navbar {
+  background: rgba(255, 255, 255, 0.78) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid rgba(15, 27, 45, 0.07) !important;
+  box-shadow: none !important;
+}
+.topbar { position: sticky; top: 0; z-index: 900; }
+
+.topbar .welcome h1,
+.topbar h1 {
+  font-family: var(--font-display) !important;
+  font-size: 19px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.018em !important;
+  line-height: 1.25 !important;
+  color: var(--ink-900) !important;
+}
+.topbar .welcome p,
+.topbar p {
+  font-size: 13px !important;
+  color: var(--ink-500) !important;
+  margin-top: 2px !important;
+  letter-spacing: -0.003em !important;
+}
+
+.topbar-right { gap: 14px !important; }
+
+.notification {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  color: var(--ink-600);
+  transition: background var(--t-fast) var(--ease-out);
+}
+.notification:hover { background: var(--surface-3); }
+.notification .ds-icon { width: 19px; height: 19px; }
+
+.notification-badge {
+  min-width: 16px !important;
+  width: auto !important;
+  height: 16px !important;
+  padding: 0 4px !important;
+  top: 3px !important;
+  right: 2px !important;
+  border-radius: var(--r-pill) !important;
+  background: var(--danger) !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 16px !important;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px #fff !important;
+}
+
+.profile {
+  padding: 4px 10px 4px 4px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  font-size: 13px !important;
+  font-weight: 550 !important;
+  color: var(--ink-800) !important;
+  transition: background var(--t-fast) var(--ease-out);
+}
+.profile:hover { background: var(--surface-3); }
+.profile:active { background: var(--line); transition-duration: 0ms; }
+
+.profile-circle {
+  width: 30px !important;
+  height: 30px !important;
+  background: var(--ink-800) !important;
+  color: #fff !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  box-shadow: none !important;
+}
+/* Signed-out / loading: a neutral person glyph instead of an empty disc */
+.profile-circle:empty {
+  background: var(--surface-3) !important;
+  box-shadow: inset 0 0 0 1px var(--line) !important;
+}
+.profile-circle:empty::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: var(--ink-500);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ----------------------------------------------------------
+   5. SURFACES – cards and sections
+   ---------------------------------------------------------- */
+.card,
+.stat-card,
+.search-card,
+.result-card,
+.profile-card,
+.requesting-card,
+.info-section,
+.map-section,
+.pricing-card,
+.table-card,
+.fleet-card,
+.chart-card,
+.info-card,
+.order-card,
+.parameter-card,
+.trip-card,
+.vehicle-card,
+.document-upload-card,
+.tanker-form-card,
+.tanker-status-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-1) !important;
+}
+
+/* Only things you can click get hover depth. */
+a.card:hover,
+.option-card:hover,
+.order-card:hover,
+.trip-card:hover {
+  border-color: var(--line-strong) !important;
+  box-shadow: var(--shadow-2) !important;
+}
+.option-card:active,
+a.card:active { transform: scale(0.99); transition: transform var(--t-press) var(--ease-out); }
+
+.card-header h2,
+.card-header h3,
+.section-heading h2,
+.section-header h2,
+.section-title,
+.card-title {
+  font-family: var(--font-display) !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.012em !important;
+  line-height: 1.3 !important;
+  color: var(--ink-900) !important;
+}
+.card-header span,
+.card-subtitle {
+  font-size: 12.5px !important;
+  color: var(--ink-500) !important;
+  font-weight: 500 !important;
+}
+
+/* Stat cards: label, then a number set in tabular figures */
+.stat-card { padding: 18px 20px !important; gap: 14px !important; }
+.stat-card:hover { transform: none !important; }
+
+.stat-info p,
+.stat-card .stat-label {
+  margin: 0 0 6px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: var(--ink-500) !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+}
+.stat-info h2,
+.stat-info h3,
+.stat-value,
+.stat-number {
+  margin: 0 !important;
+  font-family: var(--font-display) !important;
+  font-size: 24px !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.022em !important;
+  line-height: 1.15 !important;
+  color: var(--ink-900) !important;
+  font-variant-numeric: tabular-nums;
+}
+.stat-info h2 small,
+.stat-info h2 span,
+.stat-info h3 span {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: var(--ink-500) !important;
+  letter-spacing: 0.02em !important;
+  margin-left: 2px;
+}
+
+.stat-icon,
+.feature-icon-box,
+.icon-box,
+.header-icon,
+.info-icon {
+  border-radius: var(--r-md) !important;
+  box-shadow: none !important;
+}
+.stat-icon {
+  width: 38px !important;
+  height: 38px !important;
+  flex: 0 0 38px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3) !important;
+  color: var(--ink-600) !important;
+  font-size: 17px !important;
+}
+
+/* ----------------------------------------------------------
+   6. BUTTONS – one family, instant press response (§1)
+   ---------------------------------------------------------- */
+button,
+.btn,
+.hero-btn,
+input[type="submit"],
+input[type="button"],
+[class*="-btn"]:not(.mobile-sidebar-toggle),
+[class*="-button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:not(.leaflet-control button):not(.mobile-sidebar-toggle):not(#ww-chatbot *),
+.btn,
+.hero-btn,
+input[type="submit"],
+input[type="button"],
+.submit-btn,
+.search-btn,
+.live-btn,
+.primary-btn,
+.secondary-btn,
+.back-btn,
+.logout-btn,
+.delete-btn,
+.cancel-btn,
+.payment-btn,
+.refresh-btn,
+.reorder-btn,
+.track-order-btn,
+.pickup-button,
+.trip-btn,
+.upload-button,
+.location-btn,
+.login-btn {
+  font-weight: 600 !important;
+  letter-spacing: -0.004em !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease-out),
+              border-color var(--t-fast) var(--ease-out),
+              color var(--t-fast) var(--ease-out),
+              transform var(--t-base) var(--ease) !important;
+}
+
+button:not(.leaflet-control button):not(.mobile-sidebar-toggle):not(#ww-chatbot *):hover,
+.btn:hover,
+.hero-btn:hover,
+.submit-btn:hover,
+.search-btn:hover,
+.primary-btn:hover,
+.login-btn:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+button:not(:disabled):active,
+.btn:active,
+.hero-btn:active,
+input[type="submit"]:active,
+input[type="button"]:active,
+.submit-btn:active,
+.search-btn:active,
+.live-btn:active,
+.primary-btn:active,
+.secondary-btn:active,
+.back-btn:active,
+.payment-btn:active,
+.refresh-btn:active,
+.track-order-btn:active,
+.pickup-button:active,
+.trip-btn:active,
+.login-btn:active {
+  transform: scale(0.97) !important;
+  transition: transform var(--t-press) var(--ease-out) !important;
+}
+
+button:disabled,
+.btn:disabled,
+input[type="submit"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary actions all speak in the brand colour */
+.search-btn,
+.submit-btn,
+.primary-btn,
+.login-btn,
+.payment-btn,
+.track-order-btn {
+  background: var(--brand) !important;
+  border: 1px solid var(--brand) !important;
+  color: #fff !important;
+}
+.search-btn:hover,
+.submit-btn:hover,
+.primary-btn:hover,
+.login-btn:hover,
+.payment-btn:hover,
+.track-order-btn:hover {
+  background: var(--brand-hover) !important;
+  border-color: var(--brand-hover) !important;
+}
+
+.search-btn,
+.live-btn { font-size: 13.5px !important; padding-left: 16px !important; padding-right: 16px !important; }
+
+/* Secondary actions: neutral outline */
+.live-btn,
+.secondary-btn,
+.back-btn,
+.cancel-btn,
+.refresh-btn,
+.location-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--line-strong) !important;
+  color: var(--ink-800) !important;
+}
+.live-btn:hover,
+.secondary-btn:hover,
+.back-btn:hover,
+.cancel-btn:hover,
+.refresh-btn:hover,
+.location-btn:hover {
+  background: var(--surface-2) !important;
+  border-color: var(--ink-300) !important;
+}
+
+.delete-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--danger-line) !important;
+  color: var(--danger) !important;
+}
+.delete-btn:hover { background: var(--danger-bg) !important; }
+
+/* ----------------------------------------------------------
+   7. FORM CONTROLS – validate inline, focus clearly
+   ---------------------------------------------------------- */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input:not([type]),
+select,
+textarea {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--line-strong) !important;
+  border-radius: var(--r-md) !important;
+  color: var(--ink-900) !important;
+  font-size: 14px !important;
+  letter-spacing: -0.003em !important;
+  box-shadow: inset 0 1px 1px rgba(15, 27, 45, 0.03) !important;
+  transition: border-color var(--t-fast) var(--ease-out),
+              box-shadow var(--t-fast) var(--ease-out) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--ink-300) !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px var(--brand-ring) !important;
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--ink-400) !important; opacity: 1; }
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6e82' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 12px !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] { accent-color: var(--brand); }
+
+label {
+  color: var(--ink-700);
+  font-weight: 550;
+  letter-spacing: -0.003em;
+}
+
+/* ----------------------------------------------------------
+   8. TABLES
+   ---------------------------------------------------------- */
+table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+th {
+  background: var(--surface-2) !important;
+  color: var(--ink-500) !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em !important;
+  text-align: left;
+  padding: 10px 14px !important;
+  border-bottom: 1px solid var(--line) !important;
+  white-space: nowrap;
+}
+td {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--line) !important;
+  font-size: 13.5px !important;
+  color: var(--ink-800) !important;
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: 0 !important; }
+tbody tr { transition: background var(--t-fast) var(--ease-out); }
+tbody tr:hover td { background: var(--surface-2) !important; }
+
+/* ----------------------------------------------------------
+   9. STATUS BADGES – colour means status, nothing else
+   ---------------------------------------------------------- */
+.badge,
+.role-badge,
+.status,
+.order-status,
+.transfer-status,
+.partner-badge,
+.tanker-status-badge,
+.document-status,
+.vehicle-status,
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-pill) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.6 !important;
+  box-shadow: none !important;
+}
+
+/* ----------------------------------------------------------
+   10. MAPS
+   ---------------------------------------------------------- */
+.map-box,
+.map-container,
+#map {
+  border-radius: var(--r-lg) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  background: var(--surface-3) !important;
+}
+
+.leaflet-container { font-family: var(--font) !important; }
+.leaflet-bar {
+  border: 1px solid var(--line-strong) !important;
+  border-radius: var(--r-md) !important;
+  box-shadow: var(--shadow-2) !important;
+  overflow: hidden;
+}
+.leaflet-bar a {
+  color: var(--ink-700) !important;
+  border-bottom-color: var(--line) !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: var(--r-lg) !important;
+  box-shadow: var(--shadow-pop) !important;
+}
+.leaflet-popup-content {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: var(--ink-800);
+}
+
+/* ----------------------------------------------------------
+   11. MODALS & OVERLAYS – dim to focus (§12)
+   ---------------------------------------------------------- */
+.ww-payment-modal,
+.modal-overlay,
+.modal-backdrop {
+  background: rgba(11, 22, 38, 0.42) !important;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.ww-payment-card,
+.modal,
+.modal-content {
+  border-radius: var(--r-xl) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: var(--shadow-pop) !important;
+}
+
+/* ----------------------------------------------------------
+   12. TYPOGRAPHY – size-specific tracking (§15)
+   ---------------------------------------------------------- */
+h1 { letter-spacing: -0.024em; line-height: 1.15; }
+h2 { letter-spacing: -0.016em; line-height: 1.25; }
+h3 { letter-spacing: -0.01em;  line-height: 1.3; }
+h4, h5 { letter-spacing: -0.005em; line-height: 1.35; }
+
+.section-kicker {
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  color: var(--brand) !important;
+  text-transform: uppercase;
+}
+
+/* ----------------------------------------------------------
+   13. MOBILE NAV
+   ---------------------------------------------------------- */
+.mobile-sidebar-toggle {
+  border-radius: var(--r-md) !important;
+  transition: background var(--t-fast) var(--ease-out) !important;
+}
+.mobile-sidebar-toggle:active { background: var(--surface-3) !important; }
+
+/* ----------------------------------------------------------
+   14. ACCESSIBILITY PREFERENCES (§14)
+   ---------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  /* Leaflet waits on its own transitions; leave the map alone. */
+  :not(.leaflet-container *), :not(.leaflet-container *)::before, :not(.leaflet-container *)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  button:active, .btn:active, .hero-btn:active { transform: none !important; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .topbar, .mobile-navbar {
+    background: #fff !important;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .ww-payment-modal, .modal-overlay, .modal-backdrop {
+    background: rgba(11, 22, 38, 0.6) !important;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: #b8c2cf;
+    --line-strong: #8a97a8;
+    --ink-500: #3d4a5c;
+    --ink-400: #5f6e82;
+    --side-text: #d5dde8;
+  }
+  .topbar, .mobile-navbar { background: #fff !important; }
+}
+
+/* ReFlow wordmark — Sora for the name only; the UI stays in the system/Inter stack */
+.wordmark {
+  font-family: "Sora", "Inter", system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.035em !important;
+  white-space: nowrap;
+}
+.wordmark > span {
+  font-family: inherit !important;
+  background: linear-gradient(100deg, #1463d6 0%, #0e7fb8 55%, #0d9488 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+.sidebar .wordmark, .navbar .wordmark, .brand-panel .wordmark, .on-dark .wordmark { color: #fff !important; }
+.sidebar .wordmark > span, .navbar .wordmark > span, .brand-panel .wordmark > span, .on-dark .wordmark > span {
+  background: linear-gradient(100deg, #8ab8ff 0%, #5eead4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}

@@ -3,357 +3,382 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | WasteWater</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Sign in | ReFlow</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand-mark.svg') }}">
 
     <style>
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: 'Inter', sans-serif;
-            background: #f4f7fb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            color: #172033;
-        }
-
-        .page {
-            width: 100%;
-            max-width: 980px;
-            min-height: 590px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 55px rgba(13, 27, 46, 0.14);
-        }
-
-        .brand-panel {
-            padding: 55px;
-            color: white;
-            background: linear-gradient(145deg, #0d1b2e, #17365d);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .logo {
-            width: 58px;
-            height: 58px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #1683ff, #20c997);
-            font-size: 28px;
-            margin-bottom: 24px;
-        }
-
-        .brand-panel h1 {
-            margin: 0;
-            font-size: 30px;
-            line-height: 1.2;
-        }
-
-        .brand-panel p {
-            color: #bdcbe0;
-            line-height: 1.7;
-            font-size: 14px;
-            margin-top: 15px;
-            max-width: 390px;
-        }
-
-        .feature {
-            margin-top: 28px;
-            display: grid;
-            gap: 13px;
-        }
-
-        .feature div {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            color: #dce7f5;
-            font-size: 13px;
-        }
-
-        .login-panel {
-            padding: 55px 48px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .login-panel h2 {
-            margin: 0;
-            font-size: 25px;
-        }
-
-        .subtitle {
-            margin: 8px 0 28px;
-            color: #7b8799;
-            font-size: 13px;
-        }
-
-        .message {
-            padding: 11px 13px;
-            border-radius: 9px;
-            margin-bottom: 16px;
-            font-size: 12px;
-        }
-
-        .error {
-            background: #fff0f0;
-            color: #c53b3b;
-            border: 1px solid #ffdada;
-        }
-
-        .success {
-            background: #eaf8f0;
-            color: #16834d;
-            border: 1px solid #d2f0df;
-        }
-
-        .field {
-            margin-bottom: 17px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 7px;
-            color: #354258;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        input {
-            width: 100%;
-            border: 1px solid #dce2ea;
-            background: #fafbfd;
-            border-radius: 10px;
-            padding: 13px 14px;
-            font: inherit;
-            font-size: 13px;
-            outline: none;
-            transition: .2s;
-        }
-
-        input:focus {
-            background: white;
-            border-color: #1976f3;
-            box-shadow: 0 0 0 3px rgba(25, 118, 243, .08);
-        }
-
-        .password-wrap {
+        .auth {
             position: relative;
+            isolation: isolate;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 32px 20px;
+            overflow: hidden;
+            background:
+                radial-gradient(42% 55% at 12% 18%, rgba(47, 107, 255, 0.38), transparent 70%),
+                radial-gradient(38% 50% at 88% 82%, rgba(13, 148, 136, 0.32), transparent 70%),
+                radial-gradient(30% 40% at 78% 12%, rgba(124, 58, 237, 0.26), transparent 70%),
+                linear-gradient(160deg, #07111f 0%, #0b1a30 55%, #08141f 100%);
+            color: #fff;
         }
 
-        .password-wrap input {
-            padding-right: 48px;
-        }
-
-        .toggle {
+        /* Faint dot grid, fading towards the edges */
+        .auth::before {
+            content: "";
             position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: none;
-            background: transparent;
-            color: #7b8799;
-            cursor: pointer;
-            font-size: 16px;
-            width: 34px;
-            height: 34px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            z-index: 2;
+            inset: 0;
+            z-index: -2;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1.2px);
+            background-size: 26px 26px;
+            -webkit-mask-image: radial-gradient(70% 70% at 50% 50%, #000 40%, transparent 100%);
+                    mask-image: radial-gradient(70% 70% at 50% 50%, #000 40%, transparent 100%);
         }
 
-        .toggle .password-eye {
-            width: 18px;
-            height: 18px;
+        /* Route network: plants joined by flowing water lines */
+        .network {
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .network .route {
             fill: none;
-            stroke: currentColor;
-            stroke-width: 1.8;
+            stroke: url(#route-grad);
+            stroke-width: 1.6;
             stroke-linecap: round;
-            stroke-linejoin: round;
-            display: block;
+            opacity: 0.55;
+        }
+        .network .flow {
+            fill: none;
+            stroke: #8ff0e1;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-dasharray: 2 26;
+            opacity: 0.7;
+        }
+        .network .node { fill: #0b1a30; stroke: rgba(143, 240, 225, 0.75); stroke-width: 1.6; }
+        .network .node-core { fill: #8ff0e1; }
+        .network .halo { fill: rgba(94, 234, 212, 0.12); }
+
+        @media (prefers-reduced-motion: no-preference) {
+            .network .flow { animation: flow 6s linear infinite; }
+            .network .flow.slow { animation-duration: 9s; }
+            .network .halo { animation: halo 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+            @keyframes flow { to { stroke-dashoffset: -280; } }
+            @keyframes halo { 0%, 100% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
         }
 
-        .toggle:hover {
-            color: #1976f3;
+        .shell {
+            width: 100%;
+            max-width: 1080px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+            gap: 56px;
+            align-items: center;
         }
+
+        /* ---------- Brand side ---------- */
+        .brand-panel { display: grid; gap: 22px; }
+        .brand-row { display: flex; align-items: center; gap: 12px; }
+        .brand-row img { width: 46px; height: 46px; border-radius: 13px; box-shadow: 0 10px 30px -10px rgba(47, 107, 255, 0.8); }
+        .brand-row .wordmark { font-size: 30px; line-height: 1; }
+        .brand-panel h1 {
+            margin: 6px 0 0;
+            color: #fff;
+            font-size: clamp(30px, 3.6vw, 44px);
+            font-weight: 700;
+            line-height: 1.08;
+            letter-spacing: -0.03em;
+            max-width: 20ch;
+        }
+        .brand-panel h1 em {
+            font-style: normal;
+            background: linear-gradient(100deg, #8ab8ff, #5eead4);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .lede { margin: 0; max-width: 44ch; font-size: 15.5px; line-height: 1.65; color: rgba(226, 236, 248, 0.78); }
+        .perks { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 10px; max-width: 420px; }
+        .perks li {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+            font-size: 14px; color: rgba(240, 246, 252, 0.92);
+        }
+        .perk-icon { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 10px; display: grid; place-items: center; }
+        .perk-icon svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+        .perk-icon.blue { background: rgba(47, 107, 255, 0.2); color: #9cc0ff; }
+        .perk-icon.teal { background: rgba(13, 148, 136, 0.24); color: #7ae8d8; }
+        .perk-icon.violet { background: rgba(124, 58, 237, 0.24); color: #c4b0ff; }
+        .perks small { display: block; font-size: 12.5px; color: rgba(226, 236, 248, 0.6); }
+
+        /* ---------- Sign-in card ---------- */
+        .login-panel {
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+            color: #0f1b2d;
+            border-radius: 22px;
+            padding: 36px 34px 30px;
+            box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+        }
+        .login-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0 0 auto 0;
+            height: 4px;
+            border-radius: 22px 22px 0 0;
+            background: linear-gradient(90deg, #2f6bff, #0d9488, #7c3aed);
+        }
+        .login-panel h2 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.022em; color: #0f1b2d; }
+        .subtitle { margin: 6px 0 24px; color: #5f6e82; font-size: 14px; }
+
+        .field { display: grid; gap: 7px; margin-bottom: 16px; }
+        .field label { font-size: 13px; font-weight: 600; color: #334155; }
+        .input-wrap { position: relative; }
+        .input-wrap > .lead {
+            position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+            width: 17px; height: 17px; fill: none; stroke: #8a97a8; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+            pointer-events: none;
+        }
+        .input-wrap input { width: 100%; height: 46px; padding: 0 44px 0 40px !important; font-size: 14.5px !important; border-radius: 11px !important; }
+        .toggle {
+            position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            width: 34px; height: 34px; border: 0; border-radius: 9px;
+            background: transparent; color: #5f6e82; cursor: pointer;
+            display: grid; place-items: center;
+        }
+        .toggle:hover { background: #f1f4f8; color: #0f1b2d; }
+        .toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+        .toggle .eye-off { display: none; }
+        .toggle[aria-pressed="true"] .eye { display: none; }
+        .toggle[aria-pressed="true"] .eye-off { display: block; }
 
         .login-btn {
-            width: 100%;
-            border: none;
-            border-radius: 10px;
-            padding: 13px;
-            background: linear-gradient(135deg, #1976f3, #1466d8);
-            color: white;
-            font: inherit;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 8px 18px rgba(25,118,243,.18);
-            margin-top: 4px;
+            width: 100%; height: 48px; margin-top: 6px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            border: 0; color: #fff; font-size: 15px; font-weight: 600;
+            border-radius: 12px !important;
+            background: linear-gradient(100deg, #1f5fe0, #1463d6 60%, #0f6fb5) !important;
+            box-shadow: 0 10px 24px -10px rgba(20, 99, 214, 0.8) !important;
         }
+        .login-btn:hover { filter: brightness(1.06); }
+        .login-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .login-btn .spin { display: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5); border-top-color: #fff; animation: spin .7s linear infinite; }
+        .login-btn[data-busy="true"] .spin { display: block; }
+        .login-btn[data-busy="true"] .arrow { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .login-btn:hover {
-            transform: translateY(-1px);
+        .message { display: flex; gap: 8px; align-items: flex-start; padding: 11px 13px; border-radius: 11px; margin-bottom: 16px; font-size: 13.5px; line-height: 1.45; }
+        .message.error { background: #fef3f2; border: 1px solid #f6caca; color: #9f1f1f; }
+        .message.success { background: #ecfdf3; border: 1px solid #bbe8cb; color: #136c33; }
+
+        .signup { margin-top: 18px; text-align: center; font-size: 14px; color: #5f6e82; }
+        .signup a { color: #1463d6; font-weight: 600; text-decoration: none; }
+        .signup a:hover { text-decoration: underline; }
+        .divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 14px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #8a97a8; }
+        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #e4e9f0; }
+        .partner-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .partner-links a {
+            display: flex; align-items: center; justify-content: center; gap: 7px; height: 38px;
+            border: 1px solid #d4dbe4; border-radius: 10px;
+            color: #1d2a3d; font-size: 13px; font-weight: 600; text-decoration: none;
+            transition: background .14s, border-color .14s;
         }
+        .partner-links a:hover { background: #f8fafc; border-color: #b8c2cf; }
+        .partner-links svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+        .back { margin-top: 18px; text-align: center; }
+        .back a { display: inline-flex; align-items: center; gap: 6px; color: #5f6e82; font-size: 13px; font-weight: 600; text-decoration: none; }
+        .back a:hover { color: #0f1b2d; }
+        .back svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-        .signup {
-            text-align: center;
-            margin-top: 22px;
-            color: #7b8799;
-            font-size: 12px;
+        @media (max-width: 900px) {
+            .shell { grid-template-columns: minmax(0, 1fr); gap: 28px; max-width: 460px; }
+            .brand-panel { gap: 14px; }
+            .brand-panel h1 { font-size: 28px; max-width: none; }
+            .lede, .perks { display: none; }
         }
-
-        .signup a,
-        .back a {
-            color: #1976f3;
-            font-weight: 600;
-            text-decoration: none;
-        }
-
-        .back {
-            text-align: center;
-            margin-top: 14px;
-            font-size: 11px;
-        }
-
-        @media (max-width: 760px) {
-            body { padding: 12px; }
-
-            .page {
-                grid-template-columns: 1fr;
-                min-height: auto;
-                max-width: 500px;
-            }
-
-            .brand-panel {
-                padding: 30px;
-            }
-
-            .brand-panel h1 {
-                font-size: 24px;
-            }
-
-            .feature {
-                display: none;
-            }
-
-            .login-panel {
-                padding: 34px 25px;
-            }
+        @media (max-width: 480px) {
+            .auth { padding: 24px 14px; align-items: start; }
+            .login-panel { padding: 30px 22px 24px; border-radius: 18px; }
+            .partner-links { grid-template-columns: 1fr; }
         }
     </style>
 
-          
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
 
-<div class="page">
+<main class="auth">
 
-    <section class="brand-panel">
-        <div class="logo"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:58px;height:58px;object-fit:contain;"></div>
+    <svg class="network" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+            <linearGradient id="route-grad" x1="0" x2="1">
+                <stop offset="0" stop-color="#2f6bff" stop-opacity="0.1"/>
+                <stop offset="0.5" stop-color="#5eead4" stop-opacity="0.8"/>
+                <stop offset="1" stop-color="#7c3aed" stop-opacity="0.15"/>
+            </linearGradient>
+        </defs>
+        <!-- Routes stay clear of the text column (x 160-620) so nothing crosses the copy -->
+        <path class="route" d="M-40 830 C 260 760, 520 880, 780 810 S 1200 700, 1480 770"/>
+        <path class="flow" d="M-40 830 C 260 760, 520 880, 780 810 S 1200 700, 1480 770"/>
+        <path class="route" d="M660 -20 C 720 90, 860 120, 1010 70 S 1290 10, 1480 110"/>
+        <path class="flow slow" d="M660 -20 C 720 90, 860 120, 1010 70 S 1290 10, 1480 110"/>
+        <path class="route" d="M1060 940 C 1000 760, 1140 520, 1320 470 S 1440 360, 1480 330"/>
+        <path class="flow slow" d="M1060 940 C 1000 760, 1140 520, 1320 470 S 1440 360, 1480 330"/>
+        <path class="route" d="M-30 90 C 50 170, 30 300, 110 400 S 70 600, 120 700"/>
+        <g>
+            <circle class="halo" cx="780" cy="810" r="22"/><circle class="node" cx="780" cy="810" r="8"/><circle class="node-core" cx="780" cy="810" r="3"/>
+            <circle class="halo" cx="1320" cy="470" r="22"/><circle class="node" cx="1320" cy="470" r="8"/><circle class="node-core" cx="1320" cy="470" r="3"/>
+            <circle class="node" cx="1010" cy="70" r="6"/><circle class="node-core" cx="1010" cy="70" r="2.2"/>
+            <circle class="node" cx="110" cy="400" r="6"/><circle class="node-core" cx="110" cy="400" r="2.2"/>
+        </g>
+    </svg>
 
-        <h1>PURVA - JalSetu</h1>
+    <div class="shell">
 
-        <p>
-            Intelligent treated wastewater matching, routing and
-            delivery management for demand sites, STP operators
-            and tanker operators.
-        </p>
-
-        <div class="feature">
-            <div> Smart wastewater matching</div>
-            <div>STP and tanker coordination</div>
-            <div> Order and delivery tracking</div>
-        </div>
-    </section>
-
-    <section class="login-panel">
-
-        <h2>Welcome back</h2>
-        <p class="subtitle">Sign in to continue to your dashboard.</p>
-
-        {% if login_error %}
-            <div class="message error">{{ login_error }}</div>
-        {% endif %}
-
-        {% if request.args.get("signup_success") %}
-            <div class="message success">
-                {{ request.args.get("signup_success") }}
-            </div>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('login') }}">
-
-            <div class="field">
-                <label>Username or Email Address</label>
-                <input
-                    type="text"
-                    name="login_identifier"
-                    placeholder="Enter username or email"
-                    autocomplete="username"
-                    required
-                >
+        <section class="brand-panel">
+            <div class="brand-row">
+                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
+                <span class="wordmark">Re<span>Flow</span></span>
             </div>
 
-            <div class="field">
-                <label>Password</label>
+            <h1>Treated water,<br> <em>back in circulation.</em></h1>
 
-                <div class="password-wrap">
-                    <input
-                        id="password"
-                        type="password"
-                        name="password"
-                        placeholder="Enter your password"
-                        autocomplete="current-password"
-                        required
-                    >
+            <p class="lede">
+                Intelligent treated wastewater matching, routing and delivery management
+                for demand sites, plant operators and tanker partners.
+            </p>
 
-                    <button
-                        type="button"
-                        class="toggle"
-                        onclick="togglePassword()"
-                        aria-label="Show password"
-                        aria-pressed="false"
-                    >
-                        <svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2.1 12s3.5-6 9.9-6 9.9 6 9.9 6-3.5 6-9.9 6-9.9-6-9.9-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
-                    </button>
+            <ul class="perks">
+                <li>
+                    <span class="perk-icon blue"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span>
+                    <span>Smart wastewater matching<small>Nearest plant with the right capacity and quality</small></span>
+                </li>
+                <li>
+                    <span class="perk-icon teal"><svg viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg></span>
+                    <span>Plant and tanker coordination<small>Offers, pickups and transfers in one place</small></span>
+                </li>
+                <li>
+                    <span class="perk-icon violet"><svg viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 0 0 0-7h-8a3.5 3.5 0 0 1 0-7H12"/></svg></span>
+                    <span>Order and delivery tracking<small>Follow every tanker live until it arrives</small></span>
+                </li>
+            </ul>
+        </section>
+
+        <section class="login-panel" aria-labelledby="login-title">
+
+            <h2 id="login-title">Welcome back</h2>
+            <p class="subtitle">Sign in to continue to your dashboard.</p>
+
+            {% if login_error %}
+                <div class="message error" role="alert">{{ login_error }}</div>
+            {% endif %}
+
+            {% if request.args.get("signup_success") %}
+                <div class="message success" role="status">
+                    {{ request.args.get("signup_success") }}
                 </div>
+            {% endif %}
+
+            {% if request.args.get("account_deleted") %}
+                <div class="message success" role="status">
+                    {{ request.args.get("account_deleted") }}
+                </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('login') }}" id="loginForm">
+
+                <div class="field">
+                    <label for="login_identifier">Username or email</label>
+                    <div class="input-wrap">
+                        <svg class="lead" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                        <input
+                            id="login_identifier"
+                            type="text"
+                            name="login_identifier"
+                            placeholder="you@example.com"
+                            autocomplete="username"
+                            required
+                            autofocus
+                        >
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <div class="input-wrap password-wrap">
+                        <svg class="lead" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+                        <button
+                            type="button"
+                            class="toggle"
+                            onclick="togglePassword()"
+                            aria-label="Show password"
+                            aria-pressed="false"
+                        >
+                            <svg class="eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.1 12s3.5-6 9.9-6 9.9 6 9.9 6-3.5 6-9.9 6-9.9-6-9.9-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+                            <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c6.4 0 9.9 6 9.9 6a17 17 0 0 1-3.2 3.9"/><path d="M6.6 6.6A17 17 0 0 0 2.1 12s3.5 6 9.9 6a9.6 9.6 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span class="spin" aria-hidden="true"></span>
+                    Sign in
+                    <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+
+            </form>
+
+            <div class="signup">
+                New to ReFlow?
+                <a href="{{ url_for('signup') }}">Create an account</a>
             </div>
 
-            <button type="submit" class="login-btn">
-                Login
-            </button>
+            <div class="divider">Partners</div>
+            <div class="partner-links">
+                <a href="{{ url_for('stp_register') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg>
+                    Register a plant
+                </a>
+                <a href="{{ url_for('tanker_register') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                    Tanker partner
+                </a>
+            </div>
 
-        </form>
+            <div class="back">
+                <a href="{{ url_for('home') }}">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+                    Back to home
+                </a>
+            </div>
 
-        <div class="signup">
-            Don't have an account?
-            <a href="{{ url_for('signup') }}">Create an account</a>
-        </div>
+        </section>
 
-        <div class="back">
-            <a href="{{ url_for('home') }}">← Back to Home</a>
-        </div>
+    </div>
 
-    </section>
-
-</div>
+</main>
 
 <script>
 function togglePassword() {
@@ -364,11 +389,15 @@ function togglePassword() {
     button.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
     button.setAttribute("aria-pressed", String(isHidden));
 }
+
+// Immediate feedback while the server signs the user in.
+document.getElementById("loginForm").addEventListener("submit", function (event) {
+    if (!this.checkValidity()) return;
+    const button = document.getElementById("loginBtn");
+    button.setAttribute("data-busy", "true");
+    button.disabled = true;
+});
 </script>
-
-
-
-
 
 </body>
 </html>

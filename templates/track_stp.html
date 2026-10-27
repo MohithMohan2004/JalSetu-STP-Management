@@ -7,10 +7,6 @@
 
     <title>Track Order</title>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
 
     <style>
 *{box-sizing:border-box}
@@ -164,6 +160,10 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
@@ -180,19 +180,19 @@ body{font-family:'Inter',Arial,sans-serif;background:#f5f8fc;color:#172033;min-h
         </span>
         <span>Back</span>
     </a>
-    <div class="brand"><span class="brand-icon"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;"></span> PURVA - JalSetu</div>
+    <div class="brand"><span class="brand-icon"><img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;"></span> <span class="wordmark">Re<span>Flow</span></span></div>
     <div class="nav-links">
-        <a href="/">⌂ Home</a>
+        <a href="/">Home</a>
         <a href="{{ url_for('stp_dashboard') }}">
-            ◉ STP Dashboard
+            STP Dashboard
         </a>
         <a href="{{ url_for('track_stp') }}" class="active">
-            ▣ STP Order Tracking
+            STP Order Tracking
         </a>
         <a href="/profile"> Profile</a>
     </div>
     <div class="account-area">
-        <div class="notification" title="Notifications">🔔<span id="orderBadge" class="notification-badge">0</span></div>
+        <div class="notification" title="Notifications"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg><span id="orderBadge" class="notification-badge">0</span></div>
         <button id="profileButton" class="profile-button" type="button">
             <span id="avatar" class="avatar"></span>
             <span class="profile-text"><strong id="profileName">User</strong><span id="profileRole">Buyer</span></span>
@@ -307,10 +307,10 @@ function createOrderCard(order){
         <div class="order-main">
             <div class="order-header">
                 <div class="order-title-wrap">
-                    <div class="order-icon">▣</div>
+                    <div class="order-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 8.7 5 8.7-5"/></svg></div>
                     <div>
                         <div class="order-id">Order #${escapeHTML(order.order_id)}</div>
-                        <div class="order-date">▣ ${escapeHTML(order.created_at||"")}</div>
+                        <div class="order-date">${escapeHTML(order.created_at||"")}</div>
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
@@ -357,7 +357,7 @@ function createOrderCard(order){
                 <div class="route-map"></div>
                 <div class="route-bottom">
                     <span> Distance: <strong class="route-distance">--</strong></span>
-                    <span>⏱ ETA: <strong class="route-eta">--</strong></span>
+                    <span><svg class="ds-icon ds-em" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ETA: <strong class="route-eta">--</strong></span>
                     <span> Status: <strong class="route-live-status">${escapeHTML(info.label)}</strong></span>
                 </div>
             </div>
