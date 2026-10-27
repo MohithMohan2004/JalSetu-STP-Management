@@ -4,94 +4,106 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account | WasteWater</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        * { box-sizing: border-box; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
 
         body {
             margin: 0;
             min-height: 100vh;
-            font-family: 'Inter', sans-serif;
-            background: #f4f7fb;
-            color: #172033;
-            padding: 35px 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+            background: #f5f7fb;
+            color: #17233a;
+            padding: 40px 20px;
         }
 
         .page {
             width: 100%;
-            max-width: 720px;
+            max-width: 740px;
             margin: auto;
-            background: white;
-            border: 1px solid #e8edf4;
-            border-radius: 18px;
-            box-shadow: 0 18px 50px rgba(13, 27, 46, .10);
+            background: #ffffff;
+            border: 1px solid rgba(226, 232, 240, 0.85);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.04);
             overflow: hidden;
         }
 
         .header {
-            background: linear-gradient(135deg, #0d1b2e, #17365d);
+            background: linear-gradient(150deg, #0d1b2e 0%, #152d4c 60%, #173860 100%);
             color: white;
-            padding: 30px 35px;
+            padding: 32px 40px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .logo {
-            width: 48px;
-            height: 48px;
-            border-radius: 13px;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: linear-gradient(135deg, #1683ff, #20c997);
-            font-size: 23px;
+            background: linear-gradient(135deg, #1769e0, #20c997);
+            font-size: 24px;
+            box-shadow: 0 6px 18px rgba(23, 105, 224, 0.3);
+            flex-shrink: 0;
         }
 
         .header h1 {
             margin: 0;
-            font-size: 21px;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.015em;
         }
 
         .header p {
-            margin: 5px 0 0;
-            color: #b8c7da;
-            font-size: 11px;
+            margin: 4px 0 0;
+            color: #cbd5e1;
+            font-size: 12px;
         }
 
         .body {
-            padding: 32px 35px 35px;
+            padding: 36px 40px 42px;
         }
 
         .body h2 {
             margin: 0;
-            font-size: 20px;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.015em;
+            color: #0f172a;
         }
 
         .subtitle {
-            color: #7b8799;
-            font-size: 12px;
-            margin: 7px 0 24px;
+            color: #64748b;
+            font-size: 13px;
+            margin: 6px 0 26px;
         }
 
         .message {
-            padding: 11px 13px;
-            border-radius: 9px;
-            margin-bottom: 17px;
-            font-size: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 12.5px;
+            line-height: 1.45;
         }
 
         .error {
-            background: #fff0f0;
-            color: #c53b3b;
-            border: 1px solid #ffdada;
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
         }
 
         .grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 16px;
+            gap: 18px;
         }
 
         .field {
@@ -104,36 +116,39 @@
 
         label {
             display: block;
-            margin-bottom: 7px;
-            color: #354258;
+            margin-bottom: 6px;
+            color: #334155;
             font-size: 12px;
             font-weight: 600;
+            letter-spacing: -0.005em;
         }
 
         input,
         select {
             width: 100%;
-            border: 1px solid #dce2ea;
-            background: #fafbfd;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
             border-radius: 10px;
-            padding: 12px 13px;
+            padding: 12px 14px;
             font: inherit;
             font-size: 13px;
-            color: #273449;
+            color: #0f172a;
             outline: none;
+            transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
         }
 
         input:focus,
         select:focus {
             background: white;
-            border-color: #1976f3;
-            box-shadow: 0 0 0 3px rgba(25,118,243,.08);
+            border-color: #1769e0;
+            box-shadow: 0 0 0 3px rgba(23, 105, 224, 0.15);
         }
 
         .hint {
             margin-top: 5px;
-            color: #8a96a8;
-            font-size: 10px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.4;
         }
 
         .role-id-section {
@@ -154,25 +169,36 @@
         }
 
         .password-wrap input {
-            padding-right: 45px;
+            padding-right: 48px;
         }
 
         .toggle {
             position: absolute;
-            right: 11px;
+            right: 8px;
             top: 50%;
             transform: translateY(-50%);
             border: none;
             background: transparent;
             cursor: pointer;
-            color: #7b8799;
+            color: #64748b;
             width: 34px;
             height: 34px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             padding: 0;
+            border-radius: 6px;
+            transition: color 120ms ease, background 120ms ease;
             z-index: 2;
+        }
+
+        .toggle:hover {
+            color: #1769e0;
+            background: rgba(0, 0, 0, 0.04);
+        }
+
+        .toggle:active {
+            transform: translateY(-50%) scale(0.92);
         }
 
         .toggle .password-eye {
@@ -186,48 +212,63 @@
             display: block;
         }
 
-        .toggle:hover {
-            color: #1976f3;
-        }
-
         .submit {
             width: 100%;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 10px;
             padding: 13px;
-            margin-top: 22px;
-            background: linear-gradient(135deg, #1976f3, #1466d8);
+            margin-top: 24px;
+            background: #1769e0;
             color: white;
             font: inherit;
-            font-size: 13px;
+            font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
+            box-shadow: 0 4px 14px rgba(23, 105, 224, 0.28);
+            transition: background 140ms ease, transform 120ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 140ms ease;
+        }
+
+        .submit:hover {
+            background: #1255b8;
+            box-shadow: 0 6px 18px rgba(23, 105, 224, 0.36);
+            transform: translateY(-1px);
+        }
+
+        .submit:active {
+            transform: scale(0.97);
+            transition: transform 70ms ease-out;
         }
 
         .login {
             text-align: center;
-            margin-top: 18px;
-            color: #7b8799;
-            font-size: 12px;
+            margin-top: 22px;
+            color: #64748b;
+            font-size: 12.5px;
         }
 
         .login a {
-            color: #1976f3;
+            color: #1769e0;
             font-weight: 600;
             text-decoration: none;
         }
 
+        .login a:hover {
+            text-decoration: underline;
+            color: #1255b8;
+        }
+
         @media (max-width: 600px) {
-            body { padding: 12px; }
+            body { padding: 14px; }
 
             .header,
             .body {
-                padding-left: 22px;
-                padding-right: 22px;
+                padding-left: 24px;
+                padding-right: 24px;
             }
 
             .grid {
                 grid-template-columns: 1fr;
+                gap: 14px;
             }
 
             .full {
@@ -237,6 +278,10 @@
     </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
@@ -244,9 +289,9 @@
 <div class="page">
 
     <div class="header">
-        <div class="logo"><img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:58px;height:58px;object-fit:contain;"></div>
+        <div class="logo"><img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:58px;height:58px;object-fit:contain;"></div>
         <div>
-            <h1>PURVA - JalSetu</h1>
+            <h1><span class="wordmark">Re<span>Flow</span></span></h1>
             <p>Treated Wastewater Management System</p>
         </div>
     </div>

@@ -1,0 +1,92 @@
+/* Design tokens — see skill.md. One brand colour, one neutral ramp,
+   status colours only for status, hairline depth, critically damped motion. */
+:root {
+  --ink-900: #0f1b2d;
+  --ink-800: #1d2a3d;
+  --ink-700: #334155;
+  --ink-600: #4b5a6e;
+  --ink-500: #5f6e82;
+  --ink-400: #8a97a8;
+  --ink-300: #b8c2cf;
+
+  --line: #e4e9f0;
+  --line-strong: #d4dbe4;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f4f8;
+
+  --brand: #1463d6;
+  --brand-hover: #0f54ba;
+  --brand-press: #0c4699;
+  --brand-tint: rgba(20, 99, 214, 0.08);
+  --brand-ring: rgba(20, 99, 214, 0.22);
+
+  --success: #15803d;
+  --success-bg: #ecfdf3;
+  --success-line: #bbe8cb;
+  --warning: #b45309;
+  --warning-bg: #fff8eb;
+  --warning-line: #f6dcae;
+  --danger: #c42b2b;
+  --danger-bg: #fef3f2;
+  --danger-line: #f6caca;
+  --info: #1463d6;
+  --info-bg: #eef4fd;
+  --info-line: #c9dcf7;
+
+  /* Accents — used to tell categories apart (steps, roles, grades), never for status */
+  --teal: #0d9488;
+  --teal-tint: rgba(13, 148, 136, 0.1);
+  --violet: #7c3aed;
+  --violet-tint: rgba(124, 58, 237, 0.1);
+  --amber: #d97706;
+  --amber-tint: rgba(217, 119, 6, 0.12);
+  --sky: #0284c7;
+  --sky-tint: rgba(2, 132, 199, 0.1);
+  --rose: #e11d48;
+  --rose-tint: rgba(225, 29, 72, 0.1);
+
+  --side-bg: #0b1626;
+  --side-line: rgba(255, 255, 255, 0.07);
+  --side-text: #a3b0c2;
+  --side-label: #5d6e86;
+  --side-hover: rgba(255, 255, 255, 0.05);
+  --side-active: rgba(255, 255, 255, 0.09);
+
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(15, 27, 45, 0.04);
+  --shadow-2: 0 1px 2px rgba(15, 27, 45, 0.04), 0 4px 12px -4px rgba(15, 27, 45, 0.07);
+  --shadow-3: 0 2px 4px rgba(15, 27, 45, 0.04), 0 12px 32px -8px rgba(15, 27, 45, 0.12);
+  --shadow-pop: 0 4px 8px rgba(15, 27, 45, 0.05), 0 24px 48px -12px rgba(15, 27, 45, 0.22);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --t-press: 90ms;
+  --t-fast: 140ms;
+  --t-base: 220ms;
+  --t-slow: 320ms;
+
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 68px;
+  --topbar-h: 60px;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --line: #b8c2cf;
+    --line-strong: #8a97a8;
+    --ink-500: #3d4a5c;
+    --ink-400: #5f6e82;
+    --side-text: #d5dde8;
+  }
+}

@@ -6,7 +6,6 @@
 
     <title>Admin Dashboard | WasteWater Management</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <link
         rel="stylesheet"
@@ -1308,6 +1307,10 @@
     </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
@@ -1322,11 +1325,11 @@
 
         <div class="brand">
             <div class="brand-icon">
-                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
             <div class="brand-text">
-                <h2>PURVA - JalSetu</h2>
+                <h2><span class="wordmark">Re<span>Flow</span></span></h2>
             </div>
 </div>
 
@@ -1335,32 +1338,32 @@
         <div class="nav-links" id="mobile-sidebar-links">
 
             <a href="/admin" class="active">
-                <div class="nav-icon">⌂</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></div>
                 <span>Dashboard</span>
             </a>
 
             <a href="/admin">
-                <div class="nav-icon">▣</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></div>
                 <span>STP Management</span>
             </a>
 
             <a href="/demand">
-                <div class="nav-icon">•</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                 <span>Buyers</span>
             </a>
 
             <a href="/admin">
-                <div class="nav-icon">▤</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
                 <span>Orders</span>
             </a>
 
             <a href="/tanker">
-                <div class="nav-icon">•</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>
                 <span>Tanker Management</span>
             </a>
 
             <a href="/admin">
-                <div class="nav-icon">•</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></div>
                 <span>Transactions</span>
             </a>
 
@@ -1372,12 +1375,12 @@
         <div class="nav-links">
 
             <a href="/admin">
-                <div class="nav-icon">⚙︎</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H4"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></div>
                 <span>Settings</span>
             </a>
 
             <a href="{{ url_for('logout') }}">
-                <div class="nav-icon">↪</div>
+                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></div>
                 <span>Logout</span>
             </a>
 
@@ -1407,11 +1410,11 @@
     <div class="mobile-navbar" role="navigation" aria-label="Mobile navigation">
         <div class="mobile-navbar-brand">
             <div class="brand-icon">
-                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
             <div class="brand-text">
-                <h2>PURVA - JalSetu</h2>
+                <h2><span class="wordmark">Re<span>Flow</span></span></h2>
             </div>
 
         </div>
@@ -1450,6 +1453,8 @@
                 </div>
 
                 <div class="notification">
+                    
+                    <svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg>
                     
                     <div class="notification-badge">3</div>
                 </div>
@@ -1583,7 +1588,7 @@
 
     <div class="stat-card">
 
-        <div class="stat-icon orange-icon">⏳</div>
+        <div class="stat-icon orange-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"/><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/></svg></div>
 
         <div class="stat-info">
             <p>Pending Verification</p>
@@ -2049,7 +2054,7 @@
 
 
                     <td class="location-cell">
-                        <span class="location-value">📍 {{ registration.latitude }}, {{ registration.longitude }}</span>
+                        <span class="location-value">{{ registration.latitude }}, {{ registration.longitude }}</span>
                     </td>
 
 
@@ -2562,7 +2567,7 @@
 
                     <div class="notification-item">
 
-                        <div class="notification-icon">🔔</div>
+                        <div class="notification-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></div>
 
                         <div>
 
@@ -2581,7 +2586,7 @@
 
                     <div class="notification-item">
 
-                        <div class="notification-icon">🔔</div>
+                        <div class="notification-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></div>
 
                         <div>
 

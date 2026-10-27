@@ -3543,7 +3543,7 @@ def api_search_place():
         geo_data = []
 
         headers = {
-            "User-Agent": "PurvaJalSetu/1.0 (wastewater management application)",
+            "User-Agent": "ReFlow/1.0 (wastewater management application)",
             "Accept": "application/json"
         }
 

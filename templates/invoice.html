@@ -7,7 +7,6 @@
 
     <title>Invoice | WasteWater Management System</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
 
@@ -610,6 +609,10 @@
     </style>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
@@ -625,11 +628,11 @@
         <div class="brand">
 
             <div class="brand-icon">
-                <img src="{{ url_for('static', filename='assets/title-icon.png') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
             </div>
 
             <div>
-                <h1>PURVA - JalSetu</h1>
+                <h1><span class="wordmark">Re<span>Flow</span></span></h1>
                 <p>Treated Wastewater Management System</p>
             </div>
 

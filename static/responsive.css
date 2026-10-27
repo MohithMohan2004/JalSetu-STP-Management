@@ -1,4 +1,6 @@
-/* JalSetu mobile sidebar and responsive UI layer. Desktop sidebar remains unchanged. */
+@import url("design-system.css");
+
+/* ReFlow mobile sidebar and responsive UI layer. Desktop sidebar remains unchanged. */
 html { max-width:100%; overflow-x:hidden; }
 img,video,canvas,iframe { max-width:100%; }
 button,input,select,textarea { max-width:100%; }
@@ -546,9 +548,9 @@ button,input,select,textarea { max-width:100%; }
     }
 }
 
-/* Consistent PURVA - JalSetu brand image sizing across all pages. */
-.brand img[src*="title-icon.png"],
-.mobile-navbar-brand img[src*="title-icon.png"] {
+/* Consistent ReFlow brand image sizing across all pages. */
+.brand img[src*="brand-mark.svg"],
+.mobile-navbar-brand img[src*="brand-mark.svg"] {
   width: 34px !important;
   height: 34px !important;
   min-width: 34px !important;
@@ -561,16 +563,16 @@ button,input,select,textarea { max-width:100%; }
 }
 
 /* Index page: softly curved corners for the brand image. */
-body:has(.public-topbar) .brand img[src*="title-icon.png"],
-body:has(.public-topbar) .mobile-navbar-brand img[src*="title-icon.png"] {
+body:has(.public-topbar) .brand img[src*="brand-mark.svg"],
+body:has(.public-topbar) .mobile-navbar-brand img[src*="brand-mark.svg"] {
   border-radius: 10px !important;
 }
 
 /* ==========================================================
-   PURVA - JalSetu BRAND IMAGE CONSISTENCY
+   ReFlow BRAND IMAGE CONSISTENCY
    Keep the index.html branding as the visual reference.
    Sidebar brand holders on other pages are completely filled
-   by the same title-icon image; index.html keeps curved corners.
+   by the same brand-mark image; index.html keeps curved corners.
    ========================================================== */
 
 /* Other sidebar pages: fill the complete brand-image holder. */
@@ -631,9 +633,9 @@ body:has(.public-topbar) .mobile-navbar-brand img[src*="title-icon.png"] {
 }
 
 /* Index.html: same image size, with softly curved corners. */
-body:has(.public-topbar) .brand > img[src*="title-icon.png"],
-body:has(.public-topbar) .mobile-navbar-brand img[src*="title-icon.png"],
-body:has(.public-topbar) .mobile-brand img[src*="title-icon.png"] {
+body:has(.public-topbar) .brand > img[src*="brand-mark.svg"],
+body:has(.public-topbar) .mobile-navbar-brand img[src*="brand-mark.svg"],
+body:has(.public-topbar) .mobile-brand img[src*="brand-mark.svg"] {
   width: 34px !important;
   height: 34px !important;
   min-width: 34px !important;
@@ -647,6 +649,6 @@ body:has(.public-topbar) .mobile-brand img[src*="title-icon.png"] {
 }
 
 /* Simple brand-image headers used by registration/status/invoice pages. */
-body:not(:has(.public-topbar)) img[src*="title-icon.png"] {
+body:not(:has(.public-topbar)) img[src*="brand-mark.svg"] {
   border-radius: 10px;
 }

@@ -1,0 +1,41 @@
+.tanker-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(360px, 1fr); gap: 16px; align-items: start; }
+
+.trip-card { gap: 8px; }
+.trip-state { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; font-weight: 600; color: var(--ink-600); }
+.trip-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-300); }
+.trip-state[data-on="true"] { color: var(--success); }
+.trip-state[data-on="true"]::before { background: var(--success); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.16); }
+
+.job { display: grid; gap: 10px; transition: background var(--t-fast) var(--ease-out); }
+.job[data-selected="true"] { background: var(--brand-tint); box-shadow: inset 3px 0 0 var(--brand); }
+.job-select { all: unset; display: grid; gap: 8px; cursor: pointer; min-width: 0; }
+.job-select:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 4px; }
+.job-select strong { font-size: 13.5px; }
+.job-legs { display: grid; gap: 4px; font-size: 13.5px; color: var(--ink-800); }
+.job-legs span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.job-legs em { font-style: normal; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leg-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
+.leg-dot.pick { background: var(--success); }
+.leg-dot.drop { background: var(--brand); }
+.job-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.req-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-500); }
+.req-facts b { color: var(--ink-900); font-weight: 650; }
+.req-buyer { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12.5px; color: var(--ink-700); }
+.req-buyer a { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; font-weight: 550; }
+
+.countdown { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--ink-600); }
+.countdown.urgent { color: var(--danger); }
+
+.trip-chip { left: 56px; padding: 0 4px 0 12px; }
+.trip-chip .btn { height: 26px; border-radius: var(--r-pill); }
+.idle-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-300); flex: 0 0 7px; }
+
+.fleet-icon { width: 30px; height: 30px; border-radius: var(--r-md); display: grid; place-items: center; background: var(--surface-3); color: var(--ink-600); }
+
+@media (max-width: 1100px) {
+  .tanker-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .job-actions .btn { flex: 1; }
+}

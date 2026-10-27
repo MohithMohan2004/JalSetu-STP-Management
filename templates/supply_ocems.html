@@ -232,6 +232,10 @@
 
     </style>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
@@ -379,6 +383,12 @@
 
 
     <!-- CHARTS -->
+    <div style="margin:0 0 14px;color:#cbd5e1;font-size:13px;line-height:1.6;">
+        <strong style="color:#86efac;">Green dashed lines / shaded area:</strong> CPCB treated-sewage reference limits.
+        <strong style="color:#f87171;">Red readings:</strong> outside the reference range.
+        Benchmarks shown: pH 6.5–9.0, BOD ≤10 mg/L, COD ≤50 mg/L, TSS ≤20 mg/L.
+        Confirm the applicable consent conditions for the specific STP and discharge/reuse purpose.
+    </div>
 
     <div class="charts">
 
@@ -569,64 +579,153 @@ function getValues(parameter) {
 }
 
 
-function createChart(
-    canvasId,
-    parameter
-) {
+// CPCB benchmark values for treated sewage from new-STP design standards:
+// pH 6.5–9.0, BOD <=10 mg/L, COD <=50 mg/L, TSS <=20 mg/L.
+// Applicable consent/State Board conditions may be stricter or differ.
+const CPCB_LIMITS = {
+    "pH":  { min: 6.5, max: 9.0, label: "CPCB range: 6.5–9.0" },
+    "BOD": { min: null, max: 10, label: "CPCB limit: ≤10 mg/L" },
+    "COD": { min: null, max: 50, label: "CPCB limit: ≤50 mg/L" },
+    "TSS": { min: null, max: 20, label: "CPCB limit: ≤20 mg/L" }
+};
 
-    const canvas =
-        document.getElementById(canvasId);
+const cpcbReferencePlugin = {
+    id: "cpcbReference",
+    beforeDatasetsDraw(chart, args, pluginOptions) {
+        const limit = pluginOptions.limit;
+        const y = chart.scales.y;
+        const area = chart.chartArea;
+        if (!y || !area || !limit) return;
 
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.fillStyle = "rgba(34, 197, 94, 0.12)";
+
+        if (limit.min !== null && limit.min !== undefined) {
+            const top = y.getPixelForValue(limit.max);
+            const bottom = y.getPixelForValue(limit.min);
+            ctx.fillRect(area.left, top, area.right - area.left, bottom - top);
+        } else {
+            const top = y.getPixelForValue(limit.max);
+            ctx.fillRect(area.left, top, area.right - area.left, area.bottom - top);
+        }
+        ctx.restore();
+    },
+    afterDraw(chart, args, pluginOptions) {
+        const limit = pluginOptions.limit;
+        const y = chart.scales.y;
+        const area = chart.chartArea;
+        if (!y || !area || !limit) return;
+
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.setLineDash([6, 5]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#4ade80";
+        ctx.fillStyle = "#86efac";
+        ctx.font = "11px Arial";
+        ctx.textAlign = "right";
+
+        const drawLine = (value, label) => {
+            const py = y.getPixelForValue(value);
+            if (py < area.top || py > area.bottom) return;
+            ctx.beginPath();
+            ctx.moveTo(area.left, py);
+            ctx.lineTo(area.right, py);
+            ctx.stroke();
+            ctx.fillText(label, area.right - 6, Math.max(area.top + 12, py - 5));
+        };
+
+        if (limit.min !== null && limit.min !== undefined) {
+            drawLine(limit.min, `Minimum ${limit.min}`);
+        }
+        drawLine(limit.max, `Maximum ${limit.max}`);
+        ctx.restore();
+    }
+};
+
+function createChart(canvasId, parameter) {
+    const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
-    new Chart(
-        canvas,
-        {
-            type: "line",
+    const limit = CPCB_LIMITS[parameter];
+    const values = getValues(parameter);
+    const finiteValues = values.filter(v => v !== null && Number.isFinite(v));
+    const low = limit.min !== null ? limit.min : 0;
+    const high = limit.max;
 
-            data: {
-
-                labels: labels,
-
-                datasets: [
-                    {
-                        label: parameter,
-
-                        data: getValues(parameter),
-
-                        tension: 0.3,
-
-                        spanGaps: true
+    new Chart(canvas, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: `${parameter} (measured)`,
+                data: values,
+                tension: 0.3,
+                spanGaps: true,
+                borderColor: "#60a5fa",
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                pointBackgroundColor: values.map(v =>
+                    v === null ? "#60a5fa" :
+                    (v >= (limit.min ?? -Infinity) && v <= limit.max ? "#4ade80" : "#f87171")
+                ),
+                pointBorderColor: values.map(v =>
+                    v === null ? "#60a5fa" :
+                    (v >= (limit.min ?? -Infinity) && v <= limit.max ? "#4ade80" : "#f87171")
+                ),
+                segment: {
+                    borderColor: context => {
+                        const v0 = context.p0.parsed.y;
+                        const v1 = context.p1.parsed.y;
+                        const ok0 = v0 >= (limit.min ?? -Infinity) && v0 <= limit.max;
+                        const ok1 = v1 >= (limit.min ?? -Infinity) && v1 <= limit.max;
+                        return ok0 && ok1 ? "#4ade80" : "#f87171";
                     }
-                ]
-
-            },
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                scales: {
-
-                    x: {
-                        ticks: {
-                            maxTicksLimit: 10
-                        }
-                    },
-
-                    y: {
-                        beginAtZero: false
-                    }
-
                 }
-
+            }]
+        },
+        plugins: [cpcbReferencePlugin],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: "#e2e8f0" }
+                },
+                cpcbReference: { limit: limit },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: context => {
+                            const v = context.parsed.y;
+                            if (v === null || !Number.isFinite(v)) return "No reading";
+                            const ok = v >= (limit.min ?? -Infinity) && v <= limit.max;
+                            return ok ? "Within CPCB reference" : "Outside CPCB reference";
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: "#cbd5e1", maxTicksLimit: 10 },
+                    grid: { color: "rgba(148,163,184,0.12)" }
+                },
+                y: {
+                    beginAtZero: parameter !== "pH",
+                    suggestedMin: parameter === "pH" ? 5.5 : 0,
+                    suggestedMax: Math.max(high * 1.25, ...finiteValues, high + 1),
+                    ticks: { color: "#cbd5e1" },
+                    grid: { color: "rgba(148,163,184,0.12)" },
+                    title: {
+                        display: true,
+                        text: parameter === "pH" ? "pH" : "mg/L",
+                        color: "#cbd5e1"
+                    }
+                }
             }
-
         }
-    );
-
+    });
 }
 
 

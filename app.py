@@ -1761,7 +1761,7 @@ def osrm_road_distance_km(lat1, lon1, lat2, lon2):
         )
         response = requests.get(
             url,
-            headers={"User-Agent": "PurvaJalSetu/1.0"},
+            headers={"User-Agent": "ReFlow/1.0"},
             timeout=8
         )
         response.raise_for_status()
@@ -2105,9 +2105,36 @@ def load_ocems_data(stp_id):
 # HOME + LOGIN
 # =========================================================
 
+# =========================================================
+# REACT FRONTEND
+# The landing page and the demand / STP / tanker dashboards are a
+# React app (frontend/). `npm run build` writes it to static/app/.
+# =========================================================
+
+SPA_INDEX = os.path.join(app.root_path, "static", "app", "index.html")
+
+
+def wants_json():
+    """True when the React app submitted the request with fetch()."""
+    return request.headers.get("X-Requested-With") == "fetch"
+
+
+def serve_spa():
+    """Return the built React app; client-side routing picks the page."""
+    if not os.path.exists(SPA_INDEX):
+        return (
+            "Frontend not built. Run `npm install && npm run build` "
+            "inside the frontend/ folder.",
+            503,
+        )
+    response = send_file(SPA_INDEX)
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return serve_spa()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -3070,82 +3097,54 @@ def delete_account():
 
 @app.route("/profile")
 def profile():
-
-    # Check whether a user is logged in
     if not session.get("user_id"):
         return redirect(url_for("login"))
+    return serve_spa()
 
-    # Prefer the authenticated Supabase profile, but keep the page usable
-    # with the existing Flask session if the Auth lookup is temporarily
-    # unavailable. This makes the Profile link work consistently from every
-    # dashboard/page without changing the existing UI.
-    try:
-        response = supabase.auth.get_user()
 
-        if response.user:
-            user = response.user
-            metadata = user.user_metadata or {}
+@app.route("/api/profile")
+def api_profile():
+    """The signed-in visitor's profile, built only from their own session.
 
-            return render_template(
-                "profile.html",
-                user={
-                    "user_id": str(user.id),
-                    "first_name": metadata.get(
-                        "first_name",
-                        session.get("first_name", "")
-                    ),
-                    "last_name": metadata.get(
-                        "last_name",
-                        session.get("last_name", "")
-                    ),
-                    "name": (
-                        f"{metadata.get('first_name', session.get('first_name', ''))} "
-                        f"{metadata.get('last_name', session.get('last_name', ''))}"
-                    ).strip() or str(session.get("user_name") or "User"),
-                    "username": metadata.get(
-                        "username",
-                        session.get("username", "")
-                    ),
-                    "mobile": metadata.get(
-                        "mobile",
-                        session.get("user_phone", "")
-                    ),
-                    "email": user.email or session.get("user_email", ""),
-                    "role": metadata.get(
-                        "role",
-                        session.get("role", "")
-                    ),
-                    "created_at": user.created_at or "",
-                    "account_status": "active"
-                }
-            )
+    The previous page asked the shared Supabase client for "the" current
+    user, which reflects whoever last signed in on this server.
+    """
+    if not session.get("user_id"):
+        return jsonify({"success": False, "error": "Login required"}), 401
 
-    except Exception as e:
-        print("Supabase profile lookup unavailable; using session profile:", e)
-
-    # Session fallback: do not log the user out merely because the
-    # Supabase profile lookup failed.
+    role = str(session.get("role") or "").strip().lower()
     first_name = str(session.get("first_name") or "").strip()
     last_name = str(session.get("last_name") or "").strip()
 
-    return render_template(
-        "profile.html",
-        user={
-            "user_id": str(session.get("user_id") or ""),
-            "first_name": first_name,
-            "last_name": last_name,
-            "name": str(
-                session.get("user_name")
-                or f"{first_name} {last_name}"
-            ).strip() or "User",
-            "username": str(session.get("username") or ""),
-            "mobile": str(session.get("user_phone") or ""),
-            "email": str(session.get("user_email") or ""),
-            "role": str(session.get("role") or ""),
-            "created_at": "",
-            "account_status": "active"
-        }
-    )
+    profile_data = {
+        "success": True,
+        "user_id": str(session.get("user_id") or ""),
+        "first_name": first_name,
+        "last_name": last_name,
+        "name": str(session.get("user_name") or f"{first_name} {last_name}").strip() or "User",
+        "username": str(session.get("username") or ""),
+        "email": str(session.get("user_email") or ""),
+        "mobile": str(session.get("user_phone") or ""),
+        "role": role,
+        "plant": None,
+        "operator": None,
+    }
+
+    if role == "stp":
+        stp_id = str(session.get("stp_id") or session.get("selected_stp_id") or "").strip()
+        if stp_id:
+            profile_data["plant"] = get_stp_by_id(stp_id)
+
+    if role == "tanker":
+        operator_id = str(session.get("tanker_operator_id") or "").strip()
+        operator = get_tanker_operator_by_id(operator_id) if operator_id else None
+        if operator:
+            profile_data["operator"] = {
+                key: operator.get(key)
+                for key in TANKER_OPERATOR_PUBLIC_FIELDS
+            }
+
+    return jsonify(profile_data)
 
 
 @app.route("/api/current_user")
@@ -3178,6 +3177,7 @@ def current_user():
         "last_name": last_name,
         "name": str(session.get("user_name") or "").strip(),
         "role": str(session.get("role") or "").strip(),
+        "email": str(session.get("user_email") or "").strip(),
         "initials": initials
     })
 
@@ -3595,7 +3595,7 @@ def api_logout():
 
 @app.route("/tanker/register")
 def tanker_register():
-    return render_template("tanker_register.html")
+    return serve_spa()
 
 @app.route("/tanker/status", methods=["GET", "POST"])
 def tanker_status():
@@ -4139,7 +4139,7 @@ def tanker_register_contracted():
                 contract_end,
 
             # Mirror first vehicle for compatibility
-            # with existing JalSetu code.
+            # with existing ReFlow code.
 
             "tanker_registration_no":
                 vehicle_registration_numbers[0],
@@ -4421,6 +4421,13 @@ def tanker_register_contracted():
         # SUCCESS PAGE
         # =====================================================
 
+        if wants_json():
+            return jsonify({
+                "success": True,
+                "operator_id": operator_id,
+                "operator_type": "Existing Purvankara Partner",
+            })
+
         return render_template(
             "registration_success.html",
             operator_id=operator_id,
@@ -4433,9 +4440,7 @@ def tanker_register_contracted():
     # GET REQUEST
     # =========================================================
 
-    return render_template(
-        "tanker_register_contracted.html"
-    )
+    return serve_spa()
 
 @app.route("/tanker/register/independent", methods=["GET", "POST"])
 def tanker_register_independent():
@@ -5100,6 +5105,13 @@ def tanker_register_independent():
         )
 
 
+        if wants_json():
+            return jsonify({
+                "success": True,
+                "operator_id": operator_id,
+                "operator_type": "Independent Operator",
+            })
+
         return render_template(
             "registration_success.html",
             operator_id=operator_id,
@@ -5111,9 +5123,7 @@ def tanker_register_independent():
     # GET REQUEST
     # ==============================================
 
-    return render_template(
-        "tanker_register_independent.html"
-    )
+    return serve_spa()
 
 @app.route("/admin")
 def admin_dashboard():
@@ -5452,13 +5462,10 @@ def delete_stp(stp_id):
 # =========================================================
 
 @app.route('/demand')
+@login_required(role="demand")
 def demand():
-    payment_success = request.args.get("payment_success")
-
-    return render_template(
-        "demand.html",
-        payment_success=payment_success
-    )
+    # payment_success is read by the React page from the query string.
+    return serve_spa()
 
 @app.route("/track")
 def track_page():
@@ -5601,7 +5608,7 @@ def api_search_place():
         geo_data = []
 
         headers = {
-            "User-Agent": "PurvaJalSetu/1.0 (wastewater management application)",
+            "User-Agent": "ReFlow/1.0 (wastewater management application)",
             "Accept": "application/json"
         }
 
@@ -7128,10 +7135,46 @@ def supply():
     if str(session.get("role", "")).lower() != "stp":
         return "Unauthorized", 403
 
+    return serve_spa()
+
+
+@app.route('/api/supply/overview')
+def api_supply_overview():
+
+    if not session.get("user_id"):
+        return jsonify({"success": False, "error": "Login required"}), 401
+
+    if str(session.get("role", "")).lower() != "stp":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    # An STP account bound to a plant always sees that plant.
+    bound_stp_id = str(session.get("stp_id") or "").strip()
+    requested = bound_stp_id or request.args.get("stp_id")
+
+    context = build_supply_context(requested)
+
+    prediction = context.get("prediction")
+    weekly = context.get("weekly_forecast") or []
+
+    return jsonify({
+        "success": True,
+        "bound_stp_id": bound_stp_id,
+        "stps": context["stps"],
+        "selected_stp": context["selected_stp"],
+        "demands": context["demands"],
+        "prediction": float(prediction) if prediction is not None else None,
+        "weekly_forecast": [float(v) for v in weekly],
+        "pricing": context["pricing_data"],
+        "transfer_requests": context["transfer_requests"],
+    })
+
+
+def build_supply_context(selected_id):
+    """Everything the STP dashboard shows for one plant."""
+
     auto_reset_capacity()
 
     stps = load_stps()
-    selected_id = request.args.get("stp_id")
 
     # Remember the STP selected by this operator so STP Order Tracking
     # can show the same STP's orders.
@@ -7204,7 +7247,14 @@ def supply():
                         "buyer_name": row.get("buyer_name"),        # ✅ ADD THIS
                         "buyer_phone": row.get("buyer_phone"),      # ✅ ADD THIS
                         "status": (row.get("status") or "").strip(),
-                        "created_at": row.get("created_at")
+                        "created_at": row.get("created_at"),
+                        "water_type": row.get("water_type"),
+                        "distance_km": row.get("distance_km"),
+                        "payment_status": row.get("payment_status"),
+                        "assigned_operator_name": row.get("assigned_operator_name"),
+                        "delivered_at": row.get("delivered_at"),
+                        "delivery_lat": row.get("delivery_lat"),
+                        "delivery_lon": row.get("delivery_lon")
                     }
 
                     demands.append(mapped_row)
@@ -7290,16 +7340,15 @@ def supply():
             )
             transfer_requests = []
 
-    return render_template(
-    "supply.html",
-    stps=stps,
-    selected_stp=selected_stp,
-    demands=demands,
-    prediction=prediction,
-    weekly_forecast=weekly_forecast,
-    pricing_data=pricing_data,
-    transfer_requests=transfer_requests
-    )
+    return {
+        "stps": stps,
+        "selected_stp": selected_stp,
+        "demands": demands,
+        "prediction": prediction,
+        "weekly_forecast": weekly_forecast,
+        "pricing_data": pricing_data,
+        "transfer_requests": transfer_requests,
+    }
 
 @app.route("/update_capacity", methods=["POST"])
 def update_capacity():
@@ -7811,6 +7860,112 @@ def tanker_mark_order_delivered(order_id):
 @login_required(role="tanker")
 def tanker_dashboard():
 
+    current_operator_id = str(
+        session.get("tanker_operator_id") or ""
+    ).strip()
+
+    if not current_operator_id or get_tanker_operator_by_id(current_operator_id) is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    return serve_spa()
+
+
+TANKER_OPERATOR_PUBLIC_FIELDS = (
+    "operator_id", "operator_name", "operator_type", "phone", "email",
+    "area", "pincode", "latitude", "longitude", "operational_tankers",
+    "tanker_capacity_kl", "vehicle_model", "water_type_supported",
+    "service_radius_km", "verification_status",
+)
+
+
+@app.route("/api/tanker/overview")
+@login_required(role="tanker")
+def api_tanker_overview():
+
+    context = build_tanker_context()
+
+    if context is None:
+        return jsonify({"success": False, "error": "Tanker registration not found"}), 404
+
+    operator = context["operator"] or {}
+
+    return jsonify({
+        "success": True,
+        "operator": {
+            key: operator.get(key)
+            for key in TANKER_OPERATOR_PUBLIC_FIELDS
+        },
+        "operator_id": context["operator_id"],
+        "operator_type": context["operator_type"],
+        "operational_tankers": context["operational_tankers"],
+        "active_tankers": context["active_tankers"],
+        "available_tankers": context["available_tankers"],
+        "operator_latitude": context["operator_latitude"],
+        "operator_longitude": context["operator_longitude"],
+        "orders": context["orders"],
+        "completed": tanker_completed_trips(context["operator_id"]),
+        "vehicles": context["report_vehicles"],
+    })
+
+
+def tanker_completed_trips(operator_id, limit=50):
+    """Delivered demand orders and plant transfers handled by this operator."""
+
+    trips = []
+
+    if os.path.exists(ORDERS_FILE) and os.path.getsize(ORDERS_FILE) > 0:
+        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                if str(row.get("assigned_operator_id") or "").strip() != operator_id:
+                    continue
+                if str(row.get("status") or "").strip() != "Delivered":
+                    continue
+                trips.append({
+                    "order_id": row.get("order_id"),
+                    "request_type": "demand",
+                    "status": "Delivered",
+                    "stp_name": row.get("stp_name"),
+                    "location": row.get("location"),
+                    "quantity_kld": row.get("quantity_kld"),
+                    "quality": row.get("quality"),
+                    "buyer_name": row.get("buyer_name"),
+                    "distance_km": row.get("distance_km"),
+                    "delivered_at": row.get("delivered_at"),
+                })
+
+    if os.path.exists(STP_TRANSFERS_FILE) and os.path.getsize(STP_TRANSFERS_FILE) > 0:
+        with open(STP_TRANSFERS_FILE, "r", newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                if str(row.get("assigned_operator_id") or "").strip() != operator_id:
+                    continue
+                delivered = (
+                    str(row.get("status") or "").strip().lower() == "delivered"
+                    or str(row.get("tanker_status") or "").strip().lower() == "delivered"
+                    or row.get("delivered_at")
+                )
+                if not delivered:
+                    continue
+                trips.append({
+                    "order_id": row.get("transfer_id"),
+                    "request_type": "stp_transfer",
+                    "status": "Delivered",
+                    "stp_name": row.get("source_stp_name"),
+                    "location": row.get("destination_stp_name"),
+                    "quantity_kld": row.get("quantity_kld"),
+                    "quality": row.get("quality"),
+                    "distance_km": row.get("distance_km"),
+                    "delivered_at": row.get("delivered_at"),
+                })
+
+    trips.sort(key=lambda t: str(t.get("delivered_at") or ""), reverse=True)
+    return trips[:limit]
+
+
+def build_tanker_context():
+    """Orders offered/assigned to the logged-in operator, plus fleet data.
+    Returns None when the operator record cannot be found."""
+
     auto_reset_capacity()
 
     # =========================================================
@@ -7822,20 +7977,14 @@ def tanker_dashboard():
     ).strip()
 
     if not current_operator_id:
-        session.clear()
-        return redirect(url_for("login"))
+        return None
 
     operator = get_tanker_operator_by_id(
         current_operator_id
     )
 
     if operator is None:
-        session.clear()
-
-        return render_template(
-            "login.html",
-            login_error="Your tanker operator registration could not be found."
-        )
+        return None
 
     # =========================================================
     # REGISTERED OPERATOR LOCATION
@@ -8152,31 +8301,19 @@ def tanker_dashboard():
     # RENDER TANKER DASHBOARD
     # =========================================================
 
-    return render_template(
-        "tanker.html",
-
-        orders=orders,
-
-        operator=operator,
-
-        operator_id=current_operator_id,
-
-        operator_type=operator_type,
-
-        operational_tankers=operational_tankers,
-
-        active_tankers=active_tankers,
-
-        available_tankers=available_tankers,
-
-        operator_latitude=operator_latitude,
-
-        operator_longitude=operator_longitude,
-
-        # Report features are now available directly on the tanker dashboard.
-        report_vehicles=report_vehicles,
-        report_vehicle_documents=report_vehicle_documents
-    )
+    return {
+        "orders": orders,
+        "operator": operator,
+        "operator_id": current_operator_id,
+        "operator_type": operator_type,
+        "operational_tankers": operational_tankers,
+        "active_tankers": active_tankers,
+        "available_tankers": available_tankers,
+        "operator_latitude": operator_latitude,
+        "operator_longitude": operator_longitude,
+        "report_vehicles": report_vehicles,
+        "report_vehicle_documents": report_vehicle_documents,
+    }
 
 
 
@@ -9357,7 +9494,7 @@ def _pricing_number(value):
 def stp_register():
 
     if request.method == "GET":
-        return render_template("stp_register.html")
+        return serve_spa()
 
     # -----------------------------
     # Read submitted form data
@@ -9540,6 +9677,13 @@ def stp_register():
 
         writer.writerow(registration)
 
+
+    if wants_json():
+        return jsonify({
+            "success": True,
+            "registration_id": registration_id,
+            "stp_name": stp_name,
+        })
 
     return render_template(
         "stp_registration_success.html",
@@ -13954,6 +14098,46 @@ def track_stp():
 @app.route("/tanker/reports")
 @login_required(role="tanker")
 def tanker_reports():
+    if not str(session.get("tanker_operator_id") or "").strip():
+        return redirect(url_for("login"))
+    return serve_spa()
+
+
+TANKER_DOCUMENT_PUBLIC_FIELDS = (
+    "document_id", "document_type", "original_filename",
+    "uploaded_at", "verification_status", "admin_remark", "verified_at",
+)
+
+
+@app.route("/api/tanker/reports")
+@login_required(role="tanker")
+def api_tanker_reports():
+    context = build_tanker_reports_context()
+    if context is None:
+        return jsonify({"success": False, "error": "Tanker registration not found"}), 404
+
+    operator = context["operator"] or {}
+    documents = {
+        vehicle_id: {
+            doc_type: {key: doc.get(key) for key in TANKER_DOCUMENT_PUBLIC_FIELDS}
+            for doc_type, doc in docs.items()
+        }
+        for vehicle_id, docs in context["vehicle_documents"].items()
+    }
+    return jsonify({
+        "success": True,
+        "operator": {key: operator.get(key) for key in TANKER_OPERATOR_PUBLIC_FIELDS},
+        "operator_type": context["operator_type"],
+        "operational_tankers": context["operational_tankers"],
+        "active_tankers": context["active_tankers"],
+        "available_tankers": context["available_tankers"],
+        "vehicles": context["vehicles"],
+        "documents": documents,
+    })
+
+
+def build_tanker_reports_context():
+    """Operator, fleet and per-vehicle documents; None if not registered."""
 
     # ==========================================
     # CURRENT LOGGED-IN OPERATOR
@@ -13964,7 +14148,7 @@ def tanker_reports():
     ).strip()
 
     if not current_operator_id:
-        return redirect(url_for("login"))
+        return None
 
 
     operator = get_tanker_operator_by_id(
@@ -13972,9 +14156,7 @@ def tanker_reports():
     )
 
     if operator is None:
-        return redirect(
-            url_for("tanker_dashboard")
-        )
+        return None
 
 
     # ==========================================
@@ -14095,20 +14277,16 @@ def tanker_reports():
     # REPORTS PAGE
     # ==========================================
 
-    return render_template(
-        "tanker_reports.html",
-
-        operator=operator,
-        operator_id=current_operator_id,
-        operator_type=operator_type,
-
-        operational_tankers=operational_tankers,
-        active_tankers=active_tankers,
-        available_tankers=available_tankers,
-
-        vehicles=vehicles,
-        vehicle_documents=vehicle_documents
-    )
+    return {
+        "operator": operator,
+        "operator_id": current_operator_id,
+        "operator_type": operator_type,
+        "operational_tankers": operational_tankers,
+        "active_tankers": active_tankers,
+        "available_tankers": available_tankers,
+        "vehicles": vehicles,
+        "vehicle_documents": vehicle_documents,
+    }
 
 @app.route("/api/tanker/location", methods=["POST"])
 @login_required(role="tanker")
