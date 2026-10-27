@@ -3,3114 +3,953 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Admin Dashboard | WasteWater Management</title>
-
-
-    <link
-        rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
-    />
+    <title>Admin | ReFlow</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand-mark.svg') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 
     <style>
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: 'Poppins', sans-serif;
-            background: #f5f7fb;
-            color: #172033;
-            overflow-x: hidden;
-        }
-
-        /* =========================
-           MAIN LAYOUT
-        ========================= */
-
-        .dashboard {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* =========================
-           SIDEBAR
-        ========================= */
-
-        .sidebar {
-            width: 245px;
-            background: #0d1b2e;
-            color: white;
-            min-height: 100vh;
-            padding: 22px 14px;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 1000;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 5px 10px 30px;
-        }
-
-        .brand-icon {
-            width: 42px;
-            height: 42px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #1683ff, #20c997);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 23px;
-        }
-
-        .brand-text h2 {
-            margin: 0;
-            font-size: 17px;
-            font-weight: 600;
-        }
-
-        .brand-text p {
-            margin: 2px 0 0;
-            font-size: 10px;
-            color: #9caec5;
-        }
-
-        .menu-title {
-            font-size: 10px;
-            color: #71839b;
-            padding: 0 14px;
-            margin: 8px 0 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .nav-links {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-
-        .nav-links a {
-            color: #c6d0df;
-            text-decoration: none;
-            padding: 12px 14px;
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 13px;
-            transition: 0.25s ease;
-        }
-
-        .nav-links a:hover {
-            background: #172d49;
-            color: white;
-            transform: translateX(2px);
-        }
-
-        .nav-links a.active {
-            background: linear-gradient(135deg, #1877f2, #1466d8);
-            color: white;
-            box-shadow: 0 5px 15px rgba(24, 119, 242, 0.25);
-        }
-
-        .nav-icon {
-            width: 21px;
-            text-align: center;
-            font-size: 16px;
-        }
-
-        /* SYSTEM STATUS */
-
-        .system-status {
-            position: absolute;
-            left: 14px;
-            right: 14px;
-            bottom: 20px;
-            background: #152a43;
-            border: 1px solid #203955;
-            border-radius: 12px;
-            padding: 15px;
-        }
-
-        .system-status h4 {
-            margin: 0 0 10px;
-            font-size: 12px;
-        }
-
-        .status-line {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #6ee7a5;
-            font-size: 11px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background: #35d07f;
-            border-radius: 50%;
-            box-shadow: 0 0 7px rgba(53, 208, 127, 0.6);
-        }
-
-        /* =========================
-           MAIN CONTENT
-        ========================= */
-
-        .main-content {
-            margin-left: 245px;
-            width: calc(100% - 245px);
-            min-width: 0;
-        }
-
-        /* =========================
-           TOP BAR
-        ========================= */
-
-        .topbar {
-            height: 78px;
-            background: white;
-            border-bottom: 1px solid #e8edf4;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 30px;
-        }
-
-        .welcome h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-
-        .welcome p {
-            margin: 4px 0 0;
-            color: #7b8799;
-            font-size: 12px;
-        }
-
-        .topbar-right {
-            display: flex;
-            align-items: center;
-            gap: 22px;
-        }
-
-        .date {
-            color: #52627a;
-            font-size: 12px;
-        }
-
-        .notification {
-            position: relative;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .notification-badge {
-            position: absolute;
-            top: -6px;
-            right: -8px;
-            background: #ef4444;
-            color: white;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            font-size: 9px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .admin-profile {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .profile-circle {
-            width: 34px;
-            height: 34px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #dcecff, #b9d9ff);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 17px;
-        }
-
-        /* =========================
-           PAGE
-        ========================= */
-
-        .container {
-            padding: 26px 30px 35px;
-        }
-
-        /* =========================
-           STAT CARDS
-        ========================= */
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 18px;
-        }
-
-        .stat-card {
-            background: white;
-            border: 1px solid #edf0f5;
-            border-radius: 12px;
-            padding: 18px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            box-shadow: 0 3px 12px rgba(25, 40, 70, 0.04);
-        }
-
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 21px;
-            flex-shrink: 0;
-        }
-
-        .blue-icon {
-            background: #e9f2ff;
-            color: #1976f3;
-        }
-
-        .green-icon {
-            background: #e8f8ef;
-            color: #28ae69;
-        }
-
-        .purple-icon {
-            background: #f0eaff;
-            color: #7b55d8;
-        }
-
-        .orange-icon {
-            background: #fff3df;
-            color: #ed9a1b;
-        }
-
-        .stat-info p {
-            margin: 0;
-            color: #748197;
-            font-size: 11px;
-        }
-
-        .stat-info h2 {
-            margin: 3px 0 0;
-            font-size: 22px;
-            font-weight: 600;
-            color: #172033;
-        }
-
-        /* =========================
-           QUICK ADD STP
-        ========================= */
-
-        .card {
-            background: white;
-            border: 1px solid #edf0f5;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 18px;
-            box-shadow: 0 3px 12px rgba(25, 40, 70, 0.04);
-            min-width: 0;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .card-header h2 {
-            margin: 0;
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        .card-header span {
-            color: #1976f3;
-            font-size: 11px;
-        }
-
-        .add-form {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr) auto;
-            gap: 10px;
-            align-items: center;
-        }
-
-        input {
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid #dce2ea;
-            background: #fafbfd;
-            font-family: 'Poppins', sans-serif;
-            font-size: 11px;
-            width: 100%;
-            outline: none;
-            transition: 0.2s;
-        }
-
-        input:focus {
-            border-color: #1976f3;
-            background: white;
-            box-shadow: 0 0 0 3px rgba(25, 118, 243, 0.08);
-        }
-
-        button {
-            padding: 10px 17px;
-            border: none;
-            background: #1976f3;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-family: 'Poppins', sans-serif;
-            font-size: 11px;
-            font-weight: 500;
-            transition: 0.2s;
-            white-space: nowrap;
-        }
-
-        button:hover {
-            background: #125dc1;
-            transform: translateY(-1px);
-        }
-
-        /* =========================
-           TWO COLUMN
-        ========================= */
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1.65fr 1fr;
-            gap: 18px;
-            align-items: start;
-        }
-
-        /* =========================
-           CAPACITY CARD
-        ========================= */
-
-        .capacity-section {
-            display: flex;
-            align-items: center;
-            gap: 30px;
-        }
-
-        .capacity-chart {
-            width: 145px;
-            height: 145px;
-            border-radius: 50%;
-            background: conic-gradient(
-                #2fc574 0% 45%,
-                #2878f0 45% 100%
-            );
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .capacity-inner {
-            width: 105px;
-            height: 105px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .capacity-inner strong {
-            font-size: 21px;
-        }
-
-        .capacity-inner span {
-            font-size: 10px;
-            color: #7c8799;
-        }
-
-        .capacity-details {
-            flex: 1;
-        }
-
-        .capacity-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 9px 0;
-            border-bottom: 1px solid #edf0f5;
-            font-size: 11px;
-        }
-
-        .capacity-item:last-child {
-            border-bottom: none;
-        }
-
-        .capacity-label {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-
-        .legend {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .legend-green {
-            background: #2fc574;
-        }
-
-        .legend-blue {
-            background: #2878f0;
-        }
-
-        .capacity-value {
-            font-weight: 600;
-        }
-
-        /* =========================
-           TOP STP
-        ========================= */
-
-        .stp-ranking {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .stp-row {
-            display: grid;
-            grid-template-columns: 28px 1fr auto;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .stp-number {
-            width: 26px;
-            height: 26px;
-            border-radius: 7px;
-            background: #eaf8f0;
-            color: #25a965;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .stp-name {
-            font-size: 11px;
-            font-weight: 500;
-            margin-bottom: 5px;
-        }
-
-        .progress {
-            height: 5px;
-            background: #edf1f5;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: #31bd72;
-            border-radius: 10px;
-        }
-
-        .stp-capacity {
-            font-size: 10px;
-            color: #52627a;
-            white-space: nowrap;
-        }
-
-        /* =========================
-           TABLE
-        ========================= */
-
-        .table-wrapper {
-            width: 100%;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 650px;
-        }
-
-        table th {
-            background: #f8fafc;
-            color: #64748b;
-            padding: 12px 13px;
-            text-align: left;
-            font-size: 10px;
-            font-weight: 600;
-            border-bottom: 1px solid #e7ebf1;
-        }
-
-        table td {
-            padding: 12px 13px;
-            border-bottom: 1px solid #edf0f5;
-            color: #526075;
-            font-size: 10px;
-            white-space: nowrap;
-        }
-
-        table tr:hover {
-            background: #fafcff;
-        }
-
-        table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .order-id {
-            color: #172033;
-            font-weight: 600;
-        }
-
-        /* =========================
-           STATUS
-        ========================= */
-
-        .status {
-            display: inline-flex;
-            align-items: center;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 9px;
-            font-weight: 500;
-        }
-
-        .status-completed {
-            background: #e8f8ef;
-            color: #199956;
-        }
-
-        .status-pending {
-            background: #fff3dd;
-            color: #d88910;
-        }
-
-        .status-transit {
-            background: #e8f1ff;
-            color: #2772d9;
-        }
-
-        .status-cancelled {
-            background: #ffe8e8;
-            color: #dc4141;
-        }
-
-        .status-default {
-            background: #eef1f5;
-            color: #687589;
+        :root {
+            --ink: #0f1b2d; --ink-2: #334155; --muted: #5f6e82; --faint: #8a97a8;
+            --line: #e4e9f0; --line-2: #d4dbe4; --bg: #f4f6f9; --surface: #fff; --surface-2: #f8fafc;
+            --brand: #1463d6; --brand-tint: #eef4ff;
+            --ok: #15803d; --ok-bg: #ecfdf3; --ok-line: #bbe8cb;
+            --warn: #b45309; --warn-bg: #fff8eb; --warn-line: #f6dcae;
+            --bad: #c42b2b; --bad-bg: #fef3f2; --bad-line: #f6caca;
+            --teal: #0d9488; --violet: #7c3aed; --amber: #b45309; --sky: #0e7fb8;
+            --side: #0b1626;
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { margin: 0; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+        svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+        .num { font-variant-numeric: tabular-nums; }
+        a { color: inherit; }
+
+        .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+
+        /* ---------- Sidebar ---------- */
+        .side {
+            position: sticky; top: 0; height: 100vh; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 4px; padding: 18px 14px;
+            background:
+                radial-gradient(120% 40% at 0% 0%, rgba(47, 107, 255, .18), transparent 70%),
+                var(--side);
+            color: #a3b0c2;
+        }
+        .side .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; text-decoration: none; }
+        .side .brand img { width: 32px; height: 32px; border-radius: 9px; }
+        .side .brand .wordmark { font-size: 20px; }
+        .side .brand small { display: block; margin-top: 1px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #5d6e86; }
+        .nav-label { padding: 14px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #5d6e86; }
+        .nav a {
+            position: relative; display: flex; align-items: center; gap: 11px; height: 40px; padding: 0 10px;
+            border-radius: 10px; text-decoration: none; font-size: 14px; font-weight: 500; color: #a3b0c2;
+            transition: background .14s, color .14s;
+        }
+        .nav a:hover { background: rgba(255, 255, 255, .05); color: #e2e8f0; }
+        .nav a[aria-current="page"] { background: rgba(255, 255, 255, .09); color: #fff; }
+        .nav a[aria-current="page"]::before { content: ""; position: absolute; left: -14px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: linear-gradient(#5b9bff, #5eead4); }
+        .nav .count { margin-left: auto; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; background: rgba(245, 158, 11, .18); color: #fbbf24; }
+        .side-foot { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .06); }
+        .me { display: flex; align-items: center; gap: 10px; padding: 8px; }
+        .me .av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #1463d6, #0d9488); color: #fff; font-size: 12.5px; font-weight: 700; }
+        .me strong { display: block; font-size: 13.5px; color: #e2e8f0; }
+        .me small { font-size: 12px; color: #5d6e86; }
+
+        /* ---------- Main ---------- */
+        .main { min-width: 0; }
+        .head-bar {
+            position: sticky; top: 0; z-index: 400;
+            display: flex; align-items: center; justify-content: space-between; gap: 14px;
+            padding: 14px 32px;
+            background: rgba(244, 246, 249, .8);
+            -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--line);
+        }
+        .head-bar h1 { margin: 0; font-size: 21px; letter-spacing: -0.02em; }
+        .head-bar p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+        .top-actions { display: flex; align-items: center; gap: 10px; }
+        .menu-btn { display: none !important; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px;
+            border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+            font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+            transition: background .14s, border-color .14s, transform .1s, filter .14s;
+        }
+        .btn:hover { background: var(--surface-2); border-color: var(--line-2); }
+        .btn:active { transform: scale(0.97); }
+        .btn.primary { border: 0; color: #fff; background: linear-gradient(100deg, #1f5fe0, #1463d6 60%, #0f6fb5); box-shadow: 0 8px 20px -10px rgba(20, 99, 214, .8); }
+        .btn.primary:hover { filter: brightness(1.06); }
+        .btn.sm { height: 30px; padding: 0 10px; font-size: 12.5px; border-radius: 8px; }
+        .btn.approve { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok); }
+        .btn.approve:hover { background: #dcf7e7; }
+        .btn.reject { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
+        .btn.reject:hover { background: #fde4e2; }
+        .btn.ghost-danger { color: var(--bad); }
+        .btn.ghost-danger:hover { background: var(--bad-bg); border-color: var(--bad-line); }
+        .bell { position: relative; }
+        .bell .dot { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: grid; place-items: center; background: #d97706; color: #fff; font-size: 11px; font-weight: 700; border: 2px solid var(--bg); }
+
+        .content { padding: 24px 32px 64px; display: grid; gap: 20px; }
+        .panel[hidden] { display: none; }
+        .panel { display: grid; gap: 20px; }
+        @media (prefers-reduced-motion: no-preference) {
+            .panel:not([hidden]) { animation: lift .35s cubic-bezier(0.22, 1, 0.36, 1); }
+            @keyframes lift { from { transform: translateY(6px); } to { transform: none; } }
+        }
+
+        /* ---------- Cards ---------- */
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,27,45,.04), 0 8px 24px -16px rgba(15,27,45,.14); min-width: 0; }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .card h2 { margin: 0; font-size: 16px; letter-spacing: -0.012em; }
+        .card-head p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+        .card.flush { padding: 0; overflow: hidden; }
+        .card.flush .card-head { padding: 18px 20px 0; }
+
+        .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+        .kpi { position: relative; overflow: hidden; padding: 18px; display: grid; gap: 12px; }
+        .kpi .row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .kpi .label { font-size: 13px; font-weight: 600; color: var(--muted); }
+        .kpi .ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; }
+        .ico.blue { background: #eaf1ff; color: var(--brand); }
+        .ico.teal { background: #e6f7f5; color: var(--teal); }
+        .ico.violet { background: #f1ebff; color: var(--violet); }
+        .ico.amber { background: #fff4e0; color: var(--amber); }
+        .ico.sky { background: #e8f6fd; color: var(--sky); }
+        .kpi .value { font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+        .kpi .value small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+        .kpi .foot { font-size: 12.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .meter { height: 6px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+        .meter i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #0d9488, #22b8a8); }
+        .stack { display: flex; height: 6px; border-radius: 6px; overflow: hidden; background: var(--surface-2); gap: 2px; }
+        .stack i { display: block; height: 100%; }
+
+        .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
+        .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .pill.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+        .pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+        .pill.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
+        .pill.info { background: var(--brand-tint); color: var(--brand); border-color: #cfe0ff; }
+        .pill.muted { background: var(--surface-2); color: var(--muted); border-color: var(--line); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 700; background: #f1ebff; color: var(--violet); }
+
+        .grid-2 { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+        .grid-even { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+
+        /* Attention list */
+        .todo { display: grid; gap: 10px; }
+        .todo a {
+            display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 13px; border: 1px solid var(--line);
+            text-decoration: none; transition: border-color .14s, background .14s, transform .1s;
+        }
+        .todo a:hover { border-color: var(--line-2); background: var(--surface-2); }
+        .todo a:active { transform: scale(0.99); }
+        .todo .ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; }
+        .todo strong { display: block; font-size: 14px; color: var(--ink) !important; }
+        .todo small { font-size: 12.5px; color: var(--muted); }
+        .todo .n { margin-left: auto; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+        .todo a.clear .n { color: var(--faint); }
+        .all-clear { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 13px; background: var(--ok-bg); border: 1px solid var(--ok-line); color: #136c33; font-size: 13.5px; }
+
+        /* Map */
+        .map { height: 420px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); z-index: 0; }
+        .heat-scale { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+        .heat-scale .plant-key { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+        .heat-scale .plant-key + .plant-key { margin-left: 4px; }
+        .heat-scale .plant-key .pin { width: 16px; height: 16px; border-width: 1.5px; box-shadow: 0 1px 3px rgba(15, 27, 45, 0.3); }
+        .heat-scale .plant-key .pin svg { width: 9px; height: 9px; }
+        .heat-scale i { flex: 1; max-width: 280px; height: 8px; border-radius: 8px; background: linear-gradient(90deg, rgba(37, 99, 235, .35), #06b6d4, #22c55e, #facc15, #f97316, #dc2626); }
+
+        /* Same map pin as the React pages (frontend/src/styles/ui.css .pin, components/map.tsx pinIcon) */
+        .pin {
+            width: 28px; height: 28px; border-radius: 50% 50% 50% 4px;
+            transform: rotate(-45deg);
+            display: grid; place-items: center;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 6px rgba(15, 27, 45, 0.3);
+        }
+        .pin > * { transform: rotate(45deg); }
+        .pin svg { width: 14px; height: 14px; color: #fff; }
+        .pin-brand { background: #1463d6; }
+        .pin-ink { background: #1d2a3d; }
+        .leaflet-tooltip.stp-tip {
+            padding: 5px 9px; border: 0; border-radius: 8px; background: #0f1b2d; color: #fff;
+            font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px -6px rgba(15,27,45,.5);
+        }
+        .leaflet-tooltip.stp-tip::before { border-top-color: #0f1b2d; }
+        .leaflet-popup-content-wrapper { border-radius: 14px; box-shadow: 0 12px 32px -10px rgba(15,27,45,.35); }
+        .leaflet-popup-content { margin: 14px 16px; min-width: 220px; font-size: 13px; line-height: 1.45; }
+        .pop + .pop { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+        .pop-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+        .pop-head strong { display: block; font-size: 14px; color: var(--ink); }
+        .pop-head small { font-size: 12px; color: var(--muted); }
+        .pop-grade { padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #f1ebff; color: var(--violet); white-space: nowrap; }
+        .pop-bar { height: 6px; margin: 9px 0 5px; border-radius: 6px; background: #eef1f5; overflow: hidden; }
+        .pop-bar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #1463d6, #0d9488); }
+        .pop-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+        .pop-meta b { color: var(--ink); font-size: 12.5px; }
+
+        /* Donut */
+        .donut-wrap { display: flex; align-items: center; gap: 20px; }
+        .donut { width: 132px; height: 132px; flex: none; }
+        .kv { flex: 1; display: grid; gap: 0; margin: 0; }
+        .kv div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+        .kv div:last-child { border-bottom: 0; }
+        .kv dt { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+        .kv dt i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+        .kv dd { margin: 0; font-weight: 700; }
+
+        .ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+        .ranks li { display: grid; gap: 6px; }
+        .ranks .top { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+        .ranks .top span:first-child { display: flex; gap: 10px; align-items: center; min-width: 0; }
+        .ranks .top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+        .ranks .pos { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex: none; background: var(--surface-2); border: 1px solid var(--line); font-size: 11.5px; font-weight: 700; color: var(--muted); }
+
+        /* Tables */
+        .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .search { position: relative; }
+        .search svg.i { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+        .search input { height: 36px; width: 240px; padding: 0 12px 0 34px !important; border-radius: 10px !important; border: 1px solid var(--line) !important; font-size: 13px !important; background: #fff; }
+        .seg { display: inline-flex; padding: 3px; border-radius: 11px; background: var(--surface-2); border: 1px solid var(--line); }
+        .seg button { height: 30px; padding: 0 11px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .seg button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(15,27,45,.08), 0 2px 6px -2px rgba(15,27,45,.12); }
+        .seg button b { font-size: 11px; font-weight: 700; color: var(--faint); }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); white-space: nowrap; }
+        td { padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover td { background: #fbfcfe; }
+        td.r, th.r { text-align: right; }
+        td .sub { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+        td .id { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--ink-2); }
+        .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+        .util { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+        .util .meter { flex: 1; }
+        .util span { font-size: 12.5px; color: var(--muted); min-width: 34px; text-align: right; }
+        .empty-row td { padding: 36px 16px; text-align: center; color: var(--muted); }
+        .no-results { display: none; padding: 28px; text-align: center; color: var(--muted); font-size: 13.5px; }
+
+        /* Add plant form */
+        .add-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)) auto; gap: 10px; align-items: end; }
+        .f { display: grid; gap: 6px; }
+        .f label { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+        .f input { width: 100%; min-width: 0; height: 40px; padding: 0 12px !important; border-radius: 10px !important; font-size: 13.5px !important; }
+        .f-hint { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+
+        .scrim { display: none; }
+
+        @media (max-width: 1200px) {
+            .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .add-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+        @media (max-width: 1024px) {
+            .grid-2, .grid-even { grid-template-columns: minmax(0, 1fr); }
+        }
+        @media (max-width: 860px) {
+            .app { grid-template-columns: minmax(0, 1fr); }
+            .side { position: fixed; z-index: 1000; left: 0; top: 0; width: 264px; transform: translateX(-100%); transition: transform .3s cubic-bezier(0.22, 1, 0.36, 1); }
+            body.nav-open .side { transform: none; }
+            body.nav-open .scrim { display: block; position: fixed; inset: 0; z-index: 999; background: rgba(8, 18, 32, .45); }
+            .menu-btn { display: inline-flex !important; width: 38px; padding: 0; }
+            .head-bar { padding: 12px 16px; }
+            .head-bar p { display: none; }
+            .content { padding: 16px 16px 48px; }
+            .search input { width: 100%; }
+            .search { flex: 1; min-width: 180px; }
+        }
+        @media (max-width: 560px) {
+            .kpis { grid-template-columns: minmax(0, 1fr); }
+            .add-grid { grid-template-columns: minmax(0, 1fr); }
+            .donut-wrap { flex-direction: column; align-items: stretch; }
+            .donut { margin: 0 auto; }
+            .head-bar .btn .label-text { display: none; }
+            .map { height: 320px; }
         }
-
-        /* =========================
-           DELETE
-        ========================= */
-
-        .delete-btn {
-            background: #fff0f0;
-            color: #e14646;
-            padding: 6px 10px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 9px;
-            font-weight: 500;
-            transition: 0.2s;
-        }
-
-        .delete-btn:hover {
-            background: #e14646;
-            color: white;
-        }
-
-        /* =========================
-           NOTIFICATIONS
-        ========================= */
-
-        .notification-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .notification-item {
-            display: flex;
-            gap: 11px;
-            align-items: flex-start;
-        }
-
-        .notification-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #edf5ff;
-            color: #2776df;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            font-size: 13px;
-        }
-
-        .notification-item p {
-            margin: 0;
-            font-size: 10px;
-            color: #445168;
-            line-height: 1.5;
-        }
-
-        .notification-item small {
-            display: block;
-            color: #9aa4b3;
-            font-size: 8px;
-            margin-top: 2px;
-        }
-
-        /* =========================
-           MOBILE
-        ========================= */
-
-        @media (max-width: 1100px) {
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .dashboard-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .add-form {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
-        @media (max-width: 768px) {
-
-            .sidebar {
-                width: 70px;
-                padding: 15px 8px;
-            }
-
-            .brand {
-                justify-content: center;
-                padding: 5px 0 25px;
-            }
-
-            .brand-text,
-            .menu-title,
-            .nav-links a span,
-            .system-status {
-                display: none;
-            }
-
-            .nav-links a {
-                justify-content: center;
-                padding: 12px 5px;
-            }
-
-            .nav-icon {
-                font-size: 18px;
-            }
-
-            .main-content {
-                margin-left: 70px;
-                width: calc(100% - 70px);
-            }
-
-            .topbar {
-                padding: 0 15px;
-            }
-
-            .welcome h1 {
-                font-size: 16px;
-            }
-
-            .welcome p,
-            .date {
-                display: none;
-            }
-
-            .container {
-                padding: 18px 15px;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .add-form {
-                grid-template-columns: 1fr;
-            }
-
-            .capacity-section {
-                flex-direction: column;
-            }
-
-            .capacity-chart {
-                width: 130px;
-                height: 130px;
-            }
-
-            .capacity-inner {
-                width: 94px;
-                height: 94px;
-            }
-        }
-
-        @media (max-width: 480px) {
-
-            .topbar {
-                height: 65px;
-            }
-
-            .topbar-right {
-                gap: 10px;
-            }
-
-            .admin-profile span {
-                display: none;
-            }
-
-            .card {
-                padding: 15px;
-            }
-
-            table {
-                min-width: 600px;
-            }
-        }
-
-        /* ================= MAP ================= */
-
-        .map-card {
-            margin-bottom: 25px;
-        }
-
-        .map-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .map-header h2 {
-            margin: 0;
-        }
-
-        .map-subtitle {
-            color: #666;
-            font-size: 14px;
-            margin-top: 4px;
-        }
-
-        #demand-map {
-            width: 100%;
-            height: 500px;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-
-
-        /* =========================================================
-           STP REGISTRATIONS — UI/UX ONLY
-           Scoped so existing dashboard sections remain unchanged.
-        ========================================================= */
-
-        .admin-section.stp-registration-section {
-            background: #ffffff;
-            border: 1px solid #e7edf5;
-            border-radius: 16px;
-            padding: 0;
-            margin: 0 0 20px;
-            box-shadow: 0 6px 22px rgba(25, 40, 70, 0.055);
-            overflow: hidden;
-        }
-
-        .stp-registration-section .section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 18px;
-            padding: 20px 22px;
-            border-bottom: 1px solid #edf1f6;
-            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-        }
-
-        .stp-registration-section .section-header > div:first-child {
-            min-width: 0;
-        }
-
-        .stp-registration-section .section-header h2 {
-            margin: 0;
-            color: #172033;
-            font-size: 16px;
-            line-height: 1.35;
-            font-weight: 650;
-            letter-spacing: -0.15px;
-        }
-
-        .stp-registration-section .section-header p {
-            margin: 5px 0 0;
-            color: #7a8799;
-            font-size: 11px;
-            line-height: 1.55;
-        }
-
-        .stp-registration-section .section-count {
-            flex: 0 0 auto;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 32px;
-            padding: 7px 12px;
-            border: 1px solid #dce9fb;
-            border-radius: 999px;
-            background: #f2f7ff;
-            color: #1976f3;
-            font-size: 10px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-
-        .stp-registration-section .table-container {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .stp-registration-section .table-container::-webkit-scrollbar {
-            height: 7px;
-        }
-
-        .stp-registration-section .table-container::-webkit-scrollbar-track {
-            background: #f6f8fb;
-        }
-
-        .stp-registration-section .table-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 20px;
-        }
-
-        .stp-registration-section table {
-            width: 100%;
-            min-width: 930px;
-            border-collapse: separate;
-            border-spacing: 0;
-            table-layout: auto;
-        }
-
-        .stp-registration-section table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 1;
-            padding: 12px 14px;
-            background: #f7f9fc;
-            color: #64748b;
-            border-bottom: 1px solid #e7ebf1;
-            font-size: 9px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: .45px;
-            white-space: nowrap;
-        }
-
-        .stp-registration-section table tbody td {
-            padding: 14px;
-            background: #ffffff;
-            color: #526075;
-            border-bottom: 1px solid #eef2f6;
-            font-size: 10px;
-            line-height: 1.45;
-            vertical-align: middle;
-            white-space: nowrap;
-        }
-
-        .stp-registration-section table tbody tr:last-child td {
-            border-bottom: 0;
-        }
-
-        .stp-registration-section table tbody tr {
-            transition: background .18s ease, box-shadow .18s ease;
-        }
-
-        .stp-registration-section table tbody tr:hover td {
-            background: #f9fbff;
-        }
-
-        .stp-registration-section .stp-name-cell strong {
-            display: block;
-            max-width: 190px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: #172033;
-            font-size: 11px;
-            font-weight: 650;
-        }
-
-        .stp-registration-section .registration-id {
-            display: inline-block;
-            margin-top: 4px;
-            padding: 2px 7px;
-            border-radius: 5px;
-            background: #f1f5f9;
-            color: #7b8799;
-            font-size: 8px;
-            font-weight: 500;
-            letter-spacing: .2px;
-        }
-
-        .stp-registration-section .owner-cell strong {
-            display: block;
-            color: #263449;
-            font-size: 10px;
-            font-weight: 600;
-        }
-
-        .stp-registration-section .phone-text {
-            display: inline-block;
-            margin-top: 3px;
-            color: #8a96a8;
-            font-size: 9px;
-        }
-
-        .stp-registration-section .location-cell {
-            color: #52627a;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .stp-registration-section .location-value {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 8px;
-            border-radius: 7px;
-            background: #f6f9fd;
-            border: 1px solid #e8eef6;
-            color: #52627a;
-            font-size: 9px;
-        }
-
-        .stp-registration-section .capacity-value {
-            color: #172033;
-            font-size: 10px;
-            font-weight: 650;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .stp-registration-section .capacity-unit {
-            color: #8a96a8;
-            font-size: 8px;
-            font-weight: 500;
-            margin-left: 2px;
-        }
-
-        .stp-registration-section .technology-value {
-            display: inline-block;
-            max-width: 150px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            color: #526075;
-        }
-
-        .stp-registration-section .quality-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 36px;
-            padding: 5px 8px;
-            border-radius: 7px;
-            background: #f0eaff;
-            color: #6f4bc5;
-            border: 1px solid #e5dcff;
-            font-size: 9px;
-            font-weight: 650;
-        }
-
-        .stp-registration-section .status {
-            min-width: 68px;
-            justify-content: center;
-            padding: 5px 9px;
-            border: 1px solid transparent;
-            font-size: 8px;
-            letter-spacing: .15px;
-            text-transform: uppercase;
-        }
-
-        .stp-registration-section .status.approved {
-            background: #e9f8ef;
-            color: #199956;
-            border-color: #ccefdc;
-        }
-
-        .stp-registration-section .status.rejected {
-            background: #ffeded;
-            color: #dc4141;
-            border-color: #ffd5d5;
-        }
-
-        .stp-registration-section .status.pending {
-            background: #fff5df;
-            color: #d88910;
-            border-color: #f9e3b7;
-        }
-
-        .stp-registration-section .registration-actions {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            min-width: 130px;
-        }
-
-        .stp-registration-section .action-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 58px;
-            padding: 7px 9px;
-            border-radius: 7px;
-            text-decoration: none;
-            font-family: 'Poppins', sans-serif;
-            font-size: 8px;
-            font-weight: 600;
-            line-height: 1;
-            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
-        }
-
-        .stp-registration-section .action-btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .stp-registration-section .action-btn.approve {
-            background: #e8f8ef;
-            color: #199956;
-            border: 1px solid #ccefdc;
-        }
-
-        .stp-registration-section .action-btn.approve:hover {
-            background: #d9f4e5;
-            box-shadow: 0 4px 10px rgba(25, 153, 86, .12);
-        }
-
-        .stp-registration-section .action-btn.reject {
-            background: #ffecec;
-            color: #dc4141;
-            border: 1px solid #ffd5d5;
-        }
-
-        .stp-registration-section .action-btn.reject:hover {
-            background: #ffe0e0;
-            box-shadow: 0 4px 10px rgba(220, 65, 65, .10);
-        }
-
-        .stp-registration-section .no-action {
-            color: #9aa4b3;
-            font-size: 9px;
-            font-style: italic;
-        }
-
-        .stp-registration-section .empty-state {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 120px;
-            margin: 0;
-            padding: 24px;
-            background: #fbfcfe;
-            color: #8995a7;
-            text-align: center;
-        }
-
-        .stp-registration-section .empty-state p {
-            margin: 0;
-            font-size: 11px;
-        }
-
-        @media (max-width: 768px) {
-            .stp-registration-section .section-header {
-                align-items: flex-start;
-                padding: 17px;
-            }
-
-            .stp-registration-section .section-header h2 {
-                font-size: 14px;
-            }
-
-            .stp-registration-section .section-count {
-                min-height: 29px;
-                padding: 6px 9px;
-                font-size: 9px;
-            }
-
-            .stp-registration-section table thead th,
-            .stp-registration-section table tbody td {
-                padding: 11px 10px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .stp-registration-section .section-header {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .stp-registration-section .section-count {
-                align-self: flex-start;
-            }
-        }
-
-
-        /* =========================================================
-           OCEMS REPORT APPROVALS — UI/UX ONLY
-           Scoped to this section; no other dashboard styling changed.
-        ========================================================= */
-        .ocems-approval-section {
-            background:#fff;
-            border:1px solid #e7edf5;
-            border-radius:16px;
-            margin:0 0 20px;
-            padding:0;
-            box-shadow:0 6px 22px rgba(25,40,70,.055);
-            overflow:hidden;
-        }
-        .ocems-approval-section .section-header{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:18px;
-            padding:20px 22px;
-            border-bottom:1px solid #edf1f6;
-            background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);
-        }
-        .ocems-approval-section .section-header h2{
-            margin:0;color:#172033;font-size:16px;font-weight:650;
-        }
-        .ocems-approval-section .section-header p{
-            margin:5px 0 0;color:#7a8799;font-size:11px;line-height:1.55;
-        }
-        .ocems-approval-section .section-count{
-            flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
-            min-height:32px;padding:7px 12px;border:1px solid #dce9fb;
-            border-radius:999px;background:#f2f7ff;color:#1976f3;
-            font-size:10px;font-weight:600;white-space:nowrap;
-        }
-        .ocems-approval-section .table-container{
-            width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
-        }
-        .ocems-approval-section table{
-            width:100%;min-width:760px;border-collapse:separate;border-spacing:0;
-        }
-        .ocems-approval-section table thead th{
-            padding:12px 14px;background:#f7f9fc;color:#64748b;
-            border-bottom:1px solid #e7ebf1;font-size:9px;font-weight:700;
-            text-transform:uppercase;letter-spacing:.45px;white-space:nowrap;
-        }
-        .ocems-approval-section table tbody td{
-            padding:14px;background:#fff;color:#526075;
-            border-bottom:1px solid #eef2f6;font-size:10px;
-            line-height:1.45;vertical-align:middle;white-space:nowrap;
-        }
-        .ocems-approval-section table tbody tr:last-child td{border-bottom:0}
-        .ocems-approval-section table tbody tr:hover td{background:#f9fbff}
-        .ocems-approval-section .ocems-stp-id{
-            display:inline-block;padding:5px 8px;border-radius:7px;
-            background:#f1f5f9;color:#172033;font-size:10px;font-weight:650;
-        }
-        .ocems-approval-section .ocems-document{
-            display:inline-block;max-width:270px;overflow:hidden;text-overflow:ellipsis;
-            color:#526075;font-weight:500;
-        }
-        .ocems-approval-section .ocems-date{
-            color:#7b8799;font-size:9px;
-        }
-        .ocems-approval-section .status{
-            min-width:68px;justify-content:center;padding:5px 9px;
-            font-size:8px;text-transform:uppercase;letter-spacing:.15px;
-            border:1px solid transparent;
-        }
-        .ocems-approval-section .status.approved{
-            background:#e9f8ef;color:#199956;border-color:#ccefdc;
-        }
-        .ocems-approval-section .status.rejected{
-            background:#ffeded;color:#dc4141;border-color:#ffd5d5;
-        }
-        .ocems-approval-section .status.pending{
-            background:#fff5df;color:#d88910;border-color:#f9e3b7;
-        }
-        .ocems-approval-section .ocems-view-btn{
-            display:inline-flex;align-items:center;justify-content:center;
-            min-width:58px;padding:7px 11px;border-radius:7px;
-            background:#e9f2ff;color:#1976f3;border:1px solid #d7e7ff;
-            text-decoration:none;font-size:8px;font-weight:600;
-            transition:.18s ease;
-        }
-        .ocems-approval-section .ocems-view-btn:hover{
-            background:#dcecff;transform:translateY(-1px);
-            box-shadow:0 4px 10px rgba(25,118,243,.10);
-        }
-        .ocems-approval-section .empty-state{
-            display:flex;align-items:center;justify-content:center;
-            min-height:120px;padding:24px;background:#fbfcfe;color:#8995a7;text-align:center;
-        }
-        .ocems-approval-section .empty-state p{margin:0;font-size:11px}
-        @media(max-width:768px){
-            .ocems-approval-section .section-header{align-items:flex-start;padding:17px}
-            .ocems-approval-section .section-header h2{font-size:14px}
-            .ocems-approval-section .section-count{min-height:29px;padding:6px 9px;font-size:9px}
-            .ocems-approval-section table thead th,.ocems-approval-section table tbody td{padding:11px 10px}
-        }
-        @media(max-width:480px){
-            .ocems-approval-section .section-header{flex-direction:column;gap:10px}
-            .ocems-approval-section .section-count{align-self:flex-start}
-        }
-        
-        /* ==========================================
-        FIX LEAFLET HEATMAP CANVAS VISIBILITY
-        ========================================== */
-
-        #demand-map .leaflet-overlay-pane canvas {
-            max-width: none !important;
-        }
-
-
     </style>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
 
 <body>
 
-<div class="dashboard">
+{# ---------- Aggregates ---------- #}
+{% set agg = namespace(total=0, available=0, pending_orders=0, active_orders=0, done_orders=0, closed_orders=0, qty=0, stp_pending=0, ocems_pending=0) %}
+{% for stp in stps %}
+    {% set agg.total = agg.total + (stp.total_capacity_mld|float) %}
+    {% set agg.available = agg.available + (stp.available_capacity_mld|float) %}
+{% endfor %}
+{% for order in orders %}
+    {% set s = (order.status or "")|lower %}
+    {% set agg.qty = agg.qty + (order.quantity_kld|float) %}
+    {% if s in ["pending", "offered", "new offer", "awaiting"] %}{% set agg.pending_orders = agg.pending_orders + 1 %}
+    {% elif s in ["delivered", "completed"] %}{% set agg.done_orders = agg.done_orders + 1 %}
+    {% elif s in ["rejected", "cancelled", "canceled", "expired", "failed"] %}{% set agg.closed_orders = agg.closed_orders + 1 %}
+    {% else %}{% set agg.active_orders = agg.active_orders + 1 %}{% endif %}
+{% endfor %}
+{% for r in stp_registrations %}{% if (r.verification_status or "pending")|lower == "pending" %}{% set agg.stp_pending = agg.stp_pending + 1 %}{% endif %}{% endfor %}
+{% for sub in ocems_submissions %}{% if (sub.status or "pending")|lower == "pending" %}{% set agg.ocems_pending = agg.ocems_pending + 1 %}{% endif %}{% endfor %}
+{% set used = agg.total - agg.available %}
+{% set avail_pct = (agg.available / agg.total * 100) if agg.total > 0 else 0 %}
+{% set to_review = agg.stp_pending + pending_tanker_operators + agg.ocems_pending %}
 
-    <!-- =========================
-         SIDEBAR
-    ========================== -->
+{% macro status_pill(value) -%}
+    {%- set v = (value or "pending")|lower -%}
+    {%- if v in ["approved", "delivered", "completed"] -%}<span class="pill ok">{{ value|capitalize }}</span>
+    {%- elif v in ["rejected", "cancelled", "expired", "failed"] -%}<span class="pill bad">{{ value|capitalize }}</span>
+    {%- elif v in ["pending", "offered", "awaiting"] -%}<span class="pill warn">{{ (value or "Pending")|capitalize }}</span>
+    {%- else -%}<span class="pill info">{{ value }}</span>{%- endif -%}
+{%- endmacro %}
 
-    <aside class="sidebar">
+{% macro mld(value) -%}{{ "%.2f"|format(value|float) }}{%- endmacro %}
 
-        <div class="brand">
-            <div class="brand-icon">
-                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
+<div class="app">
+
+    <aside class="side" id="side" aria-label="Admin navigation">
+        <a class="brand" href="#overview" data-tab="overview">
+            <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
+            <span><span class="wordmark">Re<span>Flow</span></span><small>Admin console</small></span>
+        </a>
+
+        <div class="nav-label">Network</div>
+        <nav class="nav">
+            <a href="#overview" data-tab="overview">
+                <svg class="i" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                Overview
+            </a>
+            <a href="#plants" data-tab="plants">
+                <svg class="i" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+                Treatment plants
+            </a>
+            <a href="#orders" data-tab="orders">
+                <svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
+                Orders
+                {% if agg.pending_orders %}<span class="count num">{{ agg.pending_orders }}</span>{% endif %}
+            </a>
+        </nav>
+
+        <div class="nav-label">Review</div>
+        <nav class="nav">
+            <a href="#approvals" data-tab="approvals">
+                <svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                Approvals
+                {% if to_review %}<span class="count num">{{ to_review }}</span>{% endif %}
+            </a>
+        </nav>
+
+        <div class="side-foot">
+            <div class="me">
+                <span class="av" id="meInitials">AD</span>
+                <span><strong id="meName">Administrator</strong><small>Admin</small></span>
             </div>
-
-            <div class="brand-text">
-                <h2><span class="wordmark">Re<span>Flow</span></span></h2>
-            </div>
-</div>
-
-        <div class="menu-title">Main Menu</div>
-
-        <div class="nav-links" id="mobile-sidebar-links">
-
-            <a href="/admin" class="active">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></div>
-                <span>Dashboard</span>
-            </a>
-
-            <a href="/admin">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg></div>
-                <span>STP Management</span>
-            </a>
-
-            <a href="/demand">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-                <span>Buyers</span>
-            </a>
-
-            <a href="/admin">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg></div>
-                <span>Orders</span>
-            </a>
-
-            <a href="/tanker">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>
-                <span>Tanker Management</span>
-            </a>
-
-            <a href="/admin">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></div>
-                <span>Transactions</span>
-            </a>
-
-            
-</div>
-
-        <div class="menu-title" style="margin-top:25px;">Account</div>
-
-        <div class="nav-links">
-
-            <a href="/admin">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H4"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></div>
-                <span>Settings</span>
-            </a>
-
-            <a href="{{ url_for('logout') }}">
-                <div class="nav-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg></div>
-                <span>Logout</span>
-            </a>
-
+            <nav class="nav">
+                <a href="/profile"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>My profile</a>
+                <a href="{{ url_for('logout') }}"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>Sign out</a>
+            </nav>
         </div>
-
-        <div class="system-status">
-
-            <h4>System Overview</h4>
-
-            <div class="status-line">
-                <div class="status-dot"></div>
-                All systems operational
-            </div>
-
-        </div>
-
     </aside>
+    <div class="scrim" id="scrim"></div>
 
+    <div class="main">
 
-    <!-- =========================
-         MAIN CONTENT
-    ========================== -->
-
-    <main class="main-content">
-
-    <!-- Mobile navigation: brand and hamburger remain visible; sidebar links open separately. -->
-    <div class="mobile-navbar" role="navigation" aria-label="Mobile navigation">
-        <div class="mobile-navbar-brand">
-            <div class="brand-icon">
-                <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="System Icon" style="width:34px;height:34px;object-fit:contain;display:block;">
-            </div>
-
-            <div class="brand-text">
-                <h2><span class="wordmark">Re<span>Flow</span></span></h2>
-            </div>
-
-        </div>
-        <button
-            type="button"
-            class="mobile-sidebar-toggle"
-            aria-label="Open sidebar"
-            aria-expanded="false"
-            aria-controls="mobile-sidebar-links"
-        >
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-    </div>
-
-
-        <!-- TOP BAR -->
-
-        <header class="topbar">
-
-            <div class="welcome">
-
-                <h1>Welcome, Admin </h1>
-
-                <p>
-                    Here's what's happening with your wastewater system today.
-                </p>
-
-            </div>
-
-            <div class="topbar-right">
-
-                <div class="date">
-                     {{ current_date if current_date else "Admin Dashboard" }}
+        <header class="head-bar">
+            <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                <button type="button" class="btn menu-btn" id="menuBtn" aria-label="Open navigation" aria-controls="side" aria-expanded="false">
+                    <svg class="i" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+                </button>
+                <div style="min-width:0;">
+                    <h1 id="pageTitle">Overview</h1>
+                    <p id="today"></p>
                 </div>
-
-                <div class="notification">
-                    
-                    <svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg>
-                    
-                    <div class="notification-badge">3</div>
-                </div>
-
-                <div class="admin-profile" id="wwExistingProfile" role="button" tabindex="0"
-                     onclick="window.location.replace('/profile')"
-                     onkeydown="if(event.key==='Enter' || event.key===' '){event.preventDefault();window.location.replace('/profile');}">
-
-                    <div class="profile-circle">
-                        
-                    </div>
-
-                    <span>Admin</span>
-
-                    <span></span>
-
-                </div>
-
             </div>
-
+            <div class="top-actions">
+                <a class="btn bell" href="#approvals" data-tab="approvals" title="Items waiting for review">
+                    <svg class="i" viewBox="0 0 24 24"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg>
+                    <span class="label-text">To review</span>
+                    {% if to_review %}<span class="dot num">{{ to_review }}</span>{% endif %}
+                </a>
+                <a class="btn primary" href="#plants" data-tab="plants" data-focus="newStpId">
+                    <svg class="i" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    <span class="label-text">Add plant</span>
+                </a>
+            </div>
         </header>
 
+        <div class="content">
 
-        <div class="container">
+            {# ================= OVERVIEW ================= #}
+            <section class="panel" id="panel-overview" data-title="Overview">
 
-            <!-- =========================
-                 CALCULATE TOTALS
-            ========================== -->
-
-            {% set total_capacity = namespace(value=0) %}
-            {% set available_capacity = namespace(value=0) %}
-
-            {% for stp in stps %}
-
-                {% set total_capacity.value =
-                    total_capacity.value + (stp.total_capacity_mld|float)
-                %}
-
-                {% set available_capacity.value =
-                    available_capacity.value + (stp.available_capacity_mld|float)
-                %}
-
-            {% endfor %}
-
-
-            <!-- =========================
-                 STAT CARDS
-            ========================== -->
-
-            <div class="stats-grid">
-
-                <div class="stat-card">
-
-                    
-
-                    <div class="stat-info">
-                        <p>Total STPs</p>
-                        <h2>{{ stps|length }}</h2>
+                <div class="kpis">
+                    <div class="card kpi">
+                        <div class="row"><span class="label">Treatment plants</span><span class="ico teal"><svg class="i" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg></span></div>
+                        <div class="value num">{{ stps|length }}</div>
+                        <div class="foot">{{ stp_registrations|length }} registration{{ "" if stp_registrations|length == 1 else "s" }}{% if agg.stp_pending %} · <span class="pill warn">{{ agg.stp_pending }} pending</span>{% endif %}</div>
                     </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    
-
-                    <div class="stat-info">
-                        <p>Available Capacity</p>
-                        <h2>
-                            {{ "%.2f"|format(available_capacity.value) }}
-                            <small style="font-size:11px;">MLD</small>
-                        </h2>
+                    <div class="card kpi">
+                        <div class="row"><span class="label">Available capacity</span><span class="ico blue"><svg class="i" viewBox="0 0 24 24"><path d="M12 2.7s6 6.5 6 11.3a6 6 0 0 1-12 0c0-4.8 6-11.3 6-11.3Z"/></svg></span></div>
+                        <div class="value num">{{ mld(agg.available) }} <small>MLD</small></div>
+                        <div class="meter" title="{{ '%.0f'|format(avail_pct) }}% of network capacity is free"><i style="width: {{ '%.1f'|format(avail_pct) }}%"></i></div>
+                        <div class="foot">{{ "%.0f"|format(avail_pct) }}% of {{ mld(agg.total) }} MLD network capacity</div>
                     </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    
-
-                    <div class="stat-info">
-                        <p>Total Orders</p>
-                        <h2>{{ orders|length }}</h2>
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    
-
-                    <div class="stat-info">
-                        <p>Total STP Capacity</p>
-                        <h2>
-                            {{ "%.2f"|format(total_capacity.value) }}
-                            <small style="font-size:11px;">MLD</small>
-                        </h2>
-                    </div>
-
-                </div>
-
-            </div>
-
-<!-- =========================
-     TANKER PARTNER STATS
-========================== -->
-
-<div class="stats-grid">
-
-    <!-- TOTAL TANKER OPERATORS -->
-
-    <div class="stat-card">
-
-        
-
-        <div class="stat-info">
-            <p>Total Tanker Partners</p>
-
-            <h2>
-                {{ total_tanker_operators }}
-            </h2>
-        </div>
-
-    </div>
-
-
-    <!-- PENDING -->
-
-    <div class="stat-card">
-
-        <div class="stat-icon orange-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22"/><path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2"/></svg></div>
-
-        <div class="stat-info">
-            <p>Pending Verification</p>
-
-            <h2>
-                {{ pending_tanker_operators }}
-            </h2>
-        </div>
-
-    </div>
-
-
-    <!-- APPROVED -->
-
-    <div class="stat-card">
-
-        
-
-        <div class="stat-info">
-            <p>Approved Partners</p>
-
-            <h2>
-                {{ approved_tanker_operators }}
-            </h2>
-        </div>
-
-    </div>
-
-
-    <!-- REJECTED -->
-
-    <div class="stat-card">
-
-        
-
-        <div class="stat-info">
-            <p>Rejected Partners</p>
-
-            <h2>
-                {{ rejected_tanker_operators }}
-            </h2>
-        </div>
-
-    </div>
-
-</div>
-            <!-- ================= WATER DEMAND MAP ================= -->
-
-            <div class="card map-card">
-
-                <div class="map-header">
-                    <div>
-                        <h2>Water Demand Monitoring</h2>
-                        <div class="map-subtitle">
-                            Bangalore STP locations and demand monitoring
-                        </div>
-                    </div>
-                </div>
-
-                <div id="demand-map"></div>
-
-            </div>
-
-            <!-- =========================
-                 ADD STP
-            ========================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <h2>Quick Add STP</h2>
-
-                    <span>STP Management</span>
-
-                </div>
-
-                <form method="POST" action="/admin/add_stp" class="add-form">
-
-                    <input
-                        name="id"
-                        placeholder="STP ID"
-                        required
-                    >
-
-                    <input
-                        name="name"
-                        placeholder="STP Name"
-                        required
-                    >
-
-                    <input
-                        name="lat"
-                        placeholder="Latitude"
-                        required
-                    >
-
-                    <input
-                        name="lon"
-                        placeholder="Longitude"
-                        required
-                    >
-
-                    <input
-                        name="capacity"
-                        placeholder="Capacity (MLD)"
-                        required
-                    >
-
-                    <button type="submit">
-                        + Add STP
-                    </button>
-
-                </form>
-
-            </div>
-
-
-            <!-- =========================
-                 DASHBOARD GRID
-            ========================== -->
-
-            <div class="dashboard-grid">
-
-
-                <!-- CAPACITY OVERVIEW -->
-
-                <div class="card">
-
-                    <div class="card-header">
-
-                        <h2>Capacity Overview</h2>
-
-                        <span>STP Network</span>
-
-                    </div>
-
-                    {% if total_capacity.value > 0 %}
-
-                        {% set available_percent =
-                            (available_capacity.value / total_capacity.value * 100)
-                        %}
-
-                    {% else %}
-
-                        {% set available_percent = 0 %}
-
-                    {% endif %}
-
-
-                    <div class="capacity-section">
-
-                        <div
-                            class="capacity-chart"
-                            style="background: conic-gradient(
-                                #2fc574 0% {{ available_percent }}%,
-                                #2878f0 {{ available_percent }}% 100%
-                            );"
-                        >
-
-                            <div class="capacity-inner">
-
-                                <strong>
-                                    {{ "%.0f"|format(available_percent) }}%
-                                </strong>
-
-                                <span>Available</span>
-
+                    <div class="card kpi">
+                        <div class="row"><span class="label">Orders</span><span class="ico violet"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg></span></div>
+                        <div class="value num">{{ orders|length }}</div>
+                        {% if orders %}
+                            <div class="stack" aria-hidden="true">
+                                <i style="flex: {{ agg.done_orders }}; background:#15803d"></i>
+                                <i style="flex: {{ agg.active_orders }}; background:#1463d6"></i>
+                                <i style="flex: {{ agg.pending_orders }}; background:#d97706"></i>
+                                <i style="flex: {{ agg.closed_orders }}; background:#b8c2cf"></i>
                             </div>
-
-                        </div>
-
-
-                        <div class="capacity-details">
-
-                            <div class="capacity-item">
-
-                                <div class="capacity-label">
-
-                                    <div class="legend legend-green"></div>
-
-                                    Available Capacity
-
-                                </div>
-
-                                <div class="capacity-value">
-
-                                    {{ "%.2f"|format(available_capacity.value) }}
-                                    MLD
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="capacity-item">
-
-                                <div class="capacity-label">
-
-                                    <div class="legend legend-blue"></div>
-
-                                    Utilized Capacity
-
-                                </div>
-
-                                <div class="capacity-value">
-
-                                    {{ "%.2f"|format(
-                                        total_capacity.value -
-                                        available_capacity.value
-                                    ) }}
-                                    MLD
-
-                                </div>
-
-                            </div>
-
-
-                            <div class="capacity-item">
-
-                                <div class="capacity-label">
-                                    Total Capacity
-                                </div>
-
-                                <div class="capacity-value">
-
-                                    {{ "%.2f"|format(total_capacity.value) }}
-                                    MLD
-
-                                </div>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-
-                <!-- TOP STPS -->
-
-                <div class="card">
-
-                    <div class="card-header">
-
-                        <h2>Top STPs by Capacity</h2>
-
-                        <span>Available</span>
-
-                    </div>
-
-
-                    <div class="stp-ranking">
-
-                        {% for stp in stps[:5] %}
-
-                        <div class="stp-row">
-
-                            <div class="stp-number">
-                                {{ loop.index }}
-                            </div>
-
-                            <div>
-
-                                <div class="stp-name">
-                                    {{ stp.stp_name }}
-                                </div>
-
-                                <div class="progress">
-
-                                    {% if stp.total_capacity_mld|float > 0 %}
-
-                                        {% set percentage =
-                                            (stp.available_capacity_mld|float /
-                                            stp.total_capacity_mld|float * 100)
-                                        %}
-
-                                    {% else %}
-
-                                        {% set percentage = 0 %}
-
-                                    {% endif %}
-
-                                    <div
-                                        class="progress-bar"
-                                        style="width: {{ percentage }}%;"
-                                    ></div>
-
-                                </div>
-
-                            </div>
-
-                            <div class="stp-capacity">
-
-                                {{ stp.available_capacity_mld }}
-
-                                MLD
-
-                            </div>
-
-                        </div>
-
-                        {% endfor %}
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- =========================
-                 STP MANAGEMENT
-            ========================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <h2>STP Management</h2>
-
-                    <span>
-                        {{ stps|length }} Treatment Plants
-                    </span>
-
-                </div>
-
-
-                <div class="table-wrapper">
-
-                    <table>
-
-                        <tr>
-
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Latitude</th>
-                            <th>Longitude</th>
-                            <th>Total Capacity</th>
-                            <th>Available</th>
-                            <th>Action</th>
-
-                        </tr>
-
-
-                        {% for stp in stps %}
-
-                        <tr>
-
-                            <td class="order-id">
-                                {{ stp.stp_id }}
-                            </td>
-
-                            <td>
-                                {{ stp.stp_name }}
-                            </td>
-
-                            <td>
-                                {{ "%.2f"|format(stp.latitude) }}
-                            </td>
-
-                            <td>
-                                {{ "%.2f"|format(stp.longitude) }}
-                            </td>
-
-                            <td>
-                                {{ stp.total_capacity_mld }} MLD
-                            </td>
-
-                            <td>
-
-                                <span class="status status-completed">
-
-                                    {{ stp.available_capacity_mld }} MLD
-
-                                </span>
-
-                            </td>
-
-                            <td>
-
-                                <a
-                                    class="delete-btn"
-                                    href="/admin/delete_stp/{{ stp.stp_id }}"
-                                >
-                                    Delete
-                                </a>
-
-                            </td>
-
-                        </tr>
-
-                        {% endfor %}
-
-                    </table>
-
-                </div>
-
-            </div>
-
-<!-- ========================================= -->
-<!-- STP REGISTRATIONS -->
-<!-- ========================================= -->
-
-<section class="admin-section stp-registration-section">
-
-    <div class="section-header">
-
-        <div>
-            <h2>STP Registrations</h2>
-
-            <p>
-                Review and approve sewage treatment plant registrations.
-            </p>
-        </div>
-
-        <div class="section-count">
-            {{ stp_registrations|length }} Registered
-        </div>
-
-    </div>
-
-
-    {% if stp_registrations %}
-
-    <div class="table-container">
-
-        <table>
-
-            <thead>
-
-                <tr>
-                    <th>STP Name</th>
-                    <th>Owner</th>
-                    <th>Location</th>
-                    <th>Capacity</th>
-                    <th>Technology</th>
-                    <th>Quality</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                {% for registration in stp_registrations %}
-
-                <tr>
-
-                    <td class="stp-name-cell">
-                        <strong>{{ registration.stp_name }}</strong>
-                        <span class="registration-id">{{ registration.registration_id }}</span>
-                    </td>
-
-
-                    <td class="owner-cell">
-                        <strong>{{ registration.owner_name }}</strong>
-                        <span class="phone-text">{{ registration.phone }}</span>
-                    </td>
-
-
-                    <td class="location-cell">
-                        <span class="location-value">{{ registration.latitude }}, {{ registration.longitude }}</span>
-                    </td>
-
-
-                    <td>
-                        <span class="capacity-value">{{ (registration.total_capacity_mld|float * 1000)|round(2) }}</span>
-                        <span class="capacity-unit">KLD</span>
-                    </td>
-
-
-                    <td><span class="technology-value" title="{{ registration.technology }}">{{ registration.technology }}</span></td>
-
-
-                    <td><span class="quality-badge">{{ registration.quality_grade }}</span></td>
-
-
-                    <td>
-
-                        {% if registration.verification_status == "approved" %}
-
-                            <span class="status approved">
-                                Approved
-                            </span>
-
-                        {% elif registration.verification_status == "rejected" %}
-
-                            <span class="status rejected">
-                                Rejected
-                            </span>
-
-                        {% else %}
-
-                            <span class="status pending">
-                                Pending
-                            </span>
-
                         {% endif %}
+                        <div class="foot num">{{ agg.done_orders }} delivered · {{ agg.active_orders }} active · {{ agg.pending_orders }} pending</div>
+                    </div>
+                    <div class="card kpi">
+                        <div class="row"><span class="label">Tanker partners</span><span class="ico amber"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span></div>
+                        <div class="value num">{{ total_tanker_operators }}</div>
+                        <div class="foot num">{{ approved_tanker_operators }} approved{% if pending_tanker_operators %} · <span class="pill warn">{{ pending_tanker_operators }} pending</span>{% endif %}{% if rejected_tanker_operators %} · {{ rejected_tanker_operators }} rejected{% endif %}</div>
+                    </div>
+                </div>
 
-                    </td>
+                <div class="grid-2">
+                    <section class="card">
+                        <div class="card-head">
+                            <div><h2>Water demand</h2><p>Where orders come from across Bengaluru, with each treatment plant marked. Warmer areas order more water.</p></div>
+                        </div>
+                        <div class="map" id="map" aria-label="Heat map of water demand with treatment plants"></div>
+                        <div class="heat-scale" aria-hidden="true">
+                            <span>Fewer orders</span><i></i><span>More orders</span>
+                            <span class="plant-key"><span class="pin pin-brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V8l5 3V8l5 3V4h4v16"/></svg></span>Plant</span>
+                            <span class="plant-key"><span class="pin pin-ink" style="opacity:.55"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V8l5 3V8l5 3V4h4v16"/></svg></span>Plant full</span>
+                        </div>
+                    </section>
 
-
-                    <td>
-                        <div class="registration-actions">
-
-                            {% if registration.verification_status == "pending" %}
-
-                                <a
-                                    href="/admin/stp/{{ registration.registration_id }}/status/approved"
-                                    class="action-btn approve"
-                                    onclick="return confirm('Approve this STP registration?')"
-                                >
-                                    Approve
-                                </a>
-
-                                <a
-                                    href="/admin/stp/{{ registration.registration_id }}/status/rejected"
-                                    class="action-btn reject"
-                                    onclick="return confirm('Reject this STP registration?')"
-                                >
-                                    Reject
-                                </a>
-
+                    <div style="display:grid;gap:20px;">
+                        <section class="card">
+                            <div class="card-head"><div><h2>Needs your attention</h2><p>Items waiting for an admin decision</p></div></div>
+                            {% if to_review %}
+                                <div class="todo">
+                                    <a href="#approvals" data-tab="approvals" data-scroll="stp-regs" class="{{ 'clear' if not agg.stp_pending }}">
+                                        <span class="ico teal"><svg class="i" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/></svg></span>
+                                        <span><strong>Plant registrations</strong><small>Verify new treatment plants</small></span>
+                                        <span class="n num">{{ agg.stp_pending }}</span>
+                                    </a>
+                                    <a href="#approvals" data-tab="approvals" data-scroll="tanker-regs" class="{{ 'clear' if not pending_tanker_operators }}">
+                                        <span class="ico amber"><svg class="i" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
+                                        <span><strong>Tanker partners</strong><small>Check operator documents</small></span>
+                                        <span class="n num">{{ pending_tanker_operators }}</span>
+                                    </a>
+                                    <a href="#approvals" data-tab="approvals" data-scroll="ocems-reports" class="{{ 'clear' if not agg.ocems_pending }}">
+                                        <span class="ico sky"><svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 15l2-2 2 2 4-4"/></svg></span>
+                                        <span><strong>OCEMS reports</strong><small>Approve water-quality uploads</small></span>
+                                        <span class="n num">{{ agg.ocems_pending }}</span>
+                                    </a>
+                                </div>
                             {% else %}
-
-                                <span class="no-action">No action</span>
-
+                                <div class="all-clear">
+                                    <svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>
+                                    You're all caught up. No registrations or reports are waiting.
+                                </div>
                             {% endif %}
+                        </section>
 
-                        </div>
-                    </td>
+                        <section class="card">
+                            <div class="card-head"><div><h2>Capacity</h2><p>Across all {{ stps|length }} plants</p></div></div>
+                            {% set C = 2 * 3.14159 * 52 %}
+                            <div class="donut-wrap">
+                                <svg class="donut" viewBox="0 0 132 132" role="img" aria-label="{{ '%.0f'|format(avail_pct) }}% of capacity available">
+                                    <circle cx="66" cy="66" r="52" fill="none" stroke="#e6eefc" stroke-width="14"/>
+                                    <circle cx="66" cy="66" r="52" fill="none" stroke="#0d9488" stroke-width="14" stroke-linecap="round"
+                                            stroke-dasharray="{{ '%.1f'|format(C * avail_pct / 100) }} {{ '%.1f'|format(C) }}" transform="rotate(-90 66 66)"/>
+                                    <text x="66" y="66" text-anchor="middle" font-size="24" font-weight="700" fill="#0f1b2d">{{ "%.0f"|format(avail_pct) }}%</text>
+                                    <text x="66" y="84" text-anchor="middle" font-size="11" fill="#5f6e82">available</text>
+                                </svg>
+                                <dl class="kv">
+                                    <div><dt><i style="background:#0d9488"></i>Available</dt><dd class="num">{{ mld(agg.available) }} MLD</dd></div>
+                                    <div><dt><i style="background:#c9dbf8"></i>Committed</dt><dd class="num">{{ mld(used) }} MLD</dd></div>
+                                    <div><dt>Total</dt><dd class="num">{{ mld(agg.total) }} MLD</dd></div>
+                                    <div><dt>Ordered to date</dt><dd class="num">{{ "%g"|format(agg.qty) }} KL</dd></div>
+                                </dl>
+                            </div>
+                        </section>
+                    </div>
+                </div>
 
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    {% else %}
-
-        <div class="empty-state">
-
-            <p>
-                No STP registrations found.
-            </p>
-
-        </div>
-
-    {% endif %}
-
-</section>
-
-<!-- ========================================= -->
-<!-- OCEMS REPORT APPROVALS -->
-<!-- ========================================= -->
-
-<section class="admin-section ocems-approval-section">
-
-    <div class="section-header">
-
-        <div>
-
-            <h2>OCEMS Report Approvals</h2>
-
-            <p>
-                Review OCEMS reports submitted by STP operators.
-            </p>
-
-        </div>
-
-        <div class="section-count">
-
-            {{ ocems_submissions|length }}
-            Reports
-
-        </div>
-
-    </div>
-
-
-    {% if ocems_submissions %}
-
-    <div class="table-container">
-
-        <table>
-
-            <thead>
-
-                <tr>
-
-                    <th>STP</th>
-
-                    <th>Document</th>
-
-                    <th>Uploaded</th>
-
-                    <th>Status</th>
-
-                    <th>Action</th>
-
-                </tr>
-
-            </thead>
-
-
-            <tbody>
-
-                {% for submission in ocems_submissions %}
-
-                <tr>
-
-                    <td>
-                        <span class="ocems-stp-id">{{ submission.stp_id }}</span>
-                    </td>
-
-
-                    <td>
-                        <span class="ocems-document" title="{{ submission.original_filename }}">{{ submission.original_filename }}</span>
-                    </td>
-
-
-                    <td>
-                        <span class="ocems-date">{{ submission.uploaded_at }}</span>
-                    </td>
-
-
-                    <td>
-
-                        {% if submission.status|lower == "approved" %}
-
-                            <span class="status approved">
-                                Approved
-                            </span>
-
-                        {% elif submission.status|lower == "rejected" %}
-
-                            <span class="status rejected">
-                                Rejected
-                            </span>
-
+                <div class="grid-even">
+                    <section class="card">
+                        <div class="card-head"><div><h2>Most free capacity</h2><p>Plants that can take the next orders</p></div><a class="btn sm" href="#plants" data-tab="plants">All plants</a></div>
+                        {% set ranked = stps|sort(attribute="available_capacity_mld", reverse=True) %}
+                        {% set top_free = (ranked|selectattr("available_capacity_mld")|list)[:5] %}
+                        {% if top_free %}
+                            <ol class="ranks">
+                                {% for stp in top_free %}
+                                    {% set pct = (stp.available_capacity_mld|float / stp.total_capacity_mld|float * 100) if stp.total_capacity_mld|float > 0 else 0 %}
+                                    <li>
+                                        <div class="top">
+                                            <span><span class="pos">{{ loop.index }}</span><b>{{ stp.stp_name }}</b></span>
+                                            <span class="num"><b>{{ mld(stp.available_capacity_mld) }}</b> / {{ mld(stp.total_capacity_mld) }} MLD</span>
+                                        </div>
+                                        <div class="meter"><i style="width: {{ '%.1f'|format(pct) }}%"></i></div>
+                                    </li>
+                                {% endfor %}
+                            </ol>
                         {% else %}
-
-                            <span class="status pending">
-                                Pending
-                            </span>
-
+                            <p style="margin:0;color:var(--muted);font-size:13.5px;">No plant has free capacity right now.</p>
                         {% endif %}
-
-                    </td>
-
-
-                    <td>
-
-                        <a
-                            href="{{ url_for(
-                                'admin_view_ocems',
-                                submission_id=submission.submission_id
-                            ) }}"
-                            class="ocems-view-btn"
-                        >
-                            View
-                        </a>
-
-                    </td>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
-    </div>
-
-    {% else %}
-
-        <div class="empty-state">
-
-            <p>
-                No OCEMS reports have been uploaded.
-            </p>
-
-        </div>
-
-    {% endif %}
-
-</section>
-
-<!-- =========================
-  TANKER PARTNER REGISTRATIONS
-========================== -->
-
-<div class="card">
-
-    <div class="card-header">
-
-        <h2>Tanker Partner Registrations</h2>
-
-        <span>
-            {{ total_tanker_operators }} Registered
-        </span>
-
-    </div>
-
-    <div class="table-wrapper">
-
-        <table>
-
-            <tr>
-                <th>Operator ID</th>
-                <th>Operator Name</th>
-                <th>Phone</th>
-                <th>Area</th>
-                <th>Tanker Number</th>
-                <th>Capacity</th>
-                <th>Water Type</th>
-                <th>Status</th>
-                <th>Action</th>
-            </tr>
-
-            {% for operator in tanker_operators %}
-
-            <tr>
-
-                <td class="order-id">
-                    {{ operator.operator_id }}
-                </td>
-
-                <td>
-                    {{ operator.operator_name }}
-                </td>
-
-                <td>
-                    {{ operator.phone }}
-                </td>
-
-                <td>
-                    {{ operator.area }}
-                </td>
-
-                <td>
-                    {{ operator.tanker_registration_no }}
-                </td>
-
-                <td>
-                    {{ operator.tanker_capacity_kl }} KL
-                </td>
-
-                <td>
-                    {{ operator.water_type_supported }}
-                </td>
-
-                <td>
-
-                    {% if operator.verification_status|lower == "approved" %}
-
-                        <span class="status status-completed">
-                            Approved
-                        </span>
-
-                    {% elif operator.verification_status|lower == "pending" %}
-
-                        <span class="status status-pending">
-                            Pending
-                        </span>
-
-                    {% elif operator.verification_status|lower == "rejected" %}
-
-                        <span class="status status-cancelled">
-                            Rejected
-                        </span>
-
-                    {% else %}
-
-                        <span class="status status-default">
-                            {{ operator.verification_status }}
-                        </span>
-
-                    {% endif %}
-
-                </td>
-                
-                <td>
-
-                {% if operator.verification_status|lower == "pending" %}
-
-                    <a
-                        href="/admin/tanker/{{ operator.operator_id }}/status/approved"
-                        style="
-                            background:#e8f8ef;
-                            color:#199956;
-                            padding:6px 10px;
-                            border-radius:6px;
-                            text-decoration:none;
-                            font-size:9px;
-                            margin-right:5px;
-                        "
-                    >
-                        Approve
-                    </a>
-
-                    <a
-                        href="/admin/tanker/{{ operator.operator_id }}/status/rejected"
-                        style="
-                            background:#ffe8e8;
-                            color:#dc4141;
-                            padding:6px 10px;
-                            border-radius:6px;
-                            text-decoration:none;
-                            font-size:9px;
-                        "
-                    >
-                        Reject
-                    </a>
-
-                {% else %}
-
-                    <span style="font-size:9px;color:#9aa4b3;">
-                        No action
-                    </span>
-
-                {% endif %}
-
-                <a
-                    href="{{ url_for(
-                        'admin_tanker_operator_details',
-                        operator_id=operator.operator_id
-                    ) }}"
-                    style="
-                        display:inline-block;
-                        background:#e9f2ff;
-                        color:#1976f3;
-                        padding:6px 10px;
-                        border-radius:6px;
-                        text-decoration:none;
-                        font-size:9px;
-                        font-weight:500;
-                        margin-top:5px;
-                    "
-                >
-                    View Details
-                </a>
-
-            </td>
-
-            </tr>
-
-            {% endfor %}
-
-        </table>
-
-    </div>
-
-</div>
-
-
-            <!-- =========================
-                 ORDERS
-            ========================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <h2>Recent Orders</h2>
-
-                    <span>
-                        {{ orders|length }} Total Orders
-                    </span>
-
+                    </section>
+
+                    <section class="card flush">
+                        <div class="card-head" style="padding-bottom:14px;"><div><h2>Latest orders</h2><p>Most recent first</p></div><a class="btn sm" href="#orders" data-tab="orders">All orders</a></div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>Order</th><th>Plant</th><th class="r">Qty</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    {% for order in (orders|reverse|list)[:5] %}
+                                        <tr>
+                                            <td><span class="id">{{ order.order_id }}</span><span class="sub">{{ order.buyer_name or "—" }}</span></td>
+                                            <td>{{ order.stp_name or order.stp_id }}</td>
+                                            <td class="r num">{{ order.quantity_kld }} KL</td>
+                                            <td>{{ status_pill(order.status) }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr class="empty-row"><td colspan="4">No orders yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
+            </section>
 
+            {# ================= PLANTS ================= #}
+            <section class="panel" id="panel-plants" data-title="Treatment plants" hidden>
 
-                <div class="table-wrapper">
+                <section class="card">
+                    <div class="card-head"><div><h2>Add a plant</h2><p>Adds a plant straight to the network. Use registrations for plants that need verification.</p></div></div>
+                    <form method="POST" action="/admin/add_stp#plants" class="add-grid" id="addForm">
+                        <div class="f"><label for="newStpId">Plant ID</label><input id="newStpId" name="id" placeholder="PSTP016" required autocomplete="off"></div>
+                        <div class="f"><label for="newStpName">Name</label><input id="newStpName" name="name" placeholder="e.g. Purva Westend" required></div>
+                        <div class="f"><label for="newLat">Latitude</label><input id="newLat" name="lat" placeholder="12.9716" inputmode="decimal" required></div>
+                        <div class="f"><label for="newLon">Longitude</label><input id="newLon" name="lon" placeholder="77.5946" inputmode="decimal" required></div>
+                        <div class="f"><label for="newCap">Capacity (MLD)</label><input id="newCap" name="capacity" placeholder="0.5" inputmode="decimal" required></div>
+                        <button type="submit" class="btn primary" style="height:40px;"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>Add plant</button>
+                        <div class="f-hint" id="addHint">Coordinates in decimal degrees. Bengaluru is around 12.8–13.3 N, 77.4–77.8 E.</div>
+                    </form>
+                </section>
 
-                    <table>
-
-                        <tr>
-
-                            <th>Order ID</th>
-                            <th>STP</th>
-                            <th>Quantity</th>
-                            <th>Status</th>
-
-                        </tr>
-
-
-                        {% for order in orders %}
-
-                        <tr>
-
-                            <td class="order-id">
-                                {{ order.order_id }}
-                            </td>
-
-                            <td>
-                                {{ order.stp_name }}
-                            </td>
-
-                            <td>
-                                {{ order.quantity_kld }} KLD
-                            </td>
-
-                            <td>
-
-                                {% if order.status|lower == 'completed' %}
-
-                                    <span class="status status-completed">
-                                        Completed
-                                    </span>
-
-                                {% elif order.status|lower == 'pending' %}
-
-                                    <span class="status status-pending">
-                                        Pending
-                                    </span>
-
-                                {% elif order.status|lower in ['in transit', 'transit'] %}
-
-                                    <span class="status status-transit">
-                                        In Transit
-                                    </span>
-
-                                {% elif order.status|lower == 'cancelled' %}
-
-                                    <span class="status status-cancelled">
-                                        Cancelled
-                                    </span>
-
+                <section class="card flush">
+                    <div class="card-head" style="padding-bottom:14px;">
+                        <div><h2>All plants</h2><p>{{ stps|length }} plants · {{ mld(agg.total) }} MLD total capacity</p></div>
+                        <div class="toolbar">
+                            <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" placeholder="Search plants" data-search="plantsTable" aria-label="Search plants"></label>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="plantsTable">
+                            <thead><tr><th>Plant</th><th>Grade</th><th>Location</th><th class="r">Capacity</th><th>Free capacity</th><th class="r">Actions</th></tr></thead>
+                            <tbody>
+                                {% for stp in stps %}
+                                    {% set total = stp.total_capacity_mld|float %}
+                                    {% set free = stp.available_capacity_mld|float %}
+                                    {% set pct = (free / total * 100) if total > 0 else 0 %}
+                                    <tr>
+                                        <td><b>{{ stp.stp_name }}</b><span class="sub id">{{ stp.stp_id }}{% if stp.technology %} · {{ stp.technology }}{% endif %}</span></td>
+                                        <td>{% if stp.quality_grade %}<span class="tag">{{ stp.quality_grade }}</span>{% else %}—{% endif %}</td>
+                                        <td class="num" style="color:var(--muted);font-size:12.5px;">{{ "%.4f"|format(stp.latitude|float) }}, {{ "%.4f"|format(stp.longitude|float) }}</td>
+                                        <td class="r num">{{ mld(total) }} MLD</td>
+                                        <td>
+                                            <div class="util" title="{{ mld(free) }} of {{ mld(total) }} MLD free">
+                                                <div class="meter"><i style="width: {{ '%.1f'|format(pct) }}%"></i></div>
+                                                <span class="num">{{ mld(free) }}</span>
+                                            </div>
+                                        </td>
+                                        <td><div class="actions">
+                                            <a class="btn sm ghost-danger" href="/admin/delete_stp/{{ stp.stp_id }}#plants" data-confirm="Delete {{ stp.stp_name }} ({{ stp.stp_id }}) from the network? This can't be undone.">
+                                                <svg class="i" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>Delete
+                                            </a>
+                                        </div></td>
+                                    </tr>
                                 {% else %}
-
-                                    <span class="status status-default">
-                                        {{ order.status }}
-                                    </span>
-
-                                {% endif %}
-
-                            </td>
-
-                        </tr>
-
-                        {% endfor %}
-
-                    </table>
-
-                </div>
-
-            </div>
-
-
-            <!-- =========================
-                 SYSTEM NOTIFICATIONS
-            ========================== -->
-
-            <div class="card">
-
-                <div class="card-header">
-
-                    <h2>System Notifications</h2>
-
-                    <span>System Status</span>
-
-                </div>
-
-
-                <div class="notification-list">
-
-                    <div class="notification-item">
-
-                        <div class="notification-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></div>
-
-                        <div>
-
-                            <p>
-                                Wastewater allocation system is operational.
-                            </p>
-
-                            <small>
-                                System status
-                            </small>
-
-                        </div>
-
+                                    <tr class="empty-row"><td colspan="6">No plants yet. Add one above.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="no-results">No plants match your search.</div>
                     </div>
+                </section>
+            </section>
 
+            {# ================= APPROVALS ================= #}
+            <section class="panel" id="panel-approvals" data-title="Approvals" hidden>
 
-                    <div class="notification-item">
-
-                        <div class="notification-icon"><svg class="ds-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.33A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.67C19.41 13.96 18 12.5 18 8A6 6 0 0 0 6 8c0 4.5-1.41 5.96-2.74 7.33"/></svg></div>
-
-                        <div>
-
-                            <p>
-                                {{ stps|length }} STPs are currently registered
-                                in the system.
-                            </p>
-
-                            <small>
-                                STP management
-                            </small>
-
+                <section class="card flush" id="stp-regs">
+                    <div class="card-head" style="padding-bottom:14px;">
+                        <div><h2>Plant registrations</h2><p>{{ stp_registrations|length }} submitted{% if agg.stp_pending %} · {{ agg.stp_pending }} waiting{% endif %}</p></div>
+                        <div class="seg" role="group" aria-label="Filter plant registrations" data-filter="stpTable">
+                            <button type="button" data-value="pending" aria-pressed="{{ 'true' if agg.stp_pending else 'false' }}">Pending <b>{{ agg.stp_pending }}</b></button>
+                            <button type="button" data-value="all" aria-pressed="{{ 'false' if agg.stp_pending else 'true' }}">All <b>{{ stp_registrations|length }}</b></button>
                         </div>
-
                     </div>
-
-
-                    <div class="notification-item">
-
-                        <div
-                            class="notification-icon"
-                            style="background:#fff3df;color:#e59620;"
-                        >
-                            !
-                        </div>
-
-                        <div>
-
-                            <p>
-                                Available network capacity:
-                                {{ "%.2f"|format(available_capacity.value) }}
-                                MLD.
-                            </p>
-
-                            <small>
-                                Capacity monitoring
-                            </small>
-
-                        </div>
-
+                    <div class="table-wrap">
+                        <table id="stpTable">
+                            <thead><tr><th>Plant</th><th>Owner</th><th class="r">Capacity</th><th>Technology</th><th>Grade</th><th>Status</th><th class="r">Actions</th></tr></thead>
+                            <tbody>
+                                {% for r in stp_registrations %}
+                                    {% set st = (r.verification_status or "pending")|lower %}
+                                    <tr data-status="{{ st }}">
+                                        <td><b>{{ r.stp_name }}</b><span class="sub id">{{ r.registration_id }}</span></td>
+                                        <td>{{ r.owner_name }}<span class="sub num">{{ r.phone }}</span></td>
+                                        <td class="r num">{{ "%g"|format((r.total_capacity_mld|float * 1000)|round(2)) }} KLD</td>
+                                        <td><span title="{{ r.technology }}">{{ r.technology|truncate(22, True, "…") }}</span></td>
+                                        <td>{% if r.quality_grade %}<span class="tag">{{ r.quality_grade }}</span>{% endif %}</td>
+                                        <td>{{ status_pill(r.verification_status or "Pending") }}</td>
+                                        <td><div class="actions">
+                                            {% if st == "pending" %}
+                                                <a class="btn sm approve" href="/admin/stp/{{ r.registration_id }}/status/approved#approvals" data-confirm="Approve {{ r.stp_name }}? It will join the network and can receive orders."><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Approve</a>
+                                                <a class="btn sm reject" href="/admin/stp/{{ r.registration_id }}/status/rejected#approvals" data-confirm="Reject the registration for {{ r.stp_name }}?"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Reject</a>
+                                            {% else %}
+                                                <span style="font-size:12.5px;color:var(--faint);">Reviewed</span>
+                                            {% endif %}
+                                        </div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr class="empty-row"><td colspan="7">No plant registrations yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="no-results">Nothing waiting. Switch to "All" to see reviewed registrations.</div>
                     </div>
+                </section>
 
-
-                    <div class="notification-item">
-
-                        <div
-                            class="notification-icon"
-                            style="background:#f0eaff;color:#7655d3;"
-                        ></div>
-
-                        <div>
-
-                            <p>
-                                {{ orders|length }} orders are currently
-                                recorded in the system.
-                            </p>
-
-                            <small>
-                                Order management
-                            </small>
-
+                <section class="card flush" id="tanker-regs">
+                    <div class="card-head" style="padding-bottom:14px;">
+                        <div><h2>Tanker partners</h2><p>{{ total_tanker_operators }} registered{% if pending_tanker_operators %} · {{ pending_tanker_operators }} waiting{% endif %}</p></div>
+                        <div class="seg" role="group" aria-label="Filter tanker partners" data-filter="tankerTable">
+                            <button type="button" data-value="pending" aria-pressed="{{ 'true' if pending_tanker_operators else 'false' }}">Pending <b>{{ pending_tanker_operators }}</b></button>
+                            <button type="button" data-value="all" aria-pressed="{{ 'false' if pending_tanker_operators else 'true' }}">All <b>{{ total_tanker_operators }}</b></button>
                         </div>
-
                     </div>
+                    <div class="table-wrap">
+                        <table id="tankerTable">
+                            <thead><tr><th>Operator</th><th>Area</th><th>Fleet</th><th>Water type</th><th>Status</th><th class="r">Actions</th></tr></thead>
+                            <tbody>
+                                {% for op in tanker_operators %}
+                                    {% set st = (op.verification_status or "pending")|lower %}
+                                    {% set fleet = vehicles_by_operator.get(op.operator_id, []) %}
+                                    <tr data-status="{{ st }}">
+                                        <td><b>{{ op.operator_name }}</b><span class="sub"><span class="id">{{ op.operator_id }}</span> · <span class="num">{{ op.phone }}</span></span></td>
+                                        <td>{{ op.area or "—" }}{% if op.service_radius_km %}<span class="sub">{{ op.service_radius_km }} km radius</span>{% endif %}</td>
+                                        <td>
+                                            {% if fleet %}{{ fleet|length }} vehicle{{ "" if fleet|length == 1 else "s" }}{% else %}{{ op.tanker_registration_no or "—" }}{% endif %}
+                                            {% if op.tanker_capacity_kl %}<span class="sub num">{{ op.tanker_capacity_kl }} KL tanker</span>{% endif %}
+                                        </td>
+                                        <td>{{ op.water_type_supported or "—" }}</td>
+                                        <td>{{ status_pill(op.verification_status or "Pending") }}</td>
+                                        <td><div class="actions">
+                                            {% if st == "pending" %}
+                                                <a class="btn sm approve" href="/admin/tanker/{{ op.operator_id }}/status/approved#approvals" data-confirm="Approve {{ op.operator_name }} as a tanker partner?"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Approve</a>
+                                                <a class="btn sm reject" href="/admin/tanker/{{ op.operator_id }}/status/rejected#approvals" data-confirm="Reject {{ op.operator_name }}?"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Reject</a>
+                                            {% endif %}
+                                            <a class="btn sm" href="{{ url_for('admin_tanker_operator_details', operator_id=op.operator_id) }}">Details<svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a>
+                                        </div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr class="empty-row"><td colspan="6">No tanker partners have registered yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="no-results">Nothing waiting. Switch to "All" to see reviewed partners.</div>
+                    </div>
+                </section>
 
-                </div>
+                <section class="card flush" id="ocems-reports">
+                    <div class="card-head" style="padding-bottom:14px;">
+                        <div><h2>OCEMS reports</h2><p>Water-quality files uploaded by plant operators</p></div>
+                        <div class="seg" role="group" aria-label="Filter OCEMS reports" data-filter="ocemsTable">
+                            <button type="button" data-value="pending" aria-pressed="{{ 'true' if agg.ocems_pending else 'false' }}">Pending <b>{{ agg.ocems_pending }}</b></button>
+                            <button type="button" data-value="all" aria-pressed="{{ 'false' if agg.ocems_pending else 'true' }}">All <b>{{ ocems_submissions|length }}</b></button>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="ocemsTable">
+                            <thead><tr><th>Plant</th><th>File</th><th>Uploaded</th><th>Status</th><th class="r">Actions</th></tr></thead>
+                            <tbody>
+                                {% for sub in ocems_submissions %}
+                                    <tr data-status="{{ (sub.status or 'pending')|lower }}">
+                                        <td><span class="id">{{ sub.stp_id }}</span></td>
+                                        <td><span title="{{ sub.original_filename }}" style="display:inline-flex;align-items:center;gap:7px;"><svg class="i" viewBox="0 0 24 24" style="color:#15803d"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 13 6 6"/><path d="m15 13-6 6"/></svg>{{ sub.original_filename|truncate(32, True, "…") }}</span>{% if sub.admin_remark %}<span class="sub">“{{ sub.admin_remark }}”</span>{% endif %}</td>
+                                        <td class="num" style="font-size:12.5px;color:var(--muted);">{{ (sub.uploaded_at or "")|replace("T", " ") }}</td>
+                                        <td>{{ status_pill(sub.status or "Pending") }}</td>
+                                        <td><div class="actions"><a class="btn sm" href="{{ url_for('admin_view_ocems', submission_id=sub.submission_id) }}">{{ "Review" if (sub.status or "pending")|lower == "pending" else "View" }}<svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></a></div></td>
+                                    </tr>
+                                {% else %}
+                                    <tr class="empty-row"><td colspan="5">No OCEMS reports have been uploaded.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="no-results">Nothing waiting. Switch to "All" to see reviewed reports.</div>
+                    </div>
+                </section>
+            </section>
 
-            </div>
+            {# ================= ORDERS ================= #}
+            <section class="panel" id="panel-orders" data-title="Orders" hidden>
+                <section class="card flush">
+                    <div class="card-head" style="padding-bottom:14px;">
+                        <div><h2>All orders</h2><p class="num">{{ orders|length }} orders · {{ "%g"|format(agg.qty) }} KL requested</p></div>
+                        <div class="toolbar">
+                            <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" placeholder="Search order, buyer or plant" data-search="ordersTable" aria-label="Search orders"></label>
+                            <div class="seg" role="group" aria-label="Filter orders" data-filter="ordersTable">
+                                <button type="button" data-value="all" aria-pressed="true">All <b>{{ orders|length }}</b></button>
+                                <button type="button" data-value="active" aria-pressed="false">Active <b>{{ agg.active_orders }}</b></button>
+                                <button type="button" data-value="pending" aria-pressed="false">Pending <b>{{ agg.pending_orders }}</b></button>
+                                <button type="button" data-value="completed" aria-pressed="false">Completed <b>{{ agg.done_orders }}</b></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="ordersTable">
+                            <thead><tr><th>Order</th><th>Buyer</th><th>Plant</th><th class="r">Qty</th><th>Tanker</th><th>Payment</th><th>Status</th></tr></thead>
+                            <tbody>
+                                {% for order in orders|reverse %}
+                                    {% set s = (order.status or "")|lower %}
+                                    {% if s in ["pending", "offered", "new offer", "awaiting"] %}{% set b = "pending" %}
+                                    {% elif s in ["delivered", "completed"] %}{% set b = "completed" %}
+                                    {% elif s in ["rejected", "cancelled", "canceled", "expired", "failed"] %}{% set b = "closed" %}
+                                    {% else %}{% set b = "active" %}{% endif %}
+                                    <tr data-status="{{ b }}">
+                                        <td><span class="id">{{ order.order_id }}</span><span class="sub">{{ (order.created_at or "")[:16] }}</span></td>
+                                        <td>{{ order.buyer_name or "—" }}<span class="sub num">{{ order.buyer_phone }}</span></td>
+                                        <td>{{ order.stp_name or order.stp_id }}{% if order.distance_km %}<span class="sub num">{{ "%.1f"|format(order.distance_km|float) }} km away</span>{% endif %}</td>
+                                        <td class="r num">{{ order.quantity_kld }} KL</td>
+                                        <td>{{ order.assigned_operator_name or "—" }}</td>
+                                        <td style="font-size:12.5px;">{{ order.payment_status or "—" }}</td>
+                                        <td>{{ status_pill(order.status) }}</td>
+                                    </tr>
+                                {% else %}
+                                    <tr class="empty-row"><td colspan="7">No orders yet.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <div class="no-results">No orders match.</div>
+                    </div>
+                </section>
+            </section>
 
         </div>
-
-    </main>
-
-</div>
-
-    <!-- =========================
-         LEAFLET
-    ========================= -->
-
-    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- =========================
-         LEAFLET HEATMAP PLUGIN
-    ========================= -->
-
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
-
-    <script>
-
-        // ==========================================
-        // CREATE BANGALORE MAP
-        // ==========================================
-
-        const map = L.map("demand-map").setView(
-            [12.9716, 77.5946],
-            11
-        );
-
-
-        // ==========================================
-        // OPENSTREETMAP
-        // ==========================================
-
-        L.tileLayer(
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            {
-                attribution: "&copy; OpenStreetMap contributors"
-            }
-        ).addTo(map);
-
-
-        
-        // ==========================================
-        // WATER DEMAND HEATMAP
-        // ==========================================
-        // These are visualization-only values. The CSV is not changed.
-        const HEAT_POINT_WEIGHT = 0.12;
-        const HEAT_CANVAS_OPACITY = 0.55;
-        let demandHeatmapLayer = null;
-
-        async function loadDemandHeatmap() {
-            try {
-                if (typeof L.heatLayer !== "function") {
-                    throw new Error("Leaflet.heat plugin was not loaded.");
-                }
-
-                const response = await fetch("/api/demand_heatmap", {
-                    cache: "no-store"
-                });
-
-                if (!response.ok) {
-                    throw new Error("Demand API returned HTTP " + response.status);
-                }
-
-                const data = await response.json();
-                if (!Array.isArray(data)) {
-                    throw new Error("Heatmap API response is not an array.");
-                }
-
-                const validOrders = data.filter(order => {
-                    const lat = Number(order.latitude);
-                    const lon = Number(order.longitude);
-                    const quantity = Number(order.quantity_kld);
-                    return Number.isFinite(lat) && Number.isFinite(lon) &&
-                        Number.isFinite(quantity) &&
-                        lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 &&
-                        quantity > 0;
-                });
-
-                console.log("Valid synthetic demand orders:", validOrders.length);
-
-                if (validOrders.length === 0) {
-                    throw new Error("No valid heatmap coordinates were returned.");
-                }
-
-                const maxQuantity = Math.max(
-                    ...validOrders.map(order => Number(order.quantity_kld))
-                );
-
-                // Keep quantity differences but avoid overwhelming the map.
-                const heatPoints = validOrders.map(order => [
-                    Number(order.latitude),
-                    Number(order.longitude),
-                    (Number(order.quantity_kld) / maxQuantity) * HEAT_POINT_WEIGHT
-                ]);
-
-                if (demandHeatmapLayer) {
-                    map.removeLayer(demandHeatmapLayer);
-                }
-
-                demandHeatmapLayer = L.heatLayer(heatPoints, {
-                    radius: 20,
-                    blur: 20,
-                    maxZoom: 13,
-                    max: 1.5,
-                    minOpacity: 0.08,
-                    gradient: {
-                        0.15: "#2563eb",
-                        0.35: "#06b6d4",
-                        0.55: "#22c55e",
-                        0.75: "#facc15",
-                        0.90: "#f97316",
-                        1.00: "#ef4444"
-                    }
-                }).addTo(map);
-
-                // Apply a single opacity setting. Do not override it elsewhere.
-                // Keep the Leaflet canvas-size CSS fix above unchanged.
-                const setHeatOpacity = () => {
-                    if (demandHeatmapLayer && demandHeatmapLayer._canvas) {
-                        demandHeatmapLayer._canvas.style.opacity =
-                            String(HEAT_CANVAS_OPACITY);
-                    }
-                };
-
-                setHeatOpacity();
-                requestAnimationFrame(() => {
-                    map.invalidateSize();
-                    demandHeatmapLayer.redraw();
-                    setHeatOpacity();
-                });
-
-                console.log(
-                    "Demand heatmap successfully rendered:",
-                    heatPoints.length,
-                    "points"
-                );
-            } catch (error) {
-                console.error("Demand heatmap loading failed:", error);
-            }
-        }
-
-        loadDemandHeatmap();
-
-
-        // ==========================================
-        // STP MARKERS
-        // ==========================================
-
-        {% for stp in stps %}
-
-        L.marker([
-            {{ stp.latitude }},
-            {{ stp.longitude }}
-        ])
-        .addTo(map)
-        .bindPopup(
-            "<b>{{ stp.stp_name }}</b><br>" +
-            "ID: {{ stp.stp_id }}<br>" +
-            "Capacity: {{ stp.total_capacity_mld }} MLD<br>" +
-            "Available: {{ stp.available_capacity_mld }} MLD"
-        );
-
-        {% endfor %}
-
-    </script>
-
-
-
-<!-- =========================================================
-     GLOBAL PROFILE / AVATAR / LOGOUT MENU
-========================================================= -->
-<style>
-#wwGlobalAccountButton{
-    position:fixed;top:14px;right:18px;width:43px;height:43px;
-    border-radius:50%;border:2px solid #fff;
-    background:linear-gradient(135deg,#1683ff,#20c997);
-    color:#fff;display:flex;align-items:center;justify-content:center;
-    font-family:Arial,sans-serif;font-size:13px;font-weight:700;
-    cursor:pointer;z-index:2147483000;
-    box-shadow:0 5px 18px rgba(0,0,0,.18);
-    user-select:none;transition:transform .18s ease,box-shadow .18s ease;
-}
-#wwGlobalAccountButton:hover{
-    transform:scale(1.05);box-shadow:0 7px 22px rgba(0,0,0,.23);
-}
-#wwGlobalAccountMenu{
-    position:fixed;top:66px;right:18px;width:235px;
-    background:#fff;border:1px solid #e6ebf2;border-radius:13px;
-    padding:10px;z-index:2147483001;
-    box-shadow:0 14px 38px rgba(15,23,42,.18);
-    font-family:Arial,sans-serif;display:none;
-}
-#wwGlobalAccountMenu.ww-open{display:block}
-.ww-account-header{
-    padding:8px 9px 12px;margin-bottom:5px;
-    border-bottom:1px solid #edf1f5;
-}
-.ww-account-name{
-    color:#172033;font-size:14px;font-weight:700;
-    line-height:1.35;word-break:break-word;
-}
-.ww-account-role{
-    margin-top:3px;color:#7b8799;font-size:11px;
-    text-transform:capitalize;
-}
-.ww-account-item{
-    display:block;width:100%;padding:10px 9px;border-radius:8px;
-    color:#263449;background:transparent;text-decoration:none;
-    font-size:12px;font-weight:600;text-align:left;
-    box-sizing:border-box;cursor:pointer;
-}
-.ww-account-item:hover{background:#f4f7fb}
-.ww-account-login{color:#1976f3}
-.ww-account-logout{color:#d13b3b}
-@media(max-width:600px){
-    #wwGlobalAccountMenu{top:58px;right:10px;width:210px}
-}
-</style>
-
-<div id="wwGlobalAccountMenu" aria-hidden="true">
-    <div class="ww-account-header">
-        <div id="wwAccountName" class="ww-account-name">Guest</div>
-        <div id="wwAccountRole" class="ww-account-role">Account</div>
     </div>
-
-    <a id="wwAccountProfile" class="ww-account-item"
-       href="/profile" style="display:none;"> My Profile</a>
-
-    <a id="wwAccountLogin" class="ww-account-item ww-account-login"
-       href="/login" style="display:none;"> Login</a>
-
-    <a id="wwAccountLogout" class="ww-account-item ww-account-logout"
-       href="/logout" style="display:none;">↪ Logout</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
-(function(){
+(function () {
     "use strict";
 
-    const avatar=document.querySelector(".profile, .operator-profile, .admin-profile");
-    const menu=document.getElementById("wwGlobalAccountMenu");
+    var STPS = [
+        {% for stp in stps %}
+        { id: {{ stp.stp_id|tojson }}, name: {{ stp.stp_name|tojson }}, lat: {{ stp.latitude|float }}, lon: {{ stp.longitude|float }}, total: {{ stp.total_capacity_mld|float }}, free: {{ stp.available_capacity_mld|float }}, grade: {{ (stp.quality_grade or "")|tojson }} }{{ "," if not loop.last }}
+        {% endfor %}
+    ];
 
-    if(!avatar || !menu) return;
+    document.getElementById("today").textContent = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-    const nameEl=document.getElementById("wwAccountName");
-    const roleEl=document.getElementById("wwAccountRole");
-    const profileEl=document.getElementById("wwAccountProfile");
-    const loginEl=document.getElementById("wwAccountLogin");
-    const logoutEl=document.getElementById("wwAccountLogout");
-
-    function loggedOut(){
-        const circle=avatar.querySelector(".profile-circle");
-        const profileName=avatar.querySelector("span:not(:last-child)");
-        if(circle) circle.textContent="";
-        if(profileName) profileName.textContent="Guest";
-        avatar.title="Login";
-        if(nameEl) nameEl.textContent="Guest";
-        if(roleEl) roleEl.textContent="Not logged in";
-        if(profileEl) profileEl.style.display="none";
-        if(loginEl) loginEl.style.display="block";
-        if(logoutEl) logoutEl.style.display="none";
+    // ---------- Tabs (hash based, so redirects with #tab land back here) ----------
+    var TABS = ["overview", "plants", "approvals", "orders"];
+    var map = null;
+    function show(tab, scrollTo) {
+        if (TABS.indexOf(tab) < 0) tab = "overview";
+        TABS.forEach(function (t) { document.getElementById("panel-" + t).hidden = t !== tab; });
+        document.querySelectorAll(".nav a[data-tab]").forEach(function (a) {
+            if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+        });
+        var panel = document.getElementById("panel-" + tab);
+        document.getElementById("pageTitle").textContent = panel.dataset.title;
+        document.title = panel.dataset.title + " | ReFlow admin";
+        closeNav();
+        if (tab === "overview") initMap();
+        if (scrollTo) {
+            var el = document.getElementById(scrollTo);
+            if (el) el.scrollIntoView({ block: "start" });
+        } else {
+            window.scrollTo(0, 0);
+        }
     }
+    document.addEventListener("click", function (e) {
+        var link = e.target.closest("a[data-tab]");
+        if (!link) return;
+        e.preventDefault();
+        if (location.hash !== "#" + link.dataset.tab) history.pushState(null, "", "#" + link.dataset.tab);
+        show(link.dataset.tab, link.dataset.scroll);
+        if (link.dataset.focus) { var f = document.getElementById(link.dataset.focus); if (f) f.focus(); }
+    });
+    window.addEventListener("popstate", function () { show(location.hash.slice(1)); });
 
-    function loggedIn(user){
-        const circle=avatar.querySelector(".profile-circle");
-        const profileName=avatar.querySelector("span:not(:last-child)");
-        if(circle) circle.textContent=user.initials || "";
-        if(profileName) profileName.textContent=user.name || "User";
-        avatar.title=user.name || "My Profile";
+    // ---------- Mobile navigation ----------
+    var menuBtn = document.getElementById("menuBtn");
+    function closeNav() { document.body.classList.remove("nav-open"); menuBtn.setAttribute("aria-expanded", "false"); }
+    menuBtn.addEventListener("click", function () {
+        var open = document.body.classList.toggle("nav-open");
+        menuBtn.setAttribute("aria-expanded", String(open));
+    });
+    document.getElementById("scrim").addEventListener("click", closeNav);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeNav(); });
 
-        if(nameEl) nameEl.textContent=user.name || "User";
+    // ---------- Confirm destructive or approval actions ----------
+    document.addEventListener("click", function (e) {
+        var a = e.target.closest("a[data-confirm]");
+        if (a && !window.confirm(a.dataset.confirm)) e.preventDefault();
+    });
 
-        if(roleEl){
-            const role=user.role || "Account";
-            roleEl.textContent=role.charAt(0).toUpperCase()+role.slice(1);
-        }
-
-        if(profileEl) profileEl.style.display="block";
-        if(loginEl) loginEl.style.display="none";
-        if(logoutEl) logoutEl.style.display="block";
+    // ---------- Table filters & search ----------
+    var state = {};
+    function applyTable(id) {
+        var table = document.getElementById(id);
+        if (!table) return;
+        var s = state[id] || {};
+        var q = (s.q || "").toLowerCase().trim();
+        var shown = 0, rows = table.querySelectorAll("tbody tr:not(.empty-row)");
+        rows.forEach(function (tr) {
+            var okFilter = !s.filter || s.filter === "all" || tr.dataset.status === s.filter;
+            var okSearch = !q || tr.textContent.toLowerCase().indexOf(q) >= 0;
+            tr.hidden = !(okFilter && okSearch);
+            if (!tr.hidden) shown++;
+        });
+        var none = table.parentElement.querySelector(".no-results");
+        if (none) none.style.display = rows.length && !shown ? "block" : "none";
     }
-
-    fetch("/api/current_user",{
-        method:"GET",
-        credentials:"same-origin",
-        cache:"no-store"
-    })
-    .then(function(response){
-        if(!response.ok) throw new Error("Account API unavailable");
-        return response.json();
-    })
-    .then(function(user){
-        if(user && user.logged_in) loggedIn(user);
-        else loggedOut();
-    })
-    .catch(function(){
-        loggedOut();
+    document.querySelectorAll(".seg[data-filter]").forEach(function (seg) {
+        var id = seg.dataset.filter;
+        var pressed = seg.querySelector('[aria-pressed="true"]');
+        state[id] = state[id] || {};
+        state[id].filter = pressed ? pressed.dataset.value : "all";
+        seg.addEventListener("click", function (e) {
+            var b = e.target.closest("button");
+            if (!b) return;
+            seg.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+            state[id].filter = b.dataset.value;
+            applyTable(id);
+        });
+        applyTable(id);
+    });
+    document.querySelectorAll("input[data-search]").forEach(function (input) {
+        var id = input.dataset.search;
+        input.addEventListener("input", function () {
+            state[id] = state[id] || {};
+            state[id].q = input.value;
+            applyTable(id);
+        });
     });
 
-    function toggle(event){
-        if(event) event.stopPropagation();
-        const open=menu.classList.toggle("ww-open");
-        menu.setAttribute("aria-hidden",open ? "false" : "true");
-    }
-
-    avatar.addEventListener("click",toggle);
-
-    avatar.addEventListener("keydown",function(event){
-        if(event.key==="Enter" || event.key===" "){
-            event.preventDefault();
-            toggle(event);
-        }
+    // ---------- Add plant: inline checks ----------
+    var addForm = document.getElementById("addForm"), addHint = document.getElementById("addHint");
+    var baseHint = addHint.textContent;
+    addForm.addEventListener("submit", function (e) {
+        var lat = parseFloat(addForm.lat.value), lon = parseFloat(addForm.lon.value), cap = parseFloat(addForm.capacity.value);
+        var exists = STPS.some(function (s) { return s.id.toLowerCase() === addForm.id.value.trim().toLowerCase(); });
+        var msg = "";
+        if (exists) msg = "A plant with ID " + addForm.id.value.trim() + " already exists.";
+        else if (!(lat >= -90 && lat <= 90) || !(lon >= -180 && lon <= 180)) msg = "Enter latitude and longitude as decimal degrees.";
+        else if (!(cap > 0)) msg = "Capacity must be a number above 0.";
+        if (msg) { e.preventDefault(); addHint.textContent = msg; addHint.style.color = "var(--bad)"; }
     });
+    addForm.addEventListener("input", function () { addHint.textContent = baseHint; addHint.style.color = ""; });
 
-    menu.addEventListener("click",function(event){
-        event.stopPropagation();
-    });
+    // ---------- Map ----------
+    function initMap() {
+        if (map) { requestAnimationFrame(function () { map.invalidateSize(); }); return; }
+        if (typeof L === "undefined") return;
+        map = L.map("map", { zoomControl: true, scrollWheelZoom: false }).setView([12.9716, 77.5946], 11);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18, attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(map);
 
-    document.addEventListener("click",function(){
-        menu.classList.remove("ww-open");
-        menu.setAttribute("aria-hidden","true");
-    });
-
-    // Keep application navigation from building a long browser-history chain.
-    // This does not affect forms, map controls, or same-page anchors.
-    document.addEventListener("click", function(event){
-        const link = event.target.closest("a");
-        if(!link) return;
-
-        const href = link.getAttribute("href");
-        if(!href || href.startsWith("#") || href.startsWith("javascript:")) return;
-        if(link.target && link.target !== "_self") return;
-
-        try {
-            const url = new URL(href, window.location.href);
-
-            if(url.origin !== window.location.origin) return;
-
-            event.preventDefault();
-            window.location.replace(url.href);
-        } catch(e) {
-            // Leave existing navigation untouched if the URL cannot be parsed.
-        }
-    }, true);
-
-    // Prevent a cached authenticated dashboard from being restored after
-    // navigating back/forward. The server-side session remains unchanged.
-    window.addEventListener("pageshow", function(event){
-        if(event.persisted){
-            window.location.reload();
-        }
-    });
-})();
-</script>
-<!-- END GLOBAL PROFILE / AVATAR / LOGOUT MENU -->
-
-
-<script id="mobile-sidebar-script">
-(function () {
-    function initMobileSidebar() {
-        var sidebar = document.querySelector('.sidebar');
-        var toggle = document.querySelector('.mobile-sidebar-toggle');
-        var links = document.getElementById('mobile-sidebar-links');
-        if (!sidebar || !toggle || !links) return;
-
-        var backdrop = document.getElementById('mobile-sidebar-backdrop');
-        if (!backdrop) {
-            backdrop = document.createElement('div');
-            backdrop.id = 'mobile-sidebar-backdrop';
-            backdrop.className = 'mobile-sidebar-backdrop';
-            document.body.appendChild(backdrop);
-        }
-
-        function isMobile() {
-            return window.matchMedia('(max-width: 768px)').matches;
-        }
-
-        function openSidebar() {
-            if (!isMobile()) return;
-            document.body.classList.add('mobile-sidebar-open');
-            sidebar.classList.add('mobile-sidebar-open');
-            toggle.setAttribute('aria-expanded', 'true');
-            toggle.setAttribute('aria-label', 'Close sidebar');
-        }
-
-        function closeSidebar() {
-            document.body.classList.remove('mobile-sidebar-open');
-            sidebar.classList.remove('mobile-sidebar-open');
-            toggle.setAttribute('aria-expanded', 'false');
-            toggle.setAttribute('aria-label', 'Open sidebar');
-        }
-
-        toggle.addEventListener('click', function (event) {
-            event.preventDefault();
-            event.stopPropagation();
-            if (document.body.classList.contains('mobile-sidebar-open')) {
-                closeSidebar();
-            } else {
-                openSidebar();
-            }
+        // Plants use the project's standard plant pin. Plants that share exact
+        // coordinates are merged into one pin whose popup lists each of them.
+        var groups = {};
+        STPS.forEach(function (p) {
+            if (!isFinite(p.lat) || !isFinite(p.lon)) return;
+            var key = p.lat.toFixed(5) + "," + p.lon.toFixed(5);
+            (groups[key] = groups[key] || []).push(p);
+        });
+        Object.keys(groups).forEach(function (key) {
+            var list = groups[key];
+            var total = list.reduce(function (t, p) { return t + p.total; }, 0);
+            var free = list.reduce(function (t, p) { return t + p.free; }, 0);
+            L.marker([list[0].lat, list[0].lon], {
+                icon: pinIcon(free > 0 ? "brand" : "ink"),
+                opacity: free > 0 ? 1 : 0.55,
+                keyboard: true,
+                alt: list.map(function (p) { return p.name; }).join(", "),
+                zIndexOffset: 500,
+                riseOnHover: true
+            }).addTo(map)
+              .bindTooltip(list.length > 1 ? list[0].name + " +" + (list.length - 1) + " more" : list[0].name, { direction: "top", className: "stp-tip", offset: [0, -2] })
+              .bindPopup(list.map(popupHtml).join(""));
         });
 
-        backdrop.addEventListener('click', closeSidebar);
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') closeSidebar();
-        });
-
-        links.addEventListener('click', function (event) {
-            if (event.target.closest('a') && isMobile()) {
-                closeSidebar();
-            }
-        });
-
-        window.addEventListener('resize', function () {
-            if (!isMobile()) closeSidebar();
-        });
-
-        /* Swipe from the left edge to open; swipe sidebar to close. */
-        var startX = 0;
-        var startY = 0;
-        var tracking = false;
-
-        document.addEventListener('touchstart', function (event) {
-            if (!isMobile() || !event.touches.length) return;
-            startX = event.touches[0].clientX;
-            startY = event.touches[0].clientY;
-            tracking = true;
-        }, { passive: true });
-
-        document.addEventListener('touchend', function (event) {
-            if (!tracking || !isMobile() || !event.changedTouches.length) return;
-            tracking = false;
-            var endX = event.changedTouches[0].clientX;
-            var endY = event.changedTouches[0].clientY;
-            var dx = endX - startX;
-            var dy = Math.abs(endY - startY);
-
-            if (dy > 70 || Math.abs(dx) < 60) return;
-
-            if (!document.body.classList.contains('mobile-sidebar-open') && startX <= 28 && dx > 60) {
-                openSidebar();
-            } else if (document.body.classList.contains('mobile-sidebar-open') && startX < 320 && dx < -60) {
-                closeSidebar();
-            }
-        }, { passive: true });
+        fetch("/api/demand_heatmap", { cache: "no-store" })
+            .then(function (r) { return r.ok ? r.json() : []; })
+            .then(function (data) {
+                if (!Array.isArray(data) || typeof L.heatLayer !== "function") return;
+                var pts = data.filter(function (o) {
+                    return isFinite(+o.latitude) && isFinite(+o.longitude) && +o.quantity_kld > 0;
+                });
+                if (!pts.length) return;
+                // Weight by order size on a square-root scale, so a few very
+                // large orders don't wash out everywhere else.
+                var max = Math.sqrt(Math.max.apply(null, pts.map(function (o) { return +o.quantity_kld; })));
+                L.heatLayer(pts.map(function (o) { return [+o.latitude, +o.longitude, Math.sqrt(+o.quantity_kld) / max]; }), {
+                    radius: 26, blur: 22, maxZoom: 14, max: 3, minOpacity: 0.25,
+                    gradient: { 0.1: "#2563eb", 0.3: "#06b6d4", 0.5: "#22c55e", 0.7: "#facc15", 0.85: "#f97316", 1: "#dc2626" }
+                }).addTo(map);
+                var frame = pts.map(function (o) { return [+o.latitude, +o.longitude]; }).concat(
+                    STPS.filter(function (p) { return isFinite(p.lat) && isFinite(p.lon); }).map(function (p) { return [p.lat, p.lon]; })
+                );
+                map.fitBounds(frame, { paddingTopLeft: [40, 48], paddingBottomRight: [40, 24], animate: false });
+            })
+            .catch(function () {});
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMobileSidebar);
-    } else {
-        initMobileSidebar();
+    // Same markup as pinIcon("plant", tone) in frontend/src/components/map.tsx
+    var PLANT_GLYPH = '<path d="M2 20h20"/><path d="M5 20V8l5 3V8l5 3V4h4v16"/>';
+    function pinIcon(tone) {
+        return L.divIcon({
+            className: "",
+            html: '<div class="pin pin-' + tone + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' + PLANT_GLYPH + "</svg></div>",
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -26],
+            tooltipAnchor: [0, -28]
+        });
     }
+
+    function popupHtml(p) {
+        var pct = p.total > 0 ? Math.round((p.free / p.total) * 100) : 0;
+        return '<div class="pop"><div class="pop-head"><span><strong>' + escapeHtml(p.name) + "</strong><small>" + escapeHtml(p.id) + "</small></span>" +
+            (p.grade ? '<span class="pop-grade">' + escapeHtml(p.grade) + "</span>" : "") + "</div>" +
+            '<div class="pop-bar"><i style="width:' + pct + '%"></i></div>' +
+            '<div class="pop-meta"><span><b>' + p.free.toFixed(2) + "</b> of " + p.total.toFixed(2) + " MLD free</span><span>" + pct + "%</span></div></div>";
+    }
+
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+    // ---------- Signed-in admin ----------
+    fetch("/api/current_user", { credentials: "same-origin", cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (u) {
+            if (!u || !u.logged_in) return;
+            if (u.initials) document.getElementById("meInitials").textContent = u.initials;
+            if (u.name) document.getElementById("meName").textContent = u.name;
+        })
+        .catch(function () {});
+
+    show(location.hash.slice(1));
 })();
 </script>
 

@@ -1,384 +1,242 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
-
-    <title>OCEMS Document Review</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCEMS report {{ submission.stp_id }} | ReFlow admin</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='brand-mark.svg') }}">
 
     <style>
-
-        * {
-            box-sizing: border-box;
+        :root {
+            --ink: #0f1b2d; --ink-2: #334155; --muted: #5f6e82; --faint: #8a97a8;
+            --line: #e4e9f0; --line-2: #d4dbe4; --bg: #f4f6f9; --surface: #fff; --surface-2: #f8fafc;
+            --brand: #1463d6;
+            --ok: #15803d; --ok-bg: #ecfdf3; --ok-line: #bbe8cb;
+            --warn: #b45309; --warn-bg: #fff8eb; --warn-line: #f6dcae;
+            --bad: #c42b2b; --bad-bg: #fef3f2; --bad-line: #f6caca;
         }
+        * { box-sizing: border-box; }
+        body { margin: 0; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+        svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+        .num { font-variant-numeric: tabular-nums; }
 
-        body {
-
-            margin: 0;
-
-            font-family: Arial, sans-serif;
-
-            background: #0f172a;
-
-            color: #f8fafc;
-
+        .bar {
+            position: sticky; top: 0; z-index: 20;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            padding: 12px 28px;
+            background: rgba(255, 255, 255, 0.8);
+            -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
+            border-bottom: 1px solid var(--line);
         }
-
-        .container {
-
-            max-width: 1400px;
-
-            margin: auto;
-
-            padding: 30px;
-
+        .bar .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .bar .brand img { width: 30px; height: 30px; border-radius: 9px; }
+        .bar .brand .wordmark { font-size: 20px; }
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px;
+            border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink-2);
+            font: inherit; font-size: 13px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+            transition: background .14s, border-color .14s, transform .1s;
         }
+        .btn:hover { background: var(--surface-2); border-color: var(--line-2); }
+        .btn:active { transform: scale(0.97); }
+        .btn.approve { border-color: var(--ok); background: var(--ok); color: #fff; }
+        .btn.approve:hover { background: #136c33; }
+        .btn.reject { border-color: var(--bad-line); background: var(--bad-bg); color: var(--bad); }
+        .btn.reject:hover { background: #fde4e2; }
 
-        .header {
+        .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 24px 64px; display: grid; gap: 20px; }
+        .page-head h1 { margin: 0; font-size: 24px; letter-spacing: -0.022em; }
+        .page-head p { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 
-            display: flex;
+        .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: 0 1px 2px rgba(15,27,45,.04), 0 8px 24px -16px rgba(15,27,45,.14); min-width: 0; }
+        .card h2 { margin: 0; font-size: 16px; letter-spacing: -0.012em; }
+        .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .card-head p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
 
-            justify-content: space-between;
+        .meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; }
+        .meta > div { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border-right: 1px solid var(--line); min-width: 0; }
+        .meta > div:last-child { border-right: 0; }
+        .meta .ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; flex: none; }
+        .ico.teal { background: #e6f7f5; color: #0d9488; }
+        .ico.green { background: #e9f7ee; color: #15803d; }
+        .ico.sky { background: #e8f6fd; color: #0e7fb8; }
+        .ico.violet { background: #f1ebff; color: #7c3aed; }
+        .label { font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+        .meta .value { margin-top: 3px; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-            align-items: center;
+        .pill { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid transparent; white-space: nowrap; }
+        .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .pill.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
+        .pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-line); }
+        .pill.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad-line); }
 
-            margin-bottom: 25px;
+        /* Spreadsheet preview (pandas to_html output) */
+        .sheet { overflow: auto; max-height: 560px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+        .ocems-preview-table { width: 100%; border: 0; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+        .ocems-preview-table td { border: 0; padding: 8px 12px; border-bottom: 1px solid var(--line); border-right: 1px solid #eef1f5; white-space: nowrap; color: var(--ink-2); background: #fff; }
+        .ocems-preview-table td:last-child { border-right: 0; }
+        .ocems-preview-table tr:hover td { background: #fbfcfe; }
+        /* The first four rows are the sheet's header block: company, station, parameters, limits */
+        .ocems-preview-table tr:nth-child(-n+4) td { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+        .ocems-preview-table tr:nth-child(3) td { position: sticky; top: 0; z-index: 1; background: #eef4ff; color: #12408c; }
+        .ocems-preview-table tr:nth-child(4) td { border-bottom: 2px solid var(--line-2); }
 
+        .review { display: grid; gap: 12px; }
+        .review label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+        .review textarea { width: 100%; min-height: 96px; padding: 12px; border-radius: 12px; border: 1px solid var(--line-2); background: #fff; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.5; resize: vertical; }
+        .review textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(20, 99, 214, .2); }
+        .review textarea[aria-invalid="true"] { border-color: var(--bad); box-shadow: 0 0 0 3px rgba(196, 43, 43, .15); }
+        .hint { font-size: 12.5px; color: var(--muted); }
+        .hint.err { color: var(--bad); }
+        .review .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .decided { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 13px; font-size: 14px; line-height: 1.5; }
+        .decided.ok { background: var(--ok-bg); border: 1px solid var(--ok-line); color: #136c33; }
+        .decided.bad { background: var(--bad-bg); border: 1px solid var(--bad-line); color: #8f1f1f; }
+        .decided svg.i { width: 18px; height: 18px; margin-top: 2px; }
+        .decided q { display: block; margin-top: 4px; color: var(--ink-2); font-style: italic; }
+
+        @media (max-width: 860px) {
+            .meta { grid-template-columns: 1fr 1fr; }
+            .meta > div:nth-child(2) { border-right: 0; }
+            .meta > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
         }
-
-        .header h1 {
-
-            margin: 0;
-
-            font-size: 25px;
-
+        @media (max-width: 560px) {
+            .bar { padding: 10px 16px; }
+            .bar .label-text { display: none; }
+            .wrap { padding: 16px 16px 48px; }
+            .meta { grid-template-columns: minmax(0, 1fr); }
+            .meta > div { border-right: 0; border-bottom: 1px solid var(--line); }
+            .meta > div:last-child { border-bottom: 0; }
         }
-
-        .back {
-
-            background: #334155;
-
-            color: white;
-
-            padding: 10px 16px;
-
-            border-radius: 8px;
-
-            text-decoration: none;
-
-        }
-
-        .card {
-
-            background: #1e293b;
-
-            border-radius: 14px;
-
-            padding: 22px;
-
-            margin-bottom: 20px;
-
-        }
-
-        .info {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(4, 1fr);
-
-            gap: 15px;
-
-            margin-bottom: 20px;
-
-        }
-
-        .info-item {
-
-            background: #0f172a;
-
-            padding: 15px;
-
-            border-radius: 10px;
-
-        }
-
-        .info-item span {
-
-            display: block;
-
-            color: #94a3b8;
-
-            font-size: 12px;
-
-            margin-bottom: 5px;
-
-        }
-
-        .info-item strong {
-
-            font-size: 14px;
-
-        }
-
-        .document {
-
-            overflow-x: auto;
-
-        }
-
-        .ocems-preview-table {
-
-            width: 100%;
-
-            border-collapse: collapse;
-
-            background: #0f172a;
-
-        }
-
-        .ocems-preview-table td {
-
-            padding: 10px;
-
-            border: 1px solid #334155;
-
-            white-space: nowrap;
-
-        }
-
-        .actions {
-
-            display: flex;
-
-            gap: 10px;
-
-            align-items: center;
-
-            margin-top: 20px;
-
-        }
-
-        .approve,
-        .reject {
-
-            border: none;
-
-            padding: 10px 18px;
-
-            border-radius: 8px;
-
-            color: white;
-
-            cursor: pointer;
-
-            font-weight: 600;
-
-        }
-
-        .approve {
-
-            background: #16a34a;
-
-        }
-
-        .reject {
-
-            background: #dc2626;
-
-        }
-
-        textarea {
-
-            width: 100%;
-
-            min-height: 80px;
-
-            background: #0f172a;
-
-            color: white;
-
-            border: 1px solid #475569;
-
-            border-radius: 8px;
-
-            padding: 10px;
-
-            resize: vertical;
-
-        }
-
-        @media (max-width: 800px) {
-
-            .info {
-
-                grid-template-columns: 1fr 1fr;
-
-            }
-
-        }
-
     </style>
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='design-system.css') }}">
 </head>
-
 
 <body>
 
-<div class="container">
+{% set status = (submission.status or "pending")|lower %}
 
+<header class="bar">
+    <a class="brand" href="{{ url_for('admin_dashboard') }}" aria-label="ReFlow admin">
+        <img src="{{ url_for('static', filename='brand-mark.svg') }}" alt="">
+        <span class="wordmark">Re<span>Flow</span></span>
+    </a>
+    <a class="btn" href="{{ url_for('admin_dashboard') }}#approvals">
+        <svg class="i" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+        <span class="label-text">Back to approvals</span>
+    </a>
+</header>
 
-    <div class="header">
+<main class="wrap">
 
-        <h1>OCEMS Document Review</h1>
-
-        <a
-            href="{{ url_for('admin_dashboard') }}"
-            class="back"
-        >
-            ← Back to Admin
-        </a>
-
+    <div class="page-head">
+        <h1>OCEMS report review</h1>
+        <p>Check the readings in the uploaded file before they appear on the plant's dashboard.</p>
     </div>
 
-
-    <div class="card">
-
-        <div class="info">
-
-            <div class="info-item">
-
-                <span>STP</span>
-
-                <strong>
-                    {{ submission.stp_id }}
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span>Document</span>
-
-                <strong>
-                    {{ submission.original_filename }}
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span>Uploaded</span>
-
-                <strong>
-                    {{ submission.uploaded_at }}
-                </strong>
-
-            </div>
-
-
-            <div class="info-item">
-
-                <span>Status</span>
-
-                <strong>
-                    {{ submission.status|capitalize }}
-                </strong>
-
-            </div>
-
+    <div class="meta">
+        <div>
+            <span class="ico teal"><svg class="i" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/></svg></span>
+            <span style="min-width:0"><div class="label">Plant</div><div class="value">{{ submission.stp_id }}</div></span>
         </div>
+        <div>
+            <span class="ico green"><svg class="i" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 13 6 6"/><path d="m15 13-6 6"/></svg></span>
+            <span style="min-width:0"><div class="label">File</div><div class="value" title="{{ submission.original_filename }}">{{ submission.original_filename }}</div></span>
+        </div>
+        <div>
+            <span class="ico sky"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span style="min-width:0"><div class="label">Uploaded</div><div class="value num">{{ (submission.uploaded_at or "—")|replace("T", " ") }}</div></span>
+        </div>
+        <div>
+            <span class="ico violet"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg></span>
+            <span style="min-width:0"><div class="label">Status</div>
+                <div class="value" style="margin-top:5px">
+                    {% if status == "approved" %}<span class="pill ok">Approved</span>
+                    {% elif status == "rejected" %}<span class="pill bad">Rejected</span>
+                    {% else %}<span class="pill warn">Pending review</span>{% endif %}
+                </div>
+            </span>
+        </div>
+    </div>
 
-
-        <h2>Document Contents</h2>
-
-        <div class="document">
-
+    <section class="card">
+        <div class="card-head">
+            <div><h2>File contents</h2><p>"Average" sheet, exactly as uploaded</p></div>
+        </div>
+        <div class="sheet">
             {{ html_table|safe }}
-
         </div>
+    </section>
 
-
-        {% if submission.status == "pending" %}
-
-        <form
-            method="POST"
-            action="{{ url_for(
-                'admin_review_ocems',
-                submission_id=submission.submission_id
-            ) }}"
-        >
-
-            <h3>Admin Remark</h3>
-
-            <textarea
-                name="admin_remark"
-                placeholder="Optional for approval. Required for rejection."
-            ></textarea>
-
-
-            <div class="actions">
-
-                <button
-                    type="submit"
-                    name="action"
-                    value="approved"
-                    class="approve"
-                    onclick="return confirm('Approve this OCEMS report?')"
-                >
-                    ✓ Approve
-                </button>
-
-
-                <button
-                    type="submit"
-                    name="action"
-                    value="rejected"
-                    class="reject"
-                    onclick="return confirm('Reject this OCEMS report?')"
-                >
-                    ✕ Reject
-                </button>
-
-            </div>
-
-        </form>
-
+    <section class="card">
+        {% if status == "pending" %}
+            <div class="card-head"><div><h2>Your decision</h2><p>Approved readings replace this plant's current OCEMS data.</p></div></div>
+            <form class="review" method="POST" action="{{ url_for('admin_review_ocems', submission_id=submission.submission_id) }}" id="reviewForm">
+                <label for="remark">Remark</label>
+                <textarea id="remark" name="admin_remark" placeholder="Optional when approving. Tell the operator what to fix when rejecting."></textarea>
+                <div class="hint" id="remarkHint">Shown to the plant operator.</div>
+                <div class="actions">
+                    <button type="submit" name="action" value="approved" class="btn approve">
+                        <svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>Approve report
+                    </button>
+                    <button type="submit" name="action" value="rejected" class="btn reject">
+                        <svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>Reject
+                    </button>
+                </div>
+            </form>
         {% else %}
-
-            <p>
-                This submission has already been
-                <strong>
-                    {{ submission.status }}
-                </strong>.
-            </p>
-
-            {% if submission.admin_remark %}
-
-                <p>
-                    <strong>Admin Remark:</strong>
-                    {{ submission.admin_remark }}
-                </p>
-
-            {% endif %}
-
+            <div class="card-head"><div><h2>Decision</h2></div></div>
+            <div class="decided {{ 'ok' if status == 'approved' else 'bad' }}">
+                {% if status == "approved" %}
+                    <svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>
+                {% else %}
+                    <svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                {% endif %}
+                <span>
+                    This report was <strong>{{ status }}</strong>{% if submission.approved_at %} on <span class="num">{{ submission.approved_at|replace("T", " ") }}</span>{% endif %}.
+                    {% if submission.admin_remark %}<q>{{ submission.admin_remark }}</q>{% endif %}
+                </span>
+            </div>
         {% endif %}
+    </section>
 
-    </div>
+</main>
 
-</div>
+{% if status == "pending" %}
+<script>
+(function () {
+    "use strict";
+    var form = document.getElementById("reviewForm");
+    var remark = document.getElementById("remark");
+    var hint = document.getElementById("remarkHint");
+    var base = hint.textContent;
+
+    form.addEventListener("submit", function (e) {
+        var action = e.submitter ? e.submitter.value : "";
+        if (action === "rejected" && !remark.value.trim()) {
+            e.preventDefault();
+            remark.setAttribute("aria-invalid", "true");
+            hint.textContent = "Add a remark so the operator knows why the report was rejected.";
+            hint.className = "hint err";
+            remark.focus();
+            return;
+        }
+        var ok = window.confirm(action === "rejected" ? "Reject this OCEMS report?" : "Approve this OCEMS report? Its readings will replace the plant's current data.");
+        if (!ok) e.preventDefault();
+    });
+    remark.addEventListener("input", function () {
+        remark.setAttribute("aria-invalid", "false");
+        hint.textContent = base;
+        hint.className = "hint";
+    });
+})();
+</script>
+{% endif %}
 
 </body>
-
 </html>
