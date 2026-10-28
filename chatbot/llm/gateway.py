@@ -20,38 +20,26 @@ load_dotenv()
 
 
 class JunoLLMGateway:
-    """LLM gateway for Juno AI."""
+    """LLM gateway for Juno AI, backed by a local Ollama server."""
 
-    # Google exposes an OpenAI-compatible endpoint for Gemini models,
-    # so we can keep using the `openai` client library and just point
-    # it at Gemini instead of OpenAI's own API.
-    # https://ai.google.dev/gemini-api/docs/openai
-    GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    # Ollama serves an OpenAI-compatible API under /v1, so we keep using
+    # the `openai` client library and just point it at Ollama.
+    # https://github.com/ollama/ollama/blob/main/docs/openai.md
+    DEFAULT_BASE_URL = "http://localhost:11434/v1"
+    DEFAULT_MODEL = "llama3.2:3b"
 
     def __init__(self):
-        # "GEMINI_API_KE" (missing the trailing Y) is a legacy typo that
-        # may still be set in some .env files - keep reading it as a
-        # fallback so we don't break existing setups, but GEMINI_API_KEY
-        # is the name to use going forward.
-        api_key = (
-            os.getenv("GEMINI_API_KEY")
-            or os.getenv("GEMINI_API_KE")
-        )
+        base_url = os.getenv("OLLAMA_BASE_URL", self.DEFAULT_BASE_URL)
 
-        if not api_key:
-            raise RuntimeError(
-                "GEMINI_API_KEY is not configured in .env"
-            )
-
+        # Ollama ignores the API key, but the client requires one.
         self.client = OpenAI(
-            api_key=api_key,
-            base_url=self.GEMINI_BASE_URL,
+            api_key="ollama",
+            base_url=base_url,
+            timeout=float(os.getenv("JUNO_LLM_TIMEOUT", "45")),
+            max_retries=0,
         )
 
-        self.model = os.getenv(
-            "JUNO_LLM_MODEL",
-            "gemini-2.5-flash",
-        )
+        self.model = os.getenv("JUNO_LLM_MODEL", self.DEFAULT_MODEL)
 
     def understand(self, message: str) -> dict:
         """
@@ -132,12 +120,15 @@ Return exactly this JSON structure:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message},
             ],
+            # Ollama's JSON mode constrains the output to valid JSON.
+            response_format={"type": "json_object"},
+            temperature=0,
         )
 
         raw_output = (response.choices[0].message.content or "").strip()
 
-        # Gemini sometimes wraps JSON in a ```json ... ``` fence even when
-        # asked not to - strip that before parsing.
+        # Small models sometimes wrap JSON in a ```json ... ``` fence even
+        # when asked not to - strip that before parsing.
         if raw_output.startswith("```"):
             raw_output = raw_output.strip("`")
             if raw_output.lower().startswith("json"):

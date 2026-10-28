@@ -31,7 +31,8 @@ from config import Config
 # JUNO AI LLM GATEWAY (OPTIONAL)
 # =========================================================
 # Juno is used only for natural-language understanding/entity
-# extraction. If the Gemini key is unavailable, the existing
+# extraction. It runs on a local Ollama server (see
+# chatbot/llm/gateway.py). If Ollama is unavailable, the existing
 # fuzzy chatbot continues to work normally.
 try:
     juno_llm_gateway = JunoLLMGateway()
@@ -246,6 +247,24 @@ def get_request_deadline(request_created_at):
         + timedelta(
             minutes=REQUEST_TIMEOUT_MINUTES
         )
+    )
+
+
+def assignment_window_start(row):
+    """
+    Return the timestamp the 30-minute tanker assignment window
+    starts from: the moment the STP accepted the order or transfer.
+
+    Counting from creation instead would expire any order the STP
+    accepts more than 30 minutes after it was placed before a tanker
+    is ever offered it. Rows accepted before accepted_at existed fall
+    back to their creation time.
+    """
+
+    return (
+        row.get("accepted_at")
+        or row.get("created_at")
+        or row.get("requested_at")
     )
 
 
@@ -2115,11 +2134,6 @@ def load_ocems_data(stp_id):
 SPA_INDEX = os.path.join(app.root_path, "static", "app", "index.html")
 
 
-def wants_json():
-    """True when the React app submitted the request with fetch()."""
-    return request.headers.get("X-Requested-With") == "fetch"
-
-
 def serve_spa():
     """Return the built React app; client-side routing picks the page."""
     if not os.path.exists(SPA_INDEX):
@@ -3600,59 +3614,83 @@ def api_logout():
 def tanker_register():
     return serve_spa()
 
-@app.route("/tanker/status", methods=["GET", "POST"])
+@app.route("/tanker/status")
 def tanker_status():
+    return serve_spa()
 
-    if request.method == "POST":
 
-        operator_id = request.form.get("operator_id", "").strip()
-        phone = request.form.get("phone", "").strip()
+TANKER_STATUS_PUBLIC_FIELDS = (
+    "operator_id", "operator_name", "operator_type", "phone",
+    "registration_date", "tanker_registration_no", "verification_status",
+    "area", "operational_tankers",
+)
 
-        normalized_operator_id = operator_id.casefold()
-        normalized_phone = re.sub(r"\D", "", phone)
 
-        operator = None
+def find_tanker_registration(operator_id, phone):
+    """Registration row matching operator ID and phone, or None."""
 
-        if os.path.exists(TANKER_REGISTRATIONS_FILE):
+    normalized_operator_id = str(operator_id or "").strip().casefold()
+    # Compare the last 10 digits so "+91 98…" matches "98…".
+    normalized_phone = re.sub(r"\D", "", str(phone or ""))[-10:]
 
-            with open(
-                TANKER_REGISTRATIONS_FILE,
-                "r",
-                newline="",
-                encoding="utf-8"
-            ) as f:
+    if not normalized_operator_id or not normalized_phone:
+        return None
 
-                reader = csv.DictReader(f)
+    if not os.path.exists(TANKER_REGISTRATIONS_FILE):
+        return None
 
-                for row in reader:
+    with open(
+        TANKER_REGISTRATIONS_FILE,
+        "r",
+        newline="",
+        encoding="utf-8"
+    ) as f:
 
-                    row_operator_id = (
-                        str(row.get("operator_id") or "").strip().casefold()
-                    )
-                    row_phone = re.sub(
-                        r"\D",
-                        "",
-                        str(row.get("phone") or "")
-                    )
+        for row in csv.DictReader(f):
 
-                    if (
-                        row_operator_id == normalized_operator_id
-                        and row_phone == normalized_phone
-                    ):
-                        operator = row
-                        break
+            row_operator_id = (
+                str(row.get("operator_id") or "").strip().casefold()
+            )
+            row_phone = re.sub(
+                r"\D",
+                "",
+                str(row.get("phone") or "")
+            )[-10:]
 
-        return render_template(
-            "tanker_status.html",
-            operator=operator,
-            searched=True
-        )
+            if (
+                row_operator_id == normalized_operator_id
+                and row_phone == normalized_phone
+            ):
+                return row
 
-    return render_template(
-        "tanker_status.html",
-        operator=None,
-        searched=False
+    return None
+
+
+@app.route("/api/tanker/status", methods=["POST"])
+def api_tanker_status():
+    data = request.get_json(silent=True) or request.form
+    operator = find_tanker_registration(
+        data.get("operator_id"),
+        data.get("phone")
     )
+
+    if operator is None:
+        return jsonify({
+            "success": False,
+            "error": (
+                "No registration matches that operator ID "
+                "and phone number."
+            )
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "operator": {
+            key: operator.get(key) or ""
+            for key in TANKER_STATUS_PUBLIC_FIELDS
+        }
+    })
+
 
 @app.route("/tanker/register/contracted", methods=["GET", "POST"])
 def tanker_register_contracted():
@@ -4424,20 +4462,11 @@ def tanker_register_contracted():
         # SUCCESS PAGE
         # =====================================================
 
-        if wants_json():
-            return jsonify({
-                "success": True,
-                "operator_id": operator_id,
-                "operator_type": "Existing Purvankara Partner",
-            })
-
-        return render_template(
-            "registration_success.html",
-            operator_id=operator_id,
-            operator_type=(
-                "Existing Purvankara Partner"
-            )
-        )
+        return jsonify({
+            "success": True,
+            "operator_id": operator_id,
+            "operator_type": "Existing Purvankara Partner",
+        })
 
     # =========================================================
     # GET REQUEST
@@ -5108,18 +5137,11 @@ def tanker_register_independent():
         )
 
 
-        if wants_json():
-            return jsonify({
-                "success": True,
-                "operator_id": operator_id,
-                "operator_type": "Independent Operator",
-            })
-
-        return render_template(
-            "registration_success.html",
-            operator_id=operator_id,
-            operator_type="Independent Operator"
-        )
+        return jsonify({
+            "success": True,
+            "operator_id": operator_id,
+            "operator_type": "Independent Operator",
+        })
 
 
     # ==============================================
@@ -8478,36 +8500,52 @@ def build_tanker_context():
 
 
 @app.route("/trip_history")
+@login_required(role="tanker")
 def trip_history():
+    if not str(session.get("tanker_operator_id") or "").strip():
+        return redirect(url_for("login"))
+    return serve_spa()
+
+
+@app.route("/api/tanker/trips")
+@login_required(role="tanker")
+def api_tanker_trips():
 
     auto_reset_capacity()
-
-    # =========================================================
-    # CURRENT LOGGED-IN TANKER OPERATOR
-    # =========================================================
 
     current_operator_id = str(
         session.get("tanker_operator_id") or ""
     ).strip()
 
-    if not current_operator_id:
-        session.clear()
-        return redirect(url_for("login"))
-
     operator = get_tanker_operator_by_id(
         current_operator_id
-    )
+    ) if current_operator_id else None
 
     if operator is None:
-        session.clear()
+        return jsonify({
+            "success": False,
+            "error": "Tanker registration not found"
+        }), 404
 
-        return render_template(
-            "login.html",
-            login_error=(
-                "Your tanker operator registration "
-                "could not be found."
-            )
-        )
+    return jsonify({
+        "success": True,
+        "operator_id": current_operator_id,
+        "operator_name": operator.get("operator_name") or "",
+        "trips": build_trip_history(current_operator_id),
+    })
+
+
+TRIP_PUBLIC_FIELDS = (
+    "trip_id", "request_type", "trip_type", "trip_status",
+    "pickup_name", "destination_name", "quantity_kld", "quality",
+    "water_type", "tankers_required", "trip_distance_km",
+    "trip_created_at", "assigned_at", "pickup_at", "delivered_at",
+    "pickup_lat", "pickup_lon", "drop_lat", "drop_lon",
+)
+
+
+def build_trip_history(current_operator_id):
+    """Demand and STP-transfer trips assigned to one operator, newest first."""
 
     trip_history = []
 
@@ -8552,7 +8590,7 @@ def trip_history():
                     continue
 
                 # ---------------------------------------------
-                # Normalize fields for trip_history.html
+                # Normalize fields for the trip history API
                 # ---------------------------------------------
 
                 row["request_type"] = "demand"
@@ -8645,7 +8683,7 @@ def trip_history():
                     trip_status = "Accepted"
 
                 # ---------------------------------------------
-                # Normalize fields for trip_history.html
+                # Normalize fields for the trip history API
                 # ---------------------------------------------
 
                 row["request_type"] = "stp_transfer"
@@ -8696,13 +8734,43 @@ def trip_history():
         reverse=True
     )
 
-    return render_template(
-        "trip_history.html",
-        trip_history=trip_history,
-        operator=operator,
-        current_operator_id=current_operator_id
-    )
+    # =========================================================
+    # PICKUP / DROP COORDINATES FOR THE ROUTES MAP
+    # =========================================================
 
+    stp_cache = {}
+
+    def stp_point(stp_id):
+        stp_id = str(stp_id or "").strip()
+        if not stp_id:
+            return None, None
+        if stp_id not in stp_cache:
+            stp = get_stp_by_id(stp_id) or {}
+            stp_cache[stp_id] = (
+                safe_float(stp.get("latitude"), None),
+                safe_float(stp.get("longitude"), None),
+            )
+        return stp_cache[stp_id]
+
+    for trip in trip_history:
+        if trip["request_type"] == "stp_transfer":
+            trip["pickup_lat"], trip["pickup_lon"] = stp_point(
+                trip.get("source_stp_id")
+            )
+            trip["drop_lat"], trip["drop_lon"] = stp_point(
+                trip.get("destination_stp_id")
+            )
+        else:
+            trip["pickup_lat"], trip["pickup_lon"] = stp_point(
+                trip.get("stp_id")
+            )
+            trip["drop_lat"] = safe_float(trip.get("delivery_lat"), None)
+            trip["drop_lon"] = safe_float(trip.get("delivery_lon"), None)
+
+    return [
+        {key: trip.get(key) for key in TRIP_PUBLIC_FIELDS}
+        for trip in trip_history
+    ]
 
 
 @app.route("/tanker/respond_request", methods=["POST"])
@@ -9838,18 +9906,11 @@ def stp_register():
         writer.writerow(registration)
 
 
-    if wants_json():
-        return jsonify({
-            "success": True,
-            "registration_id": registration_id,
-            "stp_name": stp_name,
-        })
-
-    return render_template(
-        "stp_registration_success.html",
-        registration_id=registration_id,
-        stp_name=stp_name
-    )
+    return jsonify({
+        "success": True,
+        "registration_id": registration_id,
+        "stp_name": stp_name,
+    })
 
 
 @app.route("/api/stp_order_tracking/<order_id>")
@@ -10368,35 +10429,11 @@ def reorder_order(order_id):
     })
 
 
+# Water requests are made from the Supply page (POST /request-water/create);
+# the old standalone page now just sends people there.
 @app.route('/request-water')
 def request_water():
-
-    stps = load_stps()
-
-    selected_id = request.args.get("stp_id")
-    selected_stp = None
-
-    if selected_id:
-        for stp in stps:
-            if str(stp.get("stp_id")) == str(selected_id):
-                selected_stp = stp
-                break
-
-    # If no valid STP was selected, return to dashboard
-    if not selected_stp:
-        return redirect(url_for('supply'))
-
-    # Only other STPs can be selected as the source.
-    source_stps = [
-        stp for stp in stps
-        if str(stp.get("stp_id")) != str(selected_stp.get("stp_id"))
-    ]
-
-    return render_template(
-        "request_water.html",
-        selected_stp=selected_stp,
-        source_stps=source_stps
-    )
+    return redirect(url_for('supply'))
 
 @app.route('/request-water/create', methods=['POST'])
 def create_stp_transfer():
@@ -10993,7 +11030,7 @@ def chatbot():
         )
 
         # ---------------------------------------------------------
-        # LLM-BASED INTENT / ENTITY EXTRACTION (Juno / Gemini)
+        # LLM-BASED INTENT / ENTITY EXTRACTION (Juno / Ollama)
         # ---------------------------------------------------------
         # Fuzzy matching remains the fast first pass. Juno is used
         # only when the intent is uncertain or when a location entity
@@ -12512,7 +12549,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
     # -----------------------------------------------------
 
     if has_request_expired(
-        target_order.get("created_at")
+        assignment_window_start(target_order)
     ):
 
         target_order["status"] = "Expired"
@@ -12829,7 +12866,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
     offer_sent_at = datetime.now()
 
     offer_expires_at = calculate_offer_expiry(
-        target_order.get("created_at"),
+        assignment_window_start(target_order),
         offer_sent_at
     )
 
@@ -13001,7 +13038,7 @@ def process_expired_order_offers():
             # =============================================
 
             if has_request_expired(
-                row.get("created_at")
+                assignment_window_start(row)
             ):
 
                 row["status"] = "Expired"
@@ -13195,7 +13232,7 @@ def _offer_next_operator_for_transfer_unlocked(
     # -----------------------------------------------------
 
     if has_request_expired(
-        target_transfer.get("requested_at")
+        assignment_window_start(target_transfer)
     ):
 
         target_transfer["status"] = "Expired"
@@ -13497,7 +13534,7 @@ def _offer_next_operator_for_transfer_unlocked(
     offer_sent_at = datetime.now()
 
     offer_expires_at = calculate_offer_expiry(
-        target_transfer.get("requested_at"),
+        assignment_window_start(target_transfer),
         offer_sent_at
     )
 
@@ -13668,7 +13705,7 @@ def process_expired_transfer_offers():
             # =============================================
 
             if has_request_expired(
-                row.get("requested_at")
+                assignment_window_start(row)
             ):
 
                 row["status"] = "Expired"
@@ -14667,7 +14704,7 @@ def _accept_pickup_locked():
                 # -------------------------------------------------
 
                 if has_request_expired(
-                    row.get("created_at")
+                    assignment_window_start(row)
                 ):
 
                     accept_error = (
@@ -14934,13 +14971,7 @@ def _accept_pickup_locked():
     print()
 
 
-    return render_template(
-        "tanker_summary.html",
-        info=tanker_info,
-        stp_id=target_order.get(
-            "stp_id"
-        )
-    )
+    return redirect(url_for("tanker_dashboard"))
 
 
 def _reject_pickup_locked():
@@ -15366,7 +15397,7 @@ def _accept_transfer_pickup_locked():
                 # ---------------------------------------------
 
                 if has_request_expired(
-                    row.get("requested_at")
+                    assignment_window_start(row)
                 ):
 
                     accept_error = (
@@ -15532,11 +15563,7 @@ def _accept_transfer_pickup_locked():
     )
 
 
-    return render_template(
-        "tanker_summary.html",
-        info=transfer_info,
-        stp_id=None
-    )
+    return redirect(url_for("tanker_dashboard"))
 
 
 @app.route(

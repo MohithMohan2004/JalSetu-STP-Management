@@ -10,9 +10,11 @@ const Supply = lazy(() => import("./pages/Supply"));
 const Tanker = lazy(() => import("./pages/Tanker"));
 const Profile = lazy(() => import("./pages/Profile"));
 const FleetReports = lazy(() => import("./pages/FleetReports"));
+const TripHistory = lazy(() => import("./pages/TripHistory"));
 const StpRegister = lazy(() => import("./pages/register/StpRegister"));
 const TankerChoice = lazy(() => import("./pages/register/TankerChoice"));
 const TankerForm = lazy(() => import("./pages/register/TankerForm"));
+const TankerStatus = lazy(() => import("./pages/register/TankerStatus"));
 
 function PageFallback() {
   return <div className="page-loading" aria-busy="true" />;
@@ -37,10 +39,12 @@ export default function App() {
               <Route path="/tanker" element={<Tanker />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/tanker/reports" element={<FleetReports />} />
+              <Route path="/trip_history" element={<TripHistory />} />
               <Route path="/stp/register" element={<StpRegister />} />
               <Route path="/tanker/register" element={<TankerChoice />} />
               <Route path="/tanker/register/independent" element={<TankerForm key="independent" variant="independent" />} />
               <Route path="/tanker/register/contracted" element={<TankerForm key="contracted" variant="contracted" />} />
+              <Route path="/tanker/status" element={<TankerStatus />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

@@ -59,7 +59,7 @@ export const roleNav: Record<string, NavSection[]> = {
       label: "Operations",
       items: [
         { label: "Dashboard", href: "/tanker", icon: LayoutGrid, spa: true },
-        { label: "Trip history", href: "/trip_history", icon: Route },
+        { label: "Trip history", href: "/trip_history", icon: Route, spa: true },
         { label: "Fleet & documents", href: "/tanker/reports", icon: ChartColumn, spa: true },
       ],
     },

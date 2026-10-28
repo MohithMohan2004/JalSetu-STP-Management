@@ -1,0 +1,76 @@
+.trips-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: stretch; }
+.trips-card-head { margin-bottom: 12px; }
+.trips-card-head h2 { font-size: 15px; font-weight: 650; }
+.trips-card-head p { font-size: 12.5px; color: var(--ink-500); }
+
+.trips-map-card { min-height: 320px; }
+.trips-map { height: 100%; min-height: 320px; }
+.trips-chip { left: 56px; padding: 0 4px 0 12px; font-weight: 600; }
+
+/* Delivered-volume bars */
+.bars { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.bars-readout { display: flex; align-items: baseline; gap: 10px; min-height: 28px; }
+.bars-readout strong { font-family: var(--font-display); font-size: 22px; font-weight: 650; letter-spacing: -0.02em; color: var(--ink-900); }
+.bars-readout strong small { font-size: 12px; color: var(--ink-500); font-weight: 600; letter-spacing: 0; }
+.bars-readout span { font-size: 12.5px; color: var(--ink-500); }
+
+.trips-search { width: min(280px, 100%); }
+
+/* Trip rows */
+.trip { display: grid; gap: 14px; transition: background var(--t-fast) var(--ease-out); }
+.trip[data-selected="true"] { background: var(--brand-tint); box-shadow: inset 3px 0 0 var(--brand); }
+.trip-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.trip-head strong { font-size: 13.5px; }
+
+.journey { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 0.7fr) minmax(0, 1fr); align-items: center; gap: 12px; }
+.journey-end { display: flex; align-items: flex-start; gap: 8px; min-width: 0; font-size: 13.5px; color: var(--ink-800); }
+.journey-end .leg-dot { margin-top: 5px; }
+.journey-end span { display: grid; min-width: 0; }
+.journey-end span { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.journey-end small { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-400); }
+.leg-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; }
+.leg-dot.pick { background: var(--success); }
+.leg-dot.drop { background: var(--brand); }
+
+.journey-line { position: relative; height: 28px; margin: 0 16px; }
+.journey-line::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed var(--ink-200, #cbd5e1);
+}
+.journey-line[data-done="true"]::before { border-top-style: solid; border-color: var(--brand); }
+.journey-truck {
+  position: absolute; top: 50%; transform: translate(-50%, -50%);
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); border: 2px solid var(--brand); color: var(--brand);
+}
+.journey-truck[data-stage="1"] { left: 0%; border-color: var(--ink-300); color: var(--ink-500); }
+.journey-truck[data-stage="2"] { left: 50%; }
+.journey-truck[data-stage="3"] { left: 100%; background: var(--brand); color: #fff; }
+.journey-line em {
+  position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%);
+  font-style: normal; font-size: 11px; color: var(--ink-500); white-space: nowrap;
+}
+.journey-truck[data-stage="2"] + em { bottom: -16px; }
+
+.trip-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; }
+.req-facts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-500); }
+.req-facts b { color: var(--ink-900); font-weight: 650; }
+
+.trip-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px; }
+.trip-steps li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-400); }
+.trip-steps .step-dot {
+  width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  border: 1.5px solid var(--ink-200, #cbd5e1); background: var(--surface);
+}
+.trip-steps li[data-done="true"] .step-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.trip-steps .step-text { display: grid; line-height: 1.25; }
+.trip-steps .step-text b { font-weight: 600; color: var(--ink-700); }
+.trip-steps li[data-done="true"] { color: var(--ink-500); }
+
+@media (max-width: 1100px) {
+  .trips-top { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .journey { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .journey-line { display: none; }
+  .trip-steps { gap: 12px; flex-wrap: wrap; }
+}
