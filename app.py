@@ -2193,6 +2193,17 @@ def login():
             login_error="Please enter your email and password."
         )
 
+    # Supabase signs in by email only; a username always fails as
+    # "invalid credentials", which looks like a wrong password.
+    if "@" not in login_identifier:
+        return render_template(
+            "login.html",
+            login_error=(
+                "Sign in with the email address you registered with, "
+                "not your username."
+            )
+        )
+
     try:
 
         # =====================================================
@@ -2581,10 +2592,33 @@ def login():
 
         return render_template(
             "login.html",
-            login_error=(
-                "Invalid email or password."
-            )
+            login_error=login_error_message(e)
         )
+
+
+def login_error_message(error):
+    """Turn a Supabase sign-in error into a message the user can act on."""
+    code = str(getattr(error, "code", "") or "")
+
+    if code == "email_not_confirmed":
+        return (
+            "Your email isn't confirmed yet. Open the confirmation link "
+            "sent to your inbox, then sign in."
+        )
+
+    if code.startswith("over_") and code.endswith("rate_limit"):
+        return "Too many sign-in attempts. Wait a minute and try again."
+
+    if code == "user_banned":
+        return "This account has been disabled. Contact the ReFlow team."
+
+    if code in ("invalid_credentials", "user_not_found", "validation_failed"):
+        return "Invalid email or password."
+
+    if type(error).__name__ in ("AuthRetryableError", "ConnectError", "ConnectTimeout", "ReadTimeout"):
+        return "Couldn't reach the sign-in service. Please try again."
+
+    return "Something went wrong while signing in. Please try again."
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
