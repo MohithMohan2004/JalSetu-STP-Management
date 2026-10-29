@@ -62,7 +62,7 @@ Treated water is a useful resource, but buyers rarely know which plant is nearby
 |---|---|
 | Backend | Flask (single `app.py`), Gunicorn |
 | Auth | Supabase |
-| Data storage | CSV, JSON and XLSX files under `database/`, `data/`, `uploads/` |
+| Data storage | Postgres (Supabase) through SQLAlchemy when `DATABASE_URL` is set, otherwise CSV/JSON files under `database/` and `data/`. Uploads stay in `uploads/` |
 | Forecasting | XGBoost, scikit-learn, pandas, NumPy |
 | Routing and geo | OSMnx, NetworkX, Haversine distance, OpenStreetMap |
 | Assistant | Ollama (`llama3.2:3b`) through the `openai` client, with RapidFuzz fuzzy matching |
@@ -74,6 +74,7 @@ Treated water is a useful resource, but buyers rarely know which plant is nearby
 ```
 app.py                 Flask application (routes, business logic, JSON APIs)
 config.py              Settings read from environment variables
+store.py               Postgres storage for the data files (used when DATABASE_URL is set)
 Procfile               gunicorn app:app --timeout 120
 requirements.txt       Python dependencies
 
@@ -154,6 +155,8 @@ Environment variables, loaded from `.env`:
 | `FLASK_SECRET_KEY` | Yes | Signs session cookies. The fallback in `config.py` is for local use only, so set a real value in production |
 | `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_KEY` | Yes | Supabase API key |
+| `DATABASE_URL` | No | Postgres connection string. When set, orders, registrations, vehicles, transfers, OCEMS submissions, pricing, plant data and profile edits are stored in Postgres. Without it the app uses the local files |
+| `DATABASE_SCHEMA` | No | Postgres schema for those tables (default `reflow`) |
 | `PORT` | No | Port for `python app.py` (default 10000) |
 | `OLLAMA_BASE_URL` | No | Ollama's OpenAI-compatible endpoint (default `http://localhost:11434/v1`) |
 | `JUNO_LLM_MODEL` | No | Model Juno uses (default `llama3.2:3b`) |
@@ -192,7 +195,23 @@ Never commit `.env`.
 
 ## Data
 
-Plain files act as the datastore. The app rewrites the runtime ones while it runs. Files holding user data (orders, registrations, vehicles, users, uploads) are not part of the repository; the app creates empty ones on first start.
+### Postgres
+
+Set `DATABASE_URL` to keep the app's records in Postgres, so every machine and deployment shares the same orders and registrations. For Supabase, copy the **Session pooler** connection string from *Project Settings → Database* and fill in the database password.
+
+Then copy the existing records in, once, from the machine that has them:
+
+```bash
+venv/bin/python scripts/migrate_to_postgres.py
+```
+
+The script leaves the local files untouched and skips any table that already has rows (pass `--force` to replace them). Start the app afterwards.
+
+`store.py` keeps one table per CSV file (one text column per CSV column, in the `reflow` schema, which Supabase's REST API does not expose) plus a `json_documents` table for the JSON files. New CSV columns are added automatically. Uploaded files (`uploads/`, `database/ocems/`) and the synthetic and ML datasets stay on disk.
+
+### Files
+
+Without `DATABASE_URL`, plain files act as the datastore. The app rewrites the runtime ones while it runs. Files holding user data (orders, registrations, vehicles, users, uploads) are not part of the repository; the app creates empty ones on first start.
 
 | Location | Contents |
 |---|---|

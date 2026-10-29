@@ -10,6 +10,8 @@ requests
 openpyxl
 Werkzeug
 supabase
+SQLAlchemy>=2.0
+psycopg[binary]>=3.1
 python-dotenv
 rapidfuzz
 openai
