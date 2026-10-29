@@ -169,3 +169,21 @@ Desktop.ini
 # React frontend
 frontend/node_modules/
 frontend/*.tsbuildinfo
+
+# =========================================================
+# Personal notes and user data (never published)
+# =========================================================
+
+CLAUDE.md
+skill.md
+logs.md
+DOCUMENTATION.md
+uploads/
+database/users.xlsx
+database/orders.csv
+database/stp_registrations.csv
+database/tanker_registrations.csv
+database/tanker_vehicles.csv
+database/tanker_vehicle_documents.csv
+database/stp_transfers.csv
+database/ocems_submissions.csv

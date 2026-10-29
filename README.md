@@ -1,6 +1,6 @@
 # ReFlow
 
-ReFlow routes treated wastewater from sewage treatment plants (STPs) to demand sites in Bengaluru and coordinates the tankers that deliver it. It started life as "PURVA - JalSetu" and was renamed ReFlow.
+ReFlow routes treated wastewater from sewage treatment plants (STPs) to demand sites in Bengaluru and coordinates the tankers that deliver it.
 
 Treated water is a useful resource, but buyers rarely know which plant is nearby, whether its water meets quality limits, or how to get it delivered. ReFlow puts the three sides of that exchange on one platform:
 
@@ -23,8 +23,6 @@ Treated water is a useful resource, but buyers rarely know which plant is nearby
 - [Demand forecasting](#demand-forecasting)
 - [Juno, the assistant](#juno-the-assistant)
 - [Order lifecycle](#order-lifecycle)
-- [Development notes](#development-notes)
-- [Further documentation](#further-documentation)
 
 ## Features
 
@@ -90,7 +88,6 @@ database/              Runtime records (orders, registrations, vehicles, OCEMS s
 uploads/               Uploaded OCEMS sheets and tanker documents
 scripts/               Dev scripts (project check, synthetic orders, nearest-STP routing)
 supabase/              SQL to run in Supabase (tanker locations migration)
-logs.md                History of the ReFlow redesign
 ```
 
 ## Getting started
@@ -195,11 +192,11 @@ Never commit `.env`.
 
 ## Data
 
-Plain files act as the datastore. The app rewrites the runtime ones while it runs.
+Plain files act as the datastore. The app rewrites the runtime ones while it runs. Files holding user data (orders, registrations, vehicles, users, uploads) are not part of the repository; the app creates empty ones on first start.
 
 | Location | Contents |
 |---|---|
-| `data/stp_data.json` | Plant master data (runtime data, rewritten by the app) |
+| `data/stp_data.json` | Plant master data (rewritten by the app) |
 | `data/stp_pricing.csv`, `database/stp_pricing.csv` | Per-plant rate cards |
 | `data/synthetic_demand.csv`, `ml/` | Synthetic demand used to train the forecasts |
 | `database/orders.csv` | All orders (runtime data) |
@@ -244,19 +241,3 @@ On a CPU-only machine an LLM call takes roughly 9–15 seconds. For example, "yo
 5. The order appears in trip history and the invoice is available to pay or confirm.
 
 Plant-to-plant transfers follow the same assignment flow.
-
-## Development notes
-
-- **Brand:** the name is always **ReFlow**, rendered with `<Wordmark />` in React. Never use "PURVA" or "JalSetu".
-- **Design rules:** tokens are in `frontend/src/styles/tokens.css` (one brand blue `#1463d6`). Shared components are in `frontend/src/components/` and `styles/ui.css`. Design rules are written in `skill.md`.
-- **Images:** no AI-generated images. Use SVG illustrations, lucide icons or real Leaflet maps.
-- **Maps:** OpenStreetMap tiles. Programmatic fits use `animate: false`.
-- **Migrating a Jinja page to React:** extract a `build_*_context()` helper from the route, make the GET route call `serve_spa()`, add the page in `frontend/src/App.tsx`, set `spa: true` on its nav item in `components/nav.ts`, then delete the old template and any static files only it used. Planned order: login/signup, order tracking, invoice, OCEMS details, admin.
-- **Not exercised end to end** (they write real CSV records, so test them on test data): order Accept/Reject/Pickup/Deliver, document upload, full registration submits, invoice pay/COD, admin approve/reject, add/delete plant, signup submit.
-
-## Further documentation
-
-- `logs.md`: step-by-step history of the redesign and the bugs fixed along the way.
-- `skill.md`: UI design rules.
-- `frontend/README.md`: frontend-specific notes.
-- `DOCUMENTATION.md`: an earlier technical write-up of the matching approach. It predates the ReFlow redesign, so parts of it may not match the current code.

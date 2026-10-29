@@ -1,0 +1,6 @@
+import{c as a,H as c,J as r,K as s,L as d}from"./index-BgheCChY.js";/**
+ * @license lucide-react v0.511.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const u=[["polygon",{points:"3 11 22 2 13 21 11 13 3 11",key:"1ltx0t"}]],f=a("navigation",u),g=c(function({positions:e,...n},o){const l=new r.Polyline(e,n);return s(l,d(o,{overlayContainer:l}))},function(e,n,o){n.positions!==o.positions&&e.setLatLngs(n.positions)});function i(t){const e=String(t??"").toLowerCase();return["pending","offered","new offer","awaiting"].includes(e)?"pending":["delivered","completed"].includes(e)?"completed":["rejected","cancelled","canceled","expired","failed"].includes(e)?"closed":"active"}function v(t,e){const n=o=>t.filter(l=>i(e(l))===o).length;return[{value:"all",label:"All",count:t.length},{value:"active",label:"Active",count:n("active")},{value:"pending",label:"Pending",count:n("pending")},{value:"completed",label:"Completed",count:n("completed")}]}function y(t,e,n){return e==="all"?t:t.filter(o=>i(n(o))===e)}const m={pending:"#d97706",active:"#1463d6",completed:"#15803d",closed:"#8a97a8"};export{m as B,f as N,g as P,y as a,i as b,v as f};

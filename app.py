@@ -2295,6 +2295,8 @@ def login():
 
         session["role"] = role
 
+        apply_profile_overrides_to_session()
+
         # Start role-specific values empty.
         session["stp_id"] = ""
 
@@ -3118,6 +3120,69 @@ def profile():
     return serve_spa()
 
 
+PROFILE_OVERRIDES_FILE = os.path.join(BASE_DIR, "data", "profile_overrides.json")
+PROFILE_OVERRIDES_LOCK = threading.Lock()
+
+
+def load_profile_overrides(user_id):
+    """Name/username/phone edits a user made on the profile page."""
+    try:
+        with open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
+            return dict(json.load(f).get(str(user_id)) or {})
+    except (OSError, ValueError):
+        return {}
+
+
+def save_profile_overrides(user_id, values):
+    with PROFILE_OVERRIDES_LOCK:
+        try:
+            with open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            data = {}
+        data.setdefault(str(user_id), {}).update(values)
+        with open(PROFILE_OVERRIDES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+
+
+def apply_profile_overrides_to_session():
+    """Re-derive the name fields in the session after login or an edit."""
+    for key, value in load_profile_overrides(session.get("user_id")).items():
+        session[key] = value
+    session["user_name"] = (
+        f"{session.get('first_name', '')} {session.get('last_name', '')}"
+    ).strip()
+    if session.get("role") == "demand":
+        session["buyer_name"] = session["user_name"]
+        session["buyer_phone"] = session.get("user_phone", "")
+
+
+@app.route("/api/profile", methods=["POST"])
+def api_profile_update():
+    if not session.get("user_id"):
+        return jsonify({"success": False, "error": "Login required"}), 401
+
+    body = request.get_json(silent=True) or {}
+    first_name = str(body.get("first_name") or "").strip()[:60]
+    last_name = str(body.get("last_name") or "").strip()[:60]
+    username = str(body.get("username") or "").strip()[:40]
+    mobile = re.sub(r"[\s-]", "", str(body.get("mobile") or ""))
+
+    if not first_name:
+        return jsonify({"success": False, "error": "First name is required."}), 400
+    if mobile and not re.fullmatch(r"\+?\d{10,13}", mobile):
+        return jsonify({"success": False, "error": "Enter a valid mobile number."}), 400
+
+    save_profile_overrides(session["user_id"], {
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "user_phone": mobile,
+    })
+    apply_profile_overrides_to_session()
+    return jsonify({"success": True})
+
+
 @app.route("/api/profile")
 def api_profile():
     """The signed-in visitor's profile, built only from their own session.
@@ -3281,6 +3346,8 @@ def api_login():
         session["role"] = str(
             metadata.get("role", "")
         ).strip().lower()
+
+        apply_profile_overrides_to_session()
 
         session["stp_id"] = metadata.get(
             "stp_id", ""
