@@ -27,4 +27,4 @@ Commit `static/app/` after building so deployments without Node keep working.
 - `src/pages/`: one file per screen (Landing, Demand, Supply, Tanker)
 - `src/components/`: app shell with collapsible sidebar, maps, dialogs, chat widget
 - `src/lib/`: API helpers, session, toasts, formatting
-- `src/styles/`: design tokens and shared UI styles (rules in `../skill.md`)
+- `src/styles/`: design tokens and shared UI styles
