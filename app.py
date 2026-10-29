@@ -26,6 +26,7 @@ from chatbot.llm.gateway import JunoLLMGateway
 from dotenv import load_dotenv
 from supabase import create_client
 from config import Config
+import store
 
 # =========================================================
 # JUNO AI LLM GATEWAY (OPTIONAL)
@@ -299,7 +300,7 @@ GRAPH_FILE = "bangalore_graph.graphml"
 G = None
 
 try:
-    if os.path.exists(GRAPH_FILE):
+    if store.exists(GRAPH_FILE):
         print("Loading saved road network...")
         G = ox.load_graphml(GRAPH_FILE)
 
@@ -326,11 +327,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STP_FILE = os.path.join(BASE_DIR, "data", "stp_data.json")
 STATUS_FILE = os.path.join(BASE_DIR, "data", "stp_status.json")
 DATABASE_DIR = os.path.join(BASE_DIR, "database")
-if not os.path.exists(DATABASE_DIR):
+if not store.exists(DATABASE_DIR):
     os.makedirs(DATABASE_DIR)
 
 # ✅ KEEP orders.csv INSIDE database/
 ORDERS_FILE = os.path.join(DATABASE_DIR, "orders.csv")
+
+# With DATABASE_URL set, the order/registration/STP files listed in store.py
+# live in Postgres instead of on disk; read and write them via store.open.
+
+
+@app.before_request
+def store_begin_request():
+    store.begin_request()
+
+
+@app.teardown_request
+def store_end_request(_exc):
+    store.end_request()
 
 # =========================================================
 # TANKER OFFER / REQUEST TIMEOUT SETTINGS
@@ -396,11 +410,11 @@ OCEMS_SUBMISSION_FIELDS = [
 def ensure_ocems_submissions_file():
 
     if (
-        not os.path.exists(OCEMS_SUBMISSIONS_FILE)
-        or os.path.getsize(OCEMS_SUBMISSIONS_FILE) == 0
+        not store.exists(OCEMS_SUBMISSIONS_FILE)
+        or store.getsize(OCEMS_SUBMISSIONS_FILE) == 0
     ):
 
-        with open(
+        with store.open(
             OCEMS_SUBMISSIONS_FILE,
             "w",
             newline="",
@@ -446,10 +460,10 @@ def ensure_tanker_vehicles_file():
     """
 
     if (
-        not os.path.exists(TANKER_VEHICLES_FILE)
-        or os.path.getsize(TANKER_VEHICLES_FILE) == 0
+        not store.exists(TANKER_VEHICLES_FILE)
+        or store.getsize(TANKER_VEHICLES_FILE) == 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "w",
             newline="",
@@ -462,11 +476,11 @@ def ensure_tanker_vehicles_file():
             writer.writeheader()
 
     # Backfill one known legacy vehicle per operator when possible.
-    if not os.path.exists(TANKER_REGISTRATIONS_FILE):
+    if not store.exists(TANKER_REGISTRATIONS_FILE):
         return
 
     try:
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "r",
             newline="",
@@ -482,7 +496,7 @@ def ensure_tanker_vehicles_file():
             if str(row.get("operator_id") or "").strip()
         }
 
-        with open(
+        with store.open(
             TANKER_REGISTRATIONS_FILE,
             "r",
             newline="",
@@ -544,7 +558,7 @@ def ensure_tanker_vehicles_file():
             })
 
         if missing_rows:
-            with open(
+            with store.open(
                 TANKER_VEHICLES_FILE,
                 "a",
                 newline="",
@@ -580,7 +594,7 @@ def get_available_operator_vehicles(operator_id):
     vehicles = []
 
     try:
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "r",
             newline="",
@@ -645,10 +659,10 @@ ALLOWED_TANKER_DOCUMENT_TYPES = {
 
 def ensure_tanker_vehicle_documents_file():
     if (
-        not os.path.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
-        or os.path.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) == 0
+        not store.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
+        or store.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) == 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLE_DOCUMENTS_FILE,
             "w",
             newline="",
@@ -678,7 +692,7 @@ def get_operator_vehicle(
 
     ensure_tanker_vehicles_file()
 
-    with open(
+    with store.open(
         TANKER_VEHICLES_FILE,
         "r",
         newline="",
@@ -723,10 +737,10 @@ def ensure_tanker_registrations_schema():
     """
 
     if (
-        not os.path.exists(TANKER_REGISTRATIONS_FILE)
-        or os.path.getsize(TANKER_REGISTRATIONS_FILE) == 0
+        not store.exists(TANKER_REGISTRATIONS_FILE)
+        or store.getsize(TANKER_REGISTRATIONS_FILE) == 0
     ):
-        with open(
+        with store.open(
             TANKER_REGISTRATIONS_FILE,
             "w",
             newline="",
@@ -743,7 +757,7 @@ def ensure_tanker_registrations_schema():
         return
 
 
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "r",
         newline="",
@@ -761,7 +775,7 @@ def ensure_tanker_registrations_schema():
         return
 
 
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "w",
         newline="",
@@ -808,14 +822,14 @@ def safe_int(value, default=0):
 def load_tanker_operators():
 
     if (
-        not os.path.exists(TANKER_REGISTRATIONS_FILE)
-        or os.path.getsize(TANKER_REGISTRATIONS_FILE) == 0
+        not store.exists(TANKER_REGISTRATIONS_FILE)
+        or store.getsize(TANKER_REGISTRATIONS_FILE) == 0
     ):
         return []
 
     operators = []
 
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "r",
         newline="",
@@ -856,11 +870,11 @@ def get_active_tanker_count(operator_id):
     # -----------------------------------------------------
 
     if (
-        os.path.exists(ORDERS_FILE)
-        and os.path.getsize(ORDERS_FILE) > 0
+        store.exists(ORDERS_FILE)
+        and store.getsize(ORDERS_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -919,11 +933,11 @@ def get_active_tanker_count(operator_id):
     # -----------------------------------------------------
 
     if (
-        os.path.exists(STP_TRANSFERS_FILE)
-        and os.path.getsize(STP_TRANSFERS_FILE) > 0
+        store.exists(STP_TRANSFERS_FILE)
+        and store.getsize(STP_TRANSFERS_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -1473,7 +1487,7 @@ USER_FIELDS = [
 
 def ensure_users_file():
     """Create or safely update the Excel user database schema."""
-    if not os.path.exists(USERS_FILE):
+    if not store.exists(USERS_FILE):
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "Users"
@@ -1566,12 +1580,12 @@ DEMAND_CSV_FILE = os.path.join(
 
 # ENSURE FILES EXIST
 # =========================================================
-if not os.path.exists(STATUS_FILE):
-    with open(STATUS_FILE, "w") as f:
+if not store.exists(STATUS_FILE):
+    with store.open(STATUS_FILE, "w") as f:
         json.dump({}, f)
 
-if not os.path.exists(ORDERS_FILE):
-    with open(ORDERS_FILE, "w", newline="") as f:
+if not store.exists(ORDERS_FILE):
+    with store.open(ORDERS_FILE, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
             "order_id",
@@ -1632,13 +1646,13 @@ ORDER_FIELDS = [
 
 def ensure_orders_schema():
     """Add buyer_user_id to older orders.csv files without deleting existing orders."""
-    if not os.path.exists(ORDERS_FILE) or os.path.getsize(ORDERS_FILE) == 0:
-        with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    if not store.exists(ORDERS_FILE) or store.getsize(ORDERS_FILE) == 0:
+        with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
             writer.writeheader()
         return
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         existing_fields = reader.fieldnames or []
         rows = list(reader)
@@ -1657,7 +1671,7 @@ def ensure_orders_schema():
         if field not in merged_fields:
             merged_fields.append(field)
 
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
         writer.writeheader()
 
@@ -1673,12 +1687,12 @@ ensure_orders_schema()
 # =========================================================
 
 def load_stps():
-    with open(STP_FILE) as f:
+    with store.open(STP_FILE) as f:
         data = json.load(f)
         return data.get("stps", [])
 
 def save_stps(stps):
-    with open(STP_FILE, "w") as f:
+    with store.open(STP_FILE, "w") as f:
         json.dump({"stps": stps}, f, indent=4)
 
 def auto_reset_capacity():
@@ -1688,7 +1702,7 @@ def auto_reset_capacity():
     stps_changed = False
     orders_changed = False
 
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return
 
     # Read orders as plain text so deployment-specific file proxies
@@ -1747,7 +1761,7 @@ def auto_reset_capacity():
     if stps_changed:
         save_stps(stps)
     if orders_changed:
-        with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+        with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
             writer.writeheader()
             for row in orders:
@@ -1892,7 +1906,7 @@ def load_ocems_data(stp_id):
 
     file_path = get_ocems_file(stp_id)
 
-    if not file_path or not os.path.exists(file_path):
+    if not file_path or not store.exists(file_path):
         return {
             "available": False,
             "company_name": None,
@@ -2136,7 +2150,7 @@ SPA_INDEX = os.path.join(app.root_path, "static", "app", "index.html")
 
 def serve_spa():
     """Return the built React app; client-side routing picks the page."""
-    if not os.path.exists(SPA_INDEX):
+    if not store.exists(SPA_INDEX):
         return (
             "Frontend not built. Run `npm install && npm run build` "
             "inside the frontend/ folder.",
@@ -3127,7 +3141,7 @@ PROFILE_OVERRIDES_LOCK = threading.Lock()
 def load_profile_overrides(user_id):
     """Name/username/phone edits a user made on the profile page."""
     try:
-        with open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
+        with store.open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
             return dict(json.load(f).get(str(user_id)) or {})
     except (OSError, ValueError):
         return {}
@@ -3136,12 +3150,12 @@ def load_profile_overrides(user_id):
 def save_profile_overrides(user_id, values):
     with PROFILE_OVERRIDES_LOCK:
         try:
-            with open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
+            with store.open(PROFILE_OVERRIDES_FILE, encoding="utf-8") as f:
                 data = json.load(f)
         except (OSError, ValueError):
             data = {}
         data.setdefault(str(user_id), {}).update(values)
-        with open(PROFILE_OVERRIDES_FILE, "w", encoding="utf-8") as f:
+        with store.open(PROFILE_OVERRIDES_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
 
@@ -3537,10 +3551,10 @@ def api_signup():
 
         tanker_exists = False
 
-        if os.path.exists(TANKER_REGISTRATIONS_FILE):
+        if store.exists(TANKER_REGISTRATIONS_FILE):
 
             try:
-                with open(
+                with store.open(
                     TANKER_REGISTRATIONS_FILE,
                     "r",
                     newline="",
@@ -3703,10 +3717,10 @@ def find_tanker_registration(operator_id, phone):
     if not normalized_operator_id or not normalized_phone:
         return None
 
-    if not os.path.exists(TANKER_REGISTRATIONS_FILE):
+    if not store.exists(TANKER_REGISTRATIONS_FILE):
         return None
 
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "r",
         newline="",
@@ -3994,16 +4008,16 @@ def tanker_register_contracted():
         existing_operators = []
 
         if (
-            os.path.exists(
+            store.exists(
                 TANKER_REGISTRATIONS_FILE
             )
             and
-            os.path.getsize(
+            store.getsize(
                 TANKER_REGISTRATIONS_FILE
             ) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_REGISTRATIONS_FILE,
                 "r",
                 newline="",
@@ -4086,16 +4100,16 @@ def tanker_register_contracted():
         existing_vehicle_numbers = set()
 
         if (
-            os.path.exists(
+            store.exists(
                 TANKER_VEHICLES_FILE
             )
             and
-            os.path.getsize(
+            store.getsize(
                 TANKER_VEHICLES_FILE
             ) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_VEHICLES_FILE,
                 "r",
                 newline="",
@@ -4294,7 +4308,7 @@ def tanker_register_contracted():
 
         try:
 
-            with open(
+            with store.open(
                 TANKER_REGISTRATIONS_FILE,
                 "w",
                 newline="",
@@ -4344,7 +4358,7 @@ def tanker_register_contracted():
 
         try:
 
-            with open(
+            with store.open(
                 TANKER_VEHICLES_FILE,
                 "a",
                 newline="",
@@ -4438,7 +4452,7 @@ def tanker_register_contracted():
 
             try:
 
-                with open(
+                with store.open(
                     TANKER_REGISTRATIONS_FILE,
                     "w",
                     newline="",
@@ -4749,16 +4763,16 @@ def tanker_register_independent():
 
 
         if (
-            os.path.exists(
+            store.exists(
                 TANKER_VEHICLES_FILE
             )
             and
-            os.path.getsize(
+            store.getsize(
                 TANKER_VEHICLES_FILE
             ) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_VEHICLES_FILE,
                 "r",
                 newline="",
@@ -4818,12 +4832,12 @@ def tanker_register_independent():
         # ==========================================
 
         if (
-            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            store.exists(TANKER_REGISTRATIONS_FILE)
             and
-            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+            store.getsize(TANKER_REGISTRATIONS_FILE) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_REGISTRATIONS_FILE,
                 "r",
                 newline="",
@@ -4875,12 +4889,12 @@ def tanker_register_independent():
 
 
         if (
-            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            store.exists(TANKER_REGISTRATIONS_FILE)
             and
-            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+            store.getsize(TANKER_REGISTRATIONS_FILE) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_REGISTRATIONS_FILE,
                 "r",
                 newline="",
@@ -5029,12 +5043,12 @@ def tanker_register_independent():
         # ------------------------------------------
 
         if (
-            os.path.exists(TANKER_REGISTRATIONS_FILE)
+            store.exists(TANKER_REGISTRATIONS_FILE)
             and
-            os.path.getsize(TANKER_REGISTRATIONS_FILE) > 0
+            store.getsize(TANKER_REGISTRATIONS_FILE) > 0
         ):
 
-            with open(
+            with store.open(
                 TANKER_REGISTRATIONS_FILE,
                 "r",
                 newline="",
@@ -5076,7 +5090,7 @@ def tanker_register_independent():
         # REWRITE COMPLETE CSV SAFELY
         # ------------------------------------------
 
-        with open(
+        with store.open(
             TANKER_REGISTRATIONS_FILE,
             "w",
             newline="",
@@ -5121,7 +5135,7 @@ def tanker_register_independent():
         ensure_tanker_vehicles_file()
 
 
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "a",
             newline="",
@@ -5234,9 +5248,9 @@ def admin_dashboard():
 
     orders = []
 
-    if os.path.exists(ORDERS_FILE):
+    if store.exists(ORDERS_FILE):
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -5253,9 +5267,9 @@ def admin_dashboard():
 
     tanker_operators = []
 
-    if os.path.exists(TANKER_REGISTRATIONS_FILE):
+    if store.exists(TANKER_REGISTRATIONS_FILE):
 
-        with open(
+        with store.open(
             TANKER_REGISTRATIONS_FILE,
             "r",
             newline="",
@@ -5277,10 +5291,10 @@ def admin_dashboard():
     tanker_vehicle_documents = []
 
     if (
-        os.path.exists(TANKER_VEHICLES_FILE)
-        and os.path.getsize(TANKER_VEHICLES_FILE) > 0
+        store.exists(TANKER_VEHICLES_FILE)
+        and store.getsize(TANKER_VEHICLES_FILE) > 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "r",
             newline="",
@@ -5291,10 +5305,10 @@ def admin_dashboard():
             )
 
     if (
-        os.path.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
-        and os.path.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) > 0
+        store.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
+        and store.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) > 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLE_DOCUMENTS_FILE,
             "r",
             newline="",
@@ -5366,9 +5380,9 @@ def admin_dashboard():
 
     stp_registrations = []
 
-    if os.path.exists(STP_REGISTRATIONS_FILE):
+    if store.exists(STP_REGISTRATIONS_FILE):
 
-        with open(
+        with store.open(
             STP_REGISTRATIONS_FILE,
             "r",
             newline="",
@@ -5388,11 +5402,11 @@ def admin_dashboard():
     ocems_submissions = []
 
     if (
-        os.path.exists(OCEMS_SUBMISSIONS_FILE)
-        and os.path.getsize(OCEMS_SUBMISSIONS_FILE) > 0
+        store.exists(OCEMS_SUBMISSIONS_FILE)
+        and store.getsize(OCEMS_SUBMISSIONS_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             OCEMS_SUBMISSIONS_FILE,
             "r",
             newline="",
@@ -5452,13 +5466,13 @@ def update_tanker_status(operator_id, status):
         return redirect("/admin")
 
     # Make sure the tanker registration file exists
-    if not os.path.exists(TANKER_REGISTRATIONS_FILE):
+    if not store.exists(TANKER_REGISTRATIONS_FILE):
         return redirect("/admin")
 
     rows = []
 
     # Read all existing tanker registrations
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "r",
         newline="",
@@ -5491,7 +5505,7 @@ def update_tanker_status(operator_id, status):
         return redirect("/admin")
 
     # Save the entire CSV again
-    with open(
+    with store.open(
         TANKER_REGISTRATIONS_FILE,
         "w",
         newline="",
@@ -5586,14 +5600,14 @@ def demand_heatmap():
 
     demand_data = []
 
-    if not os.path.exists(DEMAND_CSV_FILE):
+    if not store.exists(DEMAND_CSV_FILE):
         return jsonify({
             "error": "synthetic_orders.csv not found"
         }), 404
 
     try:
 
-        with open(
+        with store.open(
             DEMAND_CSV_FILE,
             "r",
             newline="",
@@ -6393,8 +6407,8 @@ def api_order_tracking(order_id):
         return jsonify({"success": False, "error": "Login required"}), 401
 
     order = None
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 if str(row.get("order_id", "")).strip() == str(order_id).strip():
                     order = row
@@ -6490,7 +6504,7 @@ def order_tanker_location(order_id):
     session/auth system and Supabase client -- no new auth is created,
     and no other tanker's location is ever exposed."""
 
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return jsonify({
             "success": False,
             "error": "Orders file not found"
@@ -6498,7 +6512,7 @@ def order_tanker_location(order_id):
 
     order = None
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "r",
         newline="",
@@ -6612,8 +6626,8 @@ def api_shared_order_tracking(order_id):
         return jsonify({"success": False, "error": "Login required"}), 401
 
     order = None
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 if str(row.get("order_id", "")).strip() == str(order_id).strip():
                     order = row
@@ -6700,9 +6714,9 @@ def invoice():
 
     order = None
 
-    if os.path.exists(ORDERS_FILE):
+    if store.exists(ORDERS_FILE):
 
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
 
             reader = csv.DictReader(f)
 
@@ -7013,12 +7027,12 @@ def pay_now():
         pending_order["status"] = "Pending"
         pending_order["payment_status"] = "Paid"
 
-        if not os.path.exists(ORDERS_FILE):
-            with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+        if not store.exists(ORDERS_FILE):
+            with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
                 writer.writeheader()
 
-        with open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
+        with store.open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
             writer.writerow({
                 field: pending_order.get(field, "")
@@ -7033,13 +7047,13 @@ def pay_now():
 
     # Preserve the existing behavior for legacy orders already stored
     # before the payment-draft flow was introduced.
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return "Orders file not found", 404
 
     updated_rows = []
     order_found = False
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
@@ -7075,7 +7089,7 @@ def pay_now():
     if "payment_status" not in fieldnames:
         fieldnames.append("payment_status")
 
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(updated_rows)
@@ -7102,12 +7116,12 @@ def confirm_cod():
         pending_order["status"] = "Pending"
         pending_order["payment_status"] = "Cash on Delivery"
 
-        if not os.path.exists(ORDERS_FILE):
-            with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+        if not store.exists(ORDERS_FILE):
+            with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
                 writer.writeheader()
 
-        with open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
+        with store.open(ORDERS_FILE, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
             writer.writerow({
                 field: pending_order.get(field, "")
@@ -7121,13 +7135,13 @@ def confirm_cod():
         )
 
     # Preserve support for an already-created order if one exists.
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return "Orders file not found", 404
 
     updated_rows = []
     order_found = False
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
@@ -7163,7 +7177,7 @@ def confirm_cod():
     if "payment_status" not in fieldnames:
         fieldnames.append("payment_status")
 
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(updated_rows)
@@ -7198,13 +7212,13 @@ def cancel_cod():
 
     # Preserve the existing cancellation behavior for any legacy
     # payment-selection draft that was already written to the file.
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return "Orders file not found", 404
 
     updated_rows = []
     order_found = False
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
@@ -7242,7 +7256,7 @@ def cancel_cod():
     if not order_found:
         return "Order not found", 404
 
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(updated_rows)
@@ -7272,8 +7286,8 @@ def stp_orders():
 
     results = []
 
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 row_stp_id = str(row.get("stp_id") or "").strip()
 
@@ -7316,8 +7330,8 @@ def my_orders():
         return jsonify({"error": "Please log in to view your orders."}), 401
 
     results = []
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 matches_user = bool(user_id and row.get("buyer_user_id", "") == user_id)
@@ -7351,8 +7365,8 @@ def track_order():
 
     results = []
 
-    if os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
+    if store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r") as f:
             reader = csv.DictReader(f)
 
             for row in reader:
@@ -7465,8 +7479,8 @@ def build_supply_context(selected_id):
 
     demands = []
 
-    if selected_stp and os.path.exists(ORDERS_FILE):
-        with open(ORDERS_FILE, "r") as f:
+    if selected_stp and store.exists(ORDERS_FILE):
+        with store.open(ORDERS_FILE, "r") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 
@@ -7529,13 +7543,13 @@ def build_supply_context(selected_id):
     # only provide the data that the existing template expects.
     transfer_requests = []
 
-    if selected_stp and os.path.exists(STP_TRANSFERS_FILE):
+    if selected_stp and store.exists(STP_TRANSFERS_FILE):
         selected_stp_id_for_transfers = str(
             selected_stp.get("stp_id") or ""
         ).strip()
 
         try:
-            with open(
+            with store.open(
                 STP_TRANSFERS_FILE,
                 "r",
                 newline="",
@@ -7654,7 +7668,7 @@ def handle_request():
     if action not in {"accept", "reject"}:
         return "Invalid action", 400
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or ORDER_FIELDS
 
@@ -7759,7 +7773,7 @@ def handle_request():
         return "Order not found", 404
 
     # Keep every existing order column and the new capacity timeline fields.
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
         writer.writeheader()
         for row in updated_rows:
@@ -7810,7 +7824,7 @@ def update_order_status():
     updated_rows = []
     stp_id_redirect = None
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row.get("order_id", "").strip() == order_id:
@@ -7887,7 +7901,7 @@ def update_order_status():
     if not updated:
         return jsonify({"success": False, "error": "Order not found"}), 404
 
-    with open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=ORDER_FIELDS)
         writer.writeheader()
         for row in updated_rows:
@@ -7930,7 +7944,7 @@ def tanker_mark_order_picked_up(order_id):
 
     with orders_lock:
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -7984,7 +7998,7 @@ def tanker_mark_order_picked_up(order_id):
         if not found:
             return "Order not found.", 404
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "w",
             newline="",
@@ -8025,7 +8039,7 @@ def tanker_mark_order_delivered(order_id):
 
     with orders_lock:
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -8079,7 +8093,7 @@ def tanker_mark_order_delivered(order_id):
         if not found:
             return "Order not found.", 404
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "w",
             newline="",
@@ -8163,8 +8177,8 @@ def tanker_completed_trips(operator_id, limit=50):
 
     trips = []
 
-    if os.path.exists(ORDERS_FILE) and os.path.getsize(ORDERS_FILE) > 0:
-        with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(ORDERS_FILE) and store.getsize(ORDERS_FILE) > 0:
+        with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 if str(row.get("assigned_operator_id") or "").strip() != operator_id:
                     continue
@@ -8183,8 +8197,8 @@ def tanker_completed_trips(operator_id, limit=50):
                     "delivered_at": row.get("delivered_at"),
                 })
 
-    if os.path.exists(STP_TRANSFERS_FILE) and os.path.getsize(STP_TRANSFERS_FILE) > 0:
-        with open(STP_TRANSFERS_FILE, "r", newline="", encoding="utf-8") as f:
+    if store.exists(STP_TRANSFERS_FILE) and store.getsize(STP_TRANSFERS_FILE) > 0:
+        with store.open(STP_TRANSFERS_FILE, "r", newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
                 if str(row.get("assigned_operator_id") or "").strip() != operator_id:
                     continue
@@ -8283,10 +8297,10 @@ def build_tanker_context():
     ensure_tanker_vehicles_file()
 
     if (
-        os.path.exists(TANKER_VEHICLES_FILE)
-        and os.path.getsize(TANKER_VEHICLES_FILE) > 0
+        store.exists(TANKER_VEHICLES_FILE)
+        and store.getsize(TANKER_VEHICLES_FILE) > 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "r",
             newline="",
@@ -8304,10 +8318,10 @@ def build_tanker_context():
     ensure_tanker_vehicle_documents_file()
 
     if (
-        os.path.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
-        and os.path.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) > 0
+        store.exists(TANKER_VEHICLE_DOCUMENTS_FILE)
+        and store.getsize(TANKER_VEHICLE_DOCUMENTS_FILE) > 0
     ):
-        with open(
+        with store.open(
             TANKER_VEHICLE_DOCUMENTS_FILE,
             "r",
             newline="",
@@ -8339,9 +8353,9 @@ def build_tanker_context():
     # NORMAL DEMAND ORDERS
     # =========================================================
 
-    if os.path.exists(ORDERS_FILE):
+    if store.exists(ORDERS_FILE):
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -8418,9 +8432,9 @@ def build_tanker_context():
     # STP → STP TRANSFER REQUESTS
     # =========================================================
 
-    if os.path.exists(STP_TRANSFERS_FILE):
+    if store.exists(STP_TRANSFERS_FILE):
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -8621,11 +8635,11 @@ def build_trip_history(current_operator_id):
     # =========================================================
 
     if (
-        os.path.exists(ORDERS_FILE)
-        and os.path.getsize(ORDERS_FILE) > 0
+        store.exists(ORDERS_FILE)
+        and store.getsize(ORDERS_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -8698,11 +8712,11 @@ def build_trip_history(current_operator_id):
     # =========================================================
 
     if (
-        os.path.exists(STP_TRANSFERS_FILE)
-        and os.path.getsize(STP_TRANSFERS_FILE) > 0
+        store.exists(STP_TRANSFERS_FILE)
+        and store.getsize(STP_TRANSFERS_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -8873,13 +8887,13 @@ def respond_to_tanker_request():
     new_request_status = "Accepted" if action == "accept" else "Rejected"
 
     with orders_lock:
-        if not os.path.exists(ORDERS_FILE):
+        if not store.exists(ORDERS_FILE):
             return jsonify({
                 "success": False,
                 "message": "Orders file not found."
             }), 404
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -8956,7 +8970,7 @@ def respond_to_tanker_request():
                 "message": f"Order {order_id} was not found."
             }), 404
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "w",
             newline="",
@@ -9029,8 +9043,8 @@ def api_tanker_route():
     ).strip().lower()
 
     order = None
-    if order_id and os.path.exists(ORDERS_FILE):
-        with open(
+    if order_id and store.exists(ORDERS_FILE):
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -9044,7 +9058,7 @@ def api_tanker_route():
     transfer = None
     if request_type == "stp_transfer":
         ensure_stp_transfers_file()
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -9393,11 +9407,11 @@ def upload_tanker_vehicle_document(
 
     existing_rows = []
 
-    if os.path.exists(
+    if store.exists(
         TANKER_VEHICLE_DOCUMENTS_FILE
     ):
 
-        with open(
+        with store.open(
             TANKER_VEHICLE_DOCUMENTS_FILE,
             "r",
             newline="",
@@ -9435,7 +9449,7 @@ def upload_tanker_vehicle_document(
     )
 
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "w",
         newline="",
@@ -9489,9 +9503,9 @@ def tanker_notifications():
     # NORMAL DEMAND ORDERS
     # =========================================================
 
-    if os.path.exists(ORDERS_FILE):
+    if store.exists(ORDERS_FILE):
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -9531,9 +9545,9 @@ def tanker_notifications():
     # STP TRANSFER OFFERS
     # =========================================================
 
-    if os.path.exists(STP_TRANSFERS_FILE):
+    if store.exists(STP_TRANSFERS_FILE):
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -9608,10 +9622,10 @@ def ensure_stp_transfers_file():
 
     # Create the file if it does not exist or is empty
     if (
-        not os.path.exists(STP_TRANSFERS_FILE)
-        or os.path.getsize(STP_TRANSFERS_FILE) == 0
+        not store.exists(STP_TRANSFERS_FILE)
+        or store.getsize(STP_TRANSFERS_FILE) == 0
     ):
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "w",
             newline="",
@@ -9628,7 +9642,7 @@ def ensure_stp_transfers_file():
         return
 
     # Read the existing file
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -9646,7 +9660,7 @@ def ensure_stp_transfers_file():
         return
 
     # Preserve all existing transfer data
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -9668,11 +9682,11 @@ def ensure_stp_transfers_file():
             })
 
 def _read_pricing_file(path):
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
+    if not store.exists(path) or store.getsize(path) == 0:
         return []
 
     try:
-        with open(
+        with store.open(
             path,
             "r",
             newline="",
@@ -9701,7 +9715,7 @@ def _write_pricing_files(rows):
     for path in (PRICING_FILE, DATABASE_PRICING_FILE):
         try:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(
+            with store.open(
                 path,
                 "w",
                 newline="",
@@ -9931,11 +9945,11 @@ def stp_register():
     # Save registration
     # -----------------------------
 
-    file_exists = os.path.exists(
+    file_exists = store.exists(
         STP_REGISTRATIONS_FILE
     )
 
-    with open(
+    with store.open(
         STP_REGISTRATIONS_FILE,
         "a",
         newline="",
@@ -9988,10 +10002,10 @@ def stp_order_tracking(order_id):
 
     requested_stp_id = (request.args.get("stp_id") or "").strip()
 
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return jsonify({"error": "Orders file not found"}), 404
 
-    with open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
+    with store.open(ORDERS_FILE, "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
@@ -10015,12 +10029,12 @@ def update_stp_status(registration_id, status):
     # LOAD REGISTRATIONS
     # =========================
 
-    if not os.path.exists(STP_REGISTRATIONS_FILE):
+    if not store.exists(STP_REGISTRATIONS_FILE):
         return redirect("/admin")
 
     rows = []
 
-    with open(
+    with store.open(
         STP_REGISTRATIONS_FILE,
         "r",
         newline="",
@@ -10061,7 +10075,7 @@ def update_stp_status(registration_id, status):
 
         registration["verification_status"] = "rejected"
 
-        with open(
+        with store.open(
             STP_REGISTRATIONS_FILE,
             "w",
             newline="",
@@ -10249,7 +10263,7 @@ def update_stp_status(registration_id, status):
     # SAVE REGISTRATION CSV
     # =========================
 
-    with open(
+    with store.open(
         STP_REGISTRATIONS_FILE,
         "w",
         newline="",
@@ -10308,7 +10322,7 @@ def reorder_order(order_id):
     # CHECK ORDERS FILE
     # -----------------------------------------------------
 
-    if not os.path.exists(ORDERS_FILE):
+    if not store.exists(ORDERS_FILE):
         return jsonify({
             "success": False,
             "error": "Orders file not found."
@@ -10321,7 +10335,7 @@ def reorder_order(order_id):
 
     original_order = None
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "r",
         newline="",
@@ -10462,7 +10476,7 @@ def reorder_order(order_id):
     # SAVE NEW ORDER
     # -----------------------------------------------------
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "a",
         newline="",
@@ -10834,7 +10848,7 @@ def create_stp_transfer():
     ensure_stp_transfers_file()
 
     with transfers_lock:
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "a",
             newline="",
@@ -10902,7 +10916,7 @@ def handle_transfer_request():
     if not logged_in_stp_id:
         return "No STP is assigned to this account", 403
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -11011,7 +11025,7 @@ def handle_transfer_request():
     if not found:
         return "Transfer request not found", 404
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -11879,8 +11893,8 @@ def chatbot():
 
             orders = []
 
-            if os.path.exists(ORDERS_FILE):
-                with open(
+            if store.exists(ORDERS_FILE):
+                with store.open(
                     ORDERS_FILE,
                     "r",
                     newline="",
@@ -12549,8 +12563,8 @@ def _offer_next_operator_for_order_unlocked(order_id):
 
 
     if (
-        not os.path.exists(ORDERS_FILE)
-        or os.path.getsize(ORDERS_FILE) == 0
+        not store.exists(ORDERS_FILE)
+        or store.getsize(ORDERS_FILE) == 0
     ):
         return None
 
@@ -12563,7 +12577,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
     # READ ORDERS
     # -----------------------------------------------------
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "r",
         newline="",
@@ -12625,7 +12639,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
         target_order["offer_sent_at"] = ""
         target_order["offer_expires_at"] = ""
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "w",
             newline="",
@@ -12868,7 +12882,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
         )
 
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "w",
             newline="",
@@ -12996,7 +13010,7 @@ def _offer_next_operator_for_order_unlocked(order_id):
     # SAVE ORDER
     # -----------------------------------------------------
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "w",
         newline="",
@@ -13055,12 +13069,12 @@ def process_expired_order_offers():
     with orders_lock:
 
         if (
-            not os.path.exists(ORDERS_FILE)
-            or os.path.getsize(ORDERS_FILE) == 0
+            not store.exists(ORDERS_FILE)
+            or store.getsize(ORDERS_FILE) == 0
         ):
             return
 
-        with open(
+        with store.open(
             ORDERS_FILE,
             "r",
             newline="",
@@ -13198,7 +13212,7 @@ def process_expired_order_offers():
         # Save expired state first.
         if changed:
 
-            with open(
+            with store.open(
                 ORDERS_FILE,
                 "w",
                 newline="",
@@ -13250,10 +13264,10 @@ def _offer_next_operator_for_transfer_unlocked(
 
 
     if (
-        not os.path.exists(
+        not store.exists(
             STP_TRANSFERS_FILE
         )
-        or os.path.getsize(
+        or store.getsize(
             STP_TRANSFERS_FILE
         ) == 0
     ):
@@ -13268,7 +13282,7 @@ def _offer_next_operator_for_transfer_unlocked(
     # READ TRANSFERS
     # -----------------------------------------------------
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -13310,7 +13324,7 @@ def _offer_next_operator_for_transfer_unlocked(
         target_transfer["offer_sent_at"] = ""
         target_transfer["offer_expires_at"] = ""
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "w",
             newline="",
@@ -13544,7 +13558,7 @@ def _offer_next_operator_for_transfer_unlocked(
         ] = "Waiting for Operator"
 
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "w",
             newline="",
@@ -13652,7 +13666,7 @@ def _offer_next_operator_for_transfer_unlocked(
     # SAVE
     # -----------------------------------------------------
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -13723,12 +13737,12 @@ def process_expired_transfer_offers():
     with transfers_lock:
 
         if (
-            not os.path.exists(STP_TRANSFERS_FILE)
-            or os.path.getsize(STP_TRANSFERS_FILE) == 0
+            not store.exists(STP_TRANSFERS_FILE)
+            or store.getsize(STP_TRANSFERS_FILE) == 0
         ):
             return
 
-        with open(
+        with store.open(
             STP_TRANSFERS_FILE,
             "r",
             newline="",
@@ -13866,7 +13880,7 @@ def process_expired_transfer_offers():
 
         if changed:
 
-            with open(
+            with store.open(
                 STP_TRANSFERS_FILE,
                 "w",
                 newline="",
@@ -13970,7 +13984,7 @@ def admin_tanker_operator_details(operator_id):
 
     ensure_tanker_vehicles_file()
 
-    with open(
+    with store.open(
         TANKER_VEHICLES_FILE,
         "r",
         newline="",
@@ -14000,7 +14014,7 @@ def admin_tanker_operator_details(operator_id):
 
     ensure_tanker_vehicle_documents_file()
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "r",
         newline="",
@@ -14118,7 +14132,7 @@ def admin_view_tanker_document(document_id):
     document = None
 
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "r",
         newline="",
@@ -14234,7 +14248,7 @@ def admin_review_tanker_document(
     ensure_tanker_vehicle_documents_file()
 
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "r",
         newline="",
@@ -14286,7 +14300,7 @@ def admin_review_tanker_document(
         )
 
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "w",
         newline="",
@@ -14459,12 +14473,12 @@ def build_tanker_reports_context():
 
 
     if (
-        os.path.exists(TANKER_VEHICLES_FILE)
+        store.exists(TANKER_VEHICLES_FILE)
         and
-        os.path.getsize(TANKER_VEHICLES_FILE) > 0
+        store.getsize(TANKER_VEHICLES_FILE) > 0
     ):
 
-        with open(
+        with store.open(
             TANKER_VEHICLES_FILE,
             "r",
             newline="",
@@ -14497,7 +14511,7 @@ def build_tanker_reports_context():
     ensure_tanker_vehicle_documents_file()
 
 
-    with open(
+    with store.open(
         TANKER_VEHICLE_DOCUMENTS_FILE,
         "r",
         newline="",
@@ -14663,7 +14677,7 @@ def _accept_pickup_locked():
     # READ ORDERS
     # =========================================================
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "r",
         newline="",
@@ -14869,7 +14883,7 @@ def _accept_pickup_locked():
     # SAVE
     # =========================================================
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "w",
         newline="",
@@ -15069,7 +15083,7 @@ def _reject_pickup_locked():
     # READ ORDER
     # =========================================================
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "r",
         newline="",
@@ -15243,7 +15257,7 @@ def _reject_pickup_locked():
     # SAVE REJECTION FIRST
     # =========================================================
 
-    with open(
+    with store.open(
         ORDERS_FILE,
         "w",
         newline="",
@@ -15337,7 +15351,7 @@ def _accept_transfer_pickup_locked():
     # READ TRANSFERS
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -15537,7 +15551,7 @@ def _accept_transfer_pickup_locked():
     # SAVE
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -15673,7 +15687,7 @@ def _reject_transfer_pickup_locked():
     # READ TRANSFER
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -15842,7 +15856,7 @@ def _reject_transfer_pickup_locked():
     # SAVE REJECTION FIRST
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -15930,7 +15944,7 @@ def _complete_transfer_locked():
     # READ TRANSFERS
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "r",
         newline="",
@@ -16172,7 +16186,7 @@ def _complete_transfer_locked():
     # SAVE TRANSFER
     # =========================================================
 
-    with open(
+    with store.open(
         STP_TRANSFERS_FILE,
         "w",
         newline="",
@@ -16382,7 +16396,7 @@ def upload_ocems_report():
     }
 
 
-    with open(
+    with store.open(
         OCEMS_SUBMISSIONS_FILE,
         "a",
         newline="",
@@ -16420,7 +16434,7 @@ def admin_view_ocems(submission_id):
 
     submission = None
 
-    with open(
+    with store.open(
         OCEMS_SUBMISSIONS_FILE,
         "r",
         newline="",
@@ -16545,7 +16559,7 @@ def admin_review_ocems(submission_id):
     submission = None
 
 
-    with open(
+    with store.open(
         OCEMS_SUBMISSIONS_FILE,
         "r",
         newline="",
@@ -16672,12 +16686,12 @@ def admin_review_ocems(submission_id):
 
         if source_path.lower().endswith(".xlsx"):
 
-            with open(
+            with store.open(
                 source_path,
                 "rb"
             ) as source:
 
-                with open(
+                with store.open(
                     active_path,
                     "wb"
                 ) as destination:
@@ -16737,7 +16751,7 @@ def admin_review_ocems(submission_id):
     # SAVE CSV
     # -----------------------------------------
 
-    with open(
+    with store.open(
         OCEMS_SUBMISSIONS_FILE,
         "w",
         newline="",
