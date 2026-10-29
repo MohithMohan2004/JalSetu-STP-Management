@@ -1,6 +1,7 @@
+import { useState, type FormEvent } from "react";
 import { Marker } from "react-leaflet";
 import {
-  AtSign, Building2, CircleCheck, ClipboardList, Droplets, Factory, Gauge, IdCard, LogOut, Mail, MapPin, Phone,
+  AtSign, Building2, CircleCheck, ClipboardList, Droplets, Factory, Gauge, IdCard, LogOut, Pencil, Mail, MapPin, Phone,
   Radar, ShieldCheck, Truck,
 } from "lucide-react";
 import { AppShell } from "../components/AppShell";
@@ -8,7 +9,9 @@ import { publicNav, roleNav } from "../components/nav";
 import { Avatar, ROLE_META, UserMenu } from "../components/UserMenu";
 import { InvalidateOnResize, MapFrame, pinIcon } from "../components/map";
 import { Empty, Notice, SkeletonRows, StatusBadge } from "../components/ui";
-import { getJSON } from "../lib/api";
+import { Dialog } from "../components/Dialog";
+import { getJSON, postJSON } from "../lib/api";
+import { useToast } from "../lib/toast";
 import { useAsync } from "../lib/useAsync";
 import { initials, num, when } from "../lib/format";
 import type { Stp } from "../lib/types";
@@ -26,6 +29,7 @@ export default function Profile() {
   const role = p.data?.role ?? "";
   const meta = ROLE_META[role];
   const nav = roleNav[role] ?? publicNav;
+  const [editing, setEditing] = useState(false);
 
   return (
     <AppShell nav={nav} title="Profile" subtitle="Your account and organisation details" actions={<UserMenu />}>
@@ -48,6 +52,7 @@ export default function Profile() {
               </div>
             </div>
             <div className="profile-actions">
+              {p.data && <button type="button" className="btn btn-secondary" onClick={() => setEditing(true)}><Pencil /> Edit profile</button>}
               {meta && <a className="btn btn-secondary" href={meta.home}>Open dashboard</a>}
               <a className="btn btn-danger" href="/logout"><LogOut /> Sign out</a>
             </div>
@@ -71,11 +76,49 @@ export default function Profile() {
         ) : null}
 
         <p className="profile-note">
-          <ShieldCheck size={14} /> To change your name, email or phone number, contact the network administrator so
-          linked orders and registrations stay consistent.
+          <ShieldCheck size={14} /> Your email is your sign-in and can't be changed here. Edits to your name apply to new
+          orders and activity; existing records keep the name they were created with.
         </p>
       </main>
+      {editing && p.data && (
+        <EditDialog data={p.data} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); window.location.reload(); }} />
+      )}
     </AppShell>
+  );
+}
+
+function EditDialog({ data, onClose, onSaved }: { data: ProfileData; onClose: () => void; onSaved: () => void }) {
+  const toast = useToast();
+  const [f, setF] = useState({ first_name: data.first_name, last_name: data.last_name, username: data.username, mobile: data.mobile });
+  const [saving, setSaving] = useState(false);
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await postJSON("/api/profile", f);
+      toast("Profile updated.", "success");
+      onSaved();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not save profile", "danger");
+      setSaving(false);
+    }
+  }
+  return (
+    <Dialog title="Edit profile" onClose={onClose}>
+      <form onSubmit={save} className="stack">
+        <div className="grid grid-2">
+          <label className="field"><span className="field-label">First name</span><input className="input" required value={f.first_name} onChange={set("first_name")} /></label>
+          <label className="field"><span className="field-label">Last name</span><input className="input" value={f.last_name} onChange={set("last_name")} /></label>
+        </div>
+        <label className="field"><span className="field-label">Username</span><input className="input" value={f.username} onChange={set("username")} /></label>
+        <label className="field"><span className="field-label">Mobile</span><input className="input" inputMode="tel" value={f.mobile} onChange={set("mobile")} placeholder="+91 98765 43210" /></label>
+        <div className="row" style={{ justifyContent: "flex-end", gap: 8 }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 
