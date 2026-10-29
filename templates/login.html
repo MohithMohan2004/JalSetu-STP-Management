@@ -98,15 +98,18 @@
             <form method="POST" action="{{ url_for('login') }}" id="loginForm">
 
                 <div class="field">
-                    <label for="login_identifier">Username or email</label>
+                    <label for="login_identifier">Email</label>
                     <div class="input-wrap">
                         <svg class="lead" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
                         <input
                             id="login_identifier"
-                            type="text"
+                            type="email"
                             name="login_identifier"
                             placeholder="you@example.com"
                             autocomplete="username"
+                            autocapitalize="none"
+                            autocorrect="off"
+                            spellcheck="false"
                             required
                             autofocus
                         >
